@@ -62,7 +62,13 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                scalar \
                null_args \
                tst_dimsizes \
-               redef1
+               redef1 \
+			   log \
+			   #test_log \
+			   #test_logi \
+			   #test_log_simple \
+			   #test_logi_simple \
+			   logi 
 
 M4_SRCS  = erange_fill.m4
 

@@ -890,15 +890,14 @@ typedef struct NC_Log {
 	size_t* MetaOffset;	/* metadata offset list */
 	size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
 	size_t MetaOffsetHead;	/* used space of metadata offset list */
-	int Fid;	/* ncid of the CDF file */
 	int DeleteOnClose;	/* Delete log on close or not */
 	struct NC* Parent; /* NC structure hosting this log structure */
 	int Flushing;
 } NC_Log;
 
 int ncmpii_log_get_comm(NC_Log *nclogp, MPI_Comm *comm);
-int ncmpii_log_create(MPI_Comm comm, const char* path, int ncid, const char* BufferDir, NC* Parent, NC_Log **nclogp);
-int ncmpii_log_open(MPI_Comm comm, const char* path, int ncid, const char* BufferDir, NC* Parent, NC_Log **nclogp);
+int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC* Parent, NC_Log **nclogp);
+int ncmpii_log_open(MPI_Comm comm, const char* path, const char* BufferDir, NC* Parent, NC_Log **nclogp);
 int ncmpii_logi_put_var(NC_Log *nclogp, int32_t api_kind, int32_t itype, int varid, int ndim, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], const void *ip);
 int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);
 int ncmpii_log_close(NC_Log *nclogp);
