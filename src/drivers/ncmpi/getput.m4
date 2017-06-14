@@ -272,7 +272,7 @@ ncmpii_create_imaptype(NC_var           *varp,
      8. unpack lbuf to buf based on buftype
 */
 
-static int
+/*static*/ int
 ncmpii_getput_varm(NC               *ncp,
                    NC_var           *varp,
                    const MPI_Offset  start[],
@@ -413,6 +413,11 @@ err_check:
 
         /* lbuf is no longer needed */
         if (lbuf != buf && lbuf != cbuf) NCI_Free(lbuf);
+
+		/* If log is enable */
+		if (ncp->nclogp != NULL){
+			return ncmpii_log_put_var(ncp->nclogp, varp, start, count, stride, cbuf, buftype, position);
+		}
 
         /* Step 3: pack cbuf to xbuf. The contents of xbuf will be in the
          * external representation, ready to be written to file.

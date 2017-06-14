@@ -794,10 +794,14 @@ err_check:
         do_write = (num_w_reqs > 0);
     }
 
-    /* carry out writes and reads separately (writes first) */
-    if (do_write > 0)
-        err = ncmpii_wait_getput(ncp, num_w_reqs, put_list, WRITE_REQ,
-                                 io_method, newnumrecs);
+    /* carry out writes and reads separately (writes first) 
+	 * disable write when logging is enabled, it will be write at flushing stage
+	 */
+	if (ncp->nclogp == NULL || ncp->nclogp->Flushing){
+		if (do_write > 0)
+			err = ncmpii_wait_getput(ncp, num_w_reqs, put_list, WRITE_REQ,
+									 io_method, newnumrecs);
+	}
 
     if (do_read > 0)
         err = ncmpii_wait_getput(ncp, num_r_reqs, get_list, READ_REQ,

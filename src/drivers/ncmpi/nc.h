@@ -14,6 +14,12 @@
 #include <stddef.h>     /* size_t */
 #include <sys/types.h>  /* off_t */
 
+/* TODO: Switch to unix io
+ * Std file io for logging
+ */
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <dispatch.h>
 #include "ncmpi_dispatch.h"
 #include "ncio.h"       /* ncio */
@@ -432,6 +438,8 @@ struct NC {
     NC_req       *get_list;    /* list of nonblocking read requests */
     NC_req       *put_list;    /* list of nonblocking write requests */
     NC_buf       *abuf;        /* attached buffer, used by bput APIs */
+
+	struct NC_Log		 *nclogp;	/* Log io structure, if log is not used, this should be set to null */
 };
 
 #define NC_readonly(ncp) \
@@ -787,5 +795,113 @@ ncmpii_getput_zero_req(NC *ncp, int rw_flag);
 
 extern int
 ncmpii_NC_check_vlens(NC *ncp);
+
+#define NC_LOG_SUCCESS 0
+#define NC_LOG_ERR_LOG_CORRUPTED -1
+#define NC_LOG_ERR_INVALID_ID -2
+#define NC_LOG_ERR_LOG_CREATE -3
+#define NC_LOG_ERR_RECORD_CORRUPTED -4
+#define NC_LOG_ERR_MEM_ALLOC -4
+#define NC_LOG_ERR_UNKNOWN -5
+#define NC_LOG_ERR_BASENAME_NOT_EQUAL -6
+
+#define NC_LOG_TYPE_TEXT 1
+#define NC_LOG_TYPE_SCHAR 2
+#define NC_LOG_TYPE_UCHAR 3
+#define NC_LOG_TYPE_SHORT 4
+#define NC_LOG_TYPE_USHORT 5
+#define NC_LOG_TYPE_INT 6
+#define NC_LOG_TYPE_UINT 7
+#define NC_LOG_TYPE_FLOAT 8
+#define NC_LOG_TYPE_DOUBLE 9
+#define NC_LOG_TYPE_LONGLONG 10
+#define NC_LOG_TYPE_ULONGLONG 11
+#define NC_LOG_TYPE_NATIVE 12
+
+#define NC_LOG_API_KIND_VAR 1
+#define NC_LOG_API_KIND_VAR1 2
+#define NC_LOG_API_KIND_VARA 3
+#define NC_LOG_API_KIND_VARS 4
+
+#define NC_LOG_MAGIC_SIZE 8
+#define NC_LOG_MAGIC "PnetCDF\0"
+
+#define NC_LOG_FORMAT_SIZE 8
+#define NC_LOG_FORMAT_CDF_MAGIC "CDF\0\0\0\0\0"
+#define NC_LOG_FORMAT_HDF5_MAGIC "\211HDF\r\n\032\n"
+#define NC_LOG_FORMAT_BP_MAGIC "BP\0\0\0\0\0\0"
+
+#define NC_LOG_FALSE 0x00
+#define NC_LOG_TRUE 0x01
+
+/* PATH_MAX after padding to 4 byte allignment */
+#if PATH_MAX % 4 == 0
+#define NC_LOG_PATH_MAX 64
+#elif PATH_MAX % 4 == 1
+#define NC_LOG_PATH_MAX PATH_MAX + 3
+#elif PATH_MAX % 4 == 2
+#define NC_LOG_PATH_MAX PATH_MAX + 2
+#elif PATH_MAX % 4 == 3
+#define NC_LOG_PATH_MAX PATH_MAX + 1
+#endif
+
+/* Metadata header
+ * * Variable named according to the spec
+ * */
+typedef struct NC_Log_metadataheader {
+	char magic[NC_LOG_MAGIC_SIZE];
+	char format[NC_LOG_MAGIC_SIZE];
+	int32_t big_endian;
+	int32_t is_external;
+	int64_t num_ranks;
+	int64_t rank_id;
+	int64_t entry_begin;
+	int64_t max_ndims;
+	int64_t num_entries;
+	char basename[NC_LOG_PATH_MAX];
+} NC_Log_metadataheader;
+
+/* Metadata entry header 
+ * * Variable named according to the spec
+ * */
+typedef struct NC_Log_metadataentry {
+	int64_t esize;
+	int32_t api_kind;
+	int32_t itype;
+	int64_t varid;
+	int64_t ndims;
+	int64_t data_off;
+	int64_t data_len;
+} NC_Log_metadataentry;
+
+/* Log structure */
+typedef struct NC_Log {
+	char Path[NC_LOG_PATH_MAX];	/* path of the CDF file */
+	char MetaPath[NC_LOG_PATH_MAX];	/* path of metadata log */	
+	char DataPath[NC_LOG_PATH_MAX];	/* path of data log */
+	FILE* MetaLog;	/* file handle of metadata log */
+	FILE* DataLog;	/* file handle of data log */
+	MPI_Offset MaxSize;	/* max data size in byte among all log entries */ 
+	char* Metadata;	/* metadata buffer */
+	size_t MetaBufferSize;	/* size of metadata buffer */
+	size_t MetaHead;	/* used size of metadata buffer */
+	NC_Log_metadataheader MetaHeader;	/* metadata header */
+	MPI_Comm Communitator;	/* communicator of associate with the CDF file */
+	size_t* MetaOffset;	/* metadata offset list */
+	size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
+	size_t MetaOffsetHead;	/* used space of metadata offset list */
+	int Fid;	/* ncid of the CDF file */
+	int DeleteOnClose;	/* Delete log on close or not */
+	struct NC* Parent; /* NC structure hosting this log structure */
+	int Flushing;
+} NC_Log;
+
+int ncmpii_log_get_comm(NC_Log *nclogp, MPI_Comm *comm);
+int ncmpii_log_create(MPI_Comm comm, const char* path, int ncid, const char* BufferDir, NC* Parent, NC_Log **nclogp);
+int ncmpii_log_open(MPI_Comm comm, const char* path, int ncid, const char* BufferDir, NC* Parent, NC_Log **nclogp);
+int ncmpii_logi_put_var(NC_Log *nclogp, int32_t api_kind, int32_t itype, int varid, int ndim, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], const void *ip);
+int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);
+int ncmpii_log_close(NC_Log *nclogp);
+int ncmpii_log_flush(NC_Log *nclogp);
 
 #endif /* _NC_H */

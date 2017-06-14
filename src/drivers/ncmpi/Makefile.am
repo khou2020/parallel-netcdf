@@ -58,7 +58,8 @@ C_SRCS = ncmpi_dispatch.c \
          vard.c \
          fill.c \
          util.c \
-         hash_func.c
+         hash_func.c \
+		 log.c
 
 $(M4_SRCS:.m4=.c): Makefile
 

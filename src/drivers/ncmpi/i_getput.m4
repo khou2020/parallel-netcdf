@@ -149,6 +149,17 @@ ncmpii_igetput_varm(NC               *ncp,
     MPI_Datatype ptype, imaptype=MPI_DATATYPE_NULL;
     NC_req *req;
 
+	if (ncp->nclogp != NULL && rw_flag == WRITE_REQ){
+		// Disable logging when the log is flushing via this api 
+		if (!ncp->nclogp->Flushing){
+			err = ncmpii_getput_varm(ncp, varp, start, count, stride, imap, buf, bufcount, buftype, rw_flag, INDEP_IO);
+			if (err != NC_NOERR){
+				*reqid = NC_REQ_NULL;
+				return err;				
+			}
+		}
+	}
+
     /* calculate the followings:
      * ptype: element data type (MPI primitive type) in buftype
      * bufcount: If it is -1, then this is called from a high-level API and in
@@ -276,6 +287,12 @@ ncmpii_igetput_varm(NC               *ncp,
         }
         else /* not a true varm call: reuse lbuf */
             cbuf = lbuf;
+		
+		/* If log is enable */
+		/*
+		if (ncp->nclogp != NULL){
+			ncmpii_log_put_var(ncp->nclogp, varp, start, count, stride, cbuf, buftype, position);
+		}*/
 
         /* Step 3: type-convert and byte-swap cbuf to xbuf, and xbuf will be
          * used in MPI write function to write to file
