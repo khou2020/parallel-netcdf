@@ -462,6 +462,13 @@ ncmpii_open(MPI_Comm    comm,
         if (flag) chunksize = strtoll(value,NULL,10);
 	}
 
+    /* allocate NC file object */
+    ncp = ncmpii_new_NC(&chunksize);
+    if (ncp == NULL) {
+        if (env_info != MPI_INFO_NULL) MPI_Info_free(&env_info);
+        DEBUG_RETURN_ERROR(NC_ENOMEM)
+    }
+	
 	/* get log hints from user info */
 	ncp->nclogp = NULL;
 	if (env_info != MPI_INFO_NULL) {
@@ -489,15 +496,8 @@ ncmpii_open(MPI_Comm    comm,
 			}
 		}
 	}
-
-    /* allocate NC file object */
-    ncp = ncmpii_new_NC(&chunksize);
-    if (ncp == NULL) {
-        if (env_info != MPI_INFO_NULL) MPI_Info_free(&env_info);
-        DEBUG_RETURN_ERROR(NC_ENOMEM)
-    }
-
-    ncp->safe_mode = safe_mode;
+    
+	ncp->safe_mode = safe_mode;
     ncp->old       = NULL;
 #ifdef ENABLE_SUBFILING
     ncp->subfile_mode = 1;
