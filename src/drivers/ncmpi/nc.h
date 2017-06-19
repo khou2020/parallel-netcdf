@@ -439,7 +439,7 @@ struct NC {
     NC_req       *put_list;    /* list of nonblocking write requests */
     NC_buf       *abuf;        /* attached buffer, used by bput APIs */
 
-	struct NC_Log		 *nclogp;	/* Log io structure, if log is not used, this should be set to null */
+    struct NC_Log         *nclogp;    /* Log io structure, if log is not used, this should be set to null */
 };
 
 #define NC_readonly(ncp) \
@@ -628,6 +628,8 @@ NC_computeshapes(NC *ncp);
 /* begin defined in error.c */
 
 int ncmpii_handle_error(int mpi_errorcode, char *msg);
+
+int ncmpii_handle_io_error(char *msg);
 
 /* end defined in error.c */
 /*
@@ -849,50 +851,52 @@ ncmpii_NC_check_vlens(NC *ncp);
  * * Variable named according to the spec
  * */
 typedef struct NC_Log_metadataheader {
-	char magic[NC_LOG_MAGIC_SIZE];
-	char format[NC_LOG_MAGIC_SIZE];
-	int32_t big_endian;
-	int32_t is_external;
-	int64_t num_ranks;
-	int64_t rank_id;
-	int64_t entry_begin;
-	int64_t max_ndims;
-	int64_t num_entries;
-	char basename[NC_LOG_PATH_MAX];
+    char magic[NC_LOG_MAGIC_SIZE];
+    char format[NC_LOG_MAGIC_SIZE];
+    int32_t big_endian;
+    int32_t is_external;
+    int64_t num_ranks;
+    int64_t rank_id;
+    int64_t entry_begin;
+    int64_t max_ndims;
+    int64_t num_entries;
+    char basename[NC_LOG_PATH_MAX];
 } NC_Log_metadataheader;
 
 /* Metadata entry header 
  * * Variable named according to the spec
  * */
 typedef struct NC_Log_metadataentry {
-	int64_t esize;
-	int32_t api_kind;
-	int32_t itype;
-	int64_t varid;
-	int64_t ndims;
-	int64_t data_off;
-	int64_t data_len;
+    int64_t esize;
+    int32_t api_kind;
+    int32_t itype;
+    int64_t varid;
+    int64_t ndims;
+    int64_t data_off;
+    int64_t data_len;
 } NC_Log_metadataentry;
 
 /* Log structure */
 typedef struct NC_Log {
-	char Path[NC_LOG_PATH_MAX];	/* path of the CDF file */
-	char MetaPath[NC_LOG_PATH_MAX];	/* path of metadata log */	
-	char DataPath[NC_LOG_PATH_MAX];	/* path of data log */
-	FILE* MetaLog;	/* file handle of metadata log */
-	FILE* DataLog;	/* file handle of data log */
-	MPI_Offset MaxSize;	/* max data size in byte among all log entries */ 
-	char* Metadata;	/* metadata buffer */
-	size_t MetaBufferSize;	/* size of metadata buffer */
-	size_t MetaHead;	/* used size of metadata buffer */
-	NC_Log_metadataheader MetaHeader;	/* metadata header */
-	MPI_Comm Communitator;	/* communicator of associate with the CDF file */
-	size_t* MetaOffset;	/* metadata offset list */
-	size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
-	size_t MetaOffsetHead;	/* used space of metadata offset list */
-	int DeleteOnClose;	/* Delete log on close or not */
-	struct NC* Parent; /* NC structure hosting this log structure */
-	int Flushing;
+    char Path[NC_LOG_PATH_MAX];    /* path of the CDF file */
+    char MetaPath[NC_LOG_PATH_MAX];    /* path of metadata log */    
+    char DataPath[NC_LOG_PATH_MAX];    /* path of data log */
+    //FILE* MetaLog;    /* file handle of metadata log */
+    //FILE* DataLog;    /* file handle of data log */
+    int MetaLog;    /* file handle of metadata log */
+    int DataLog;    /* file handle of data log */
+	MPI_Offset MaxSize;    /* max data size in byte among all log entries */ 
+    char* Metadata;    /* metadata buffer */
+    size_t MetaBufferSize;    /* size of metadata buffer */
+    size_t MetaHead;    /* used size of metadata buffer */
+    NC_Log_metadataheader MetaHeader;    /* metadata header */
+    MPI_Comm Communitator;    /* communicator of associate with the CDF file */
+    size_t* MetaOffset;    /* metadata offset list */
+    size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
+    size_t MetaOffsetHead;    /* used space of metadata offset list */
+    int DeleteOnClose;    /* Delete log on close or not */
+    struct NC* Parent; /* NC structure hosting this log structure */
+    int Flushing;
 } NC_Log;
 
 int ncmpii_log_get_comm(NC_Log *nclogp, MPI_Comm *comm);

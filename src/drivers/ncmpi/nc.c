@@ -1356,9 +1356,9 @@ ncmpii_close(void *ncdp)
     int err=NC_NOERR, status=NC_NOERR;
     NC *ncp = (NC*)ncdp;
 
-	if (ncp->nclogp != NULL){
-		err = ncmpii_log_close(ncp->nclogp);
-	}
+    if (ncp->nclogp != NULL){
+        err = ncmpii_log_close(ncp->nclogp);
+    }
 
     if (NC_indef(ncp)) { /* currently in define mode */
         status = ncmpiio_enddef(ncp); /* TODO: defaults */

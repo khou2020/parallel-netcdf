@@ -777,7 +777,7 @@ err_check:
         TRACE_COMM(MPI_Allreduce)(io_req, do_io, 4, MPI_OFFSET, MPI_MAX,
                                   ncp->nciop->comm);
         if (mpireturn != MPI_SUCCESS)
- 	    return ncmpii_handle_error(mpireturn, "MPI_Allreduce"); 
+         return ncmpii_handle_error(mpireturn, "MPI_Allreduce"); 
 
         /* if error occurs, return the API collectively */
         if (do_io[2] != -NC_NOERR) return err;
@@ -795,13 +795,13 @@ err_check:
     }
 
     /* carry out writes and reads separately (writes first) 
-	 * disable write when logging is enabled, it will be write at flushing stage
-	 */
-	if (ncp->nclogp == NULL || ncp->nclogp->Flushing){
-		if (do_write > 0)
-			err = ncmpii_wait_getput(ncp, num_w_reqs, put_list, WRITE_REQ,
-									 io_method, newnumrecs);
-	}
+     * disable write when logging is enabled, it will be write at flushing stage
+     */
+    if (ncp->nclogp == NULL || ncp->nclogp->Flushing){
+        if (do_write > 0)
+            err = ncmpii_wait_getput(ncp, num_w_reqs, put_list, WRITE_REQ,
+                                     io_method, newnumrecs);
+    }
 
     if (do_read > 0)
         err = ncmpii_wait_getput(ncp, num_r_reqs, get_list, READ_REQ,
@@ -821,9 +821,9 @@ err_check:
          * only when the buffer itself has been byte-swapped before,
          * i.e. NOT buftype_is_contig && NOT ncmpii_need_convert() &&
          * ncmpii_need_swap()
-	 * For requests that write to record variables for more than one
-	 * record, only the request containing the lead record does this (it
-	 * does swap for the entire request)
+     * For requests that write to record variables for more than one
+     * record, only the request containing the lead record does this (it
+     * does swap for the entire request)
          */
         if (put_list[i].num_recs > 0 && put_list[i].need_swap_back_buf)
             ncmpii_in_swapn(put_list[i].buf,
@@ -989,32 +989,32 @@ ncmpii_wait(void *ncdp,
 
     if (io_method == INDEP_IO) {
         /* ncmpi_wait() is an independent call
-	 * Argument num_reqs can be NC_REQ_ALL which means to flush all pending
-	 * nonblocking requests. In this case, arguments req_ids and statuses
-	 * will be ignored.
-	 * Argument num_reqs must either be NC_REQ_ALL, NC_GET_REQ_ALL,
-	 * NC_PUT_REQ_ALL, or a non-negative value.
-	 * Argument statuses can be NULL, meaning the caller only cares about
-	 * the error code returned by this call, but not the statuses of
-	 * individual nonblocking requests.
+     * Argument num_reqs can be NC_REQ_ALL which means to flush all pending
+     * nonblocking requests. In this case, arguments req_ids and statuses
+     * will be ignored.
+     * Argument num_reqs must either be NC_REQ_ALL, NC_GET_REQ_ALL,
+     * NC_PUT_REQ_ALL, or a non-negative value.
+     * Argument statuses can be NULL, meaning the caller only cares about
+     * the error code returned by this call, but not the statuses of
+     * individual nonblocking requests.
          */
         if (num_reqs == 0) return NC_NOERR;
 
-	/* This is called from ncmpi_wait which must be called in independent
-	 * data mode, illegal in collective mode.
+    /* This is called from ncmpi_wait which must be called in independent
+     * data mode, illegal in collective mode.
          */
         if (!NC_indep(ncp)) DEBUG_RETURN_ERROR(NC_ENOTINDEP);
     }
     else {
         /* ncmpi_wait_all() is a collective call
          * Argument num_reqs can be NC_REQ_ALL which means to flush all pending
-	 * nonblocking requests. In this case, arguments req_ids and statuses
-	 * will be ignored.
-	 * Argument num_reqs must either be NC_REQ_ALL, NC_GET_REQ_ALL,
-	 * NC_PUT_REQ_ALL, or a non-negative value.
-	 * Argument statuses can be NULL, meaning the caller only cares about
-	 * the error code returned by this call, but not the statuses of
-	 * individual nonblocking requests.
+     * nonblocking requests. In this case, arguments req_ids and statuses
+     * will be ignored.
+     * Argument num_reqs must either be NC_REQ_ALL, NC_GET_REQ_ALL,
+     * NC_PUT_REQ_ALL, or a non-negative value.
+     * Argument statuses can be NULL, meaning the caller only cares about
+     * the error code returned by this call, but not the statuses of
+     * individual nonblocking requests.
          */
         /* the following line CANNOT be added, because ncmpi_wait_all() is a
          * collective call, all processes must participate some MPI collective

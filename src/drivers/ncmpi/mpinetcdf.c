@@ -267,33 +267,33 @@ ncmpii_create(MPI_Comm     comm,
         DEBUG_RETURN_ERROR(NC_ENOMEM)
     }
 
-	/* get log hints from user info */
-	ncp->nclogp = NULL;
-	if (env_info != MPI_INFO_NULL) {
-		int flag;
-		char value[MPI_MAX_INFO_VAL];
-		MPI_Info_get(env_info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
+    /* get log hints from user info */
+    ncp->nclogp = NULL;
+    if (env_info != MPI_INFO_NULL) {
+        int flag;
+        char value[MPI_MAX_INFO_VAL];
+        MPI_Info_get(env_info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
 
-		/* If pnetcdf_log is enable, enable log */
-		if (flag && (strcasecmp(value, "enable") == 0)){	
-			/* Get log base from hint pnetcdf_log_base, if not set, use CWD */
-			MPI_Info_get(env_info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, value, &flag);
-			if (flag){
-				ncmpii_log_create(comm, path, value, ncp, &(ncp->nclogp));
-			}	
-			else{
-				ncmpii_log_create(comm, path, ".", ncp, &(ncp->nclogp));
-			}
-			/* If pnetcdf_log_keep is enabled, keep log after flushing */
-			MPI_Info_get(env_info, "pnetcdf_log_keep", MPI_MAX_INFO_VAL - 1, value, &flag);
-			if (flag && (strcasecmp(value, "enable") == 0)){
-				ncp->nclogp->DeleteOnClose = NC_LOG_FALSE;
-			}
-			else{
-				ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
-			}
-		}
-	}
+        /* If pnetcdf_log is enable, enable log */
+        if (flag && (strcasecmp(value, "enable") == 0)){    
+            /* Get log base from hint pnetcdf_log_base, if not set, use CWD */
+            MPI_Info_get(env_info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag){
+                ncmpii_log_create(comm, path, value, ncp, &(ncp->nclogp));
+            }    
+            else{
+                ncmpii_log_create(comm, path, ".", ncp, &(ncp->nclogp));
+            }
+            /* If pnetcdf_log_keep is enabled, keep log after flushing */
+            MPI_Info_get(env_info, "pnetcdf_log_keep", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag && (strcasecmp(value, "enable") == 0)){
+                ncp->nclogp->DeleteOnClose = NC_LOG_FALSE;
+            }
+            else{
+                ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
+            }
+        }
+    }
 
     ncp->safe_mode = safe_mode;
     ncp->abuf      = NULL;
@@ -460,7 +460,7 @@ ncmpii_open(MPI_Comm    comm,
         MPI_Info_get(env_info, "nc_header_read_chunk_size", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag) chunksize = strtoll(value,NULL,10);
-	}
+    }
 
     /* allocate NC file object */
     ncp = ncmpii_new_NC(&chunksize);
@@ -468,36 +468,36 @@ ncmpii_open(MPI_Comm    comm,
         if (env_info != MPI_INFO_NULL) MPI_Info_free(&env_info);
         DEBUG_RETURN_ERROR(NC_ENOMEM)
     }
-	
-	/* get log hints from user info */
-	ncp->nclogp = NULL;
-	if (env_info != MPI_INFO_NULL) {
-		int flag;
-		char value[MPI_MAX_INFO_VAL];
-		MPI_Info_get(env_info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
-
-		/* If pnetcdf_log is enable, enable log */
-		if (flag && (strcasecmp(value, "enable") == 0)){	
-			/* Get log base from hint pnetcdf_log_base, if not set, use CWD */
-			MPI_Info_get(env_info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, value, &flag);
-			if (flag){
-				ncmpii_log_open(comm, path, value, ncp, &(ncp->nclogp));
-			}	
-			else{
-				ncmpii_log_open(comm, path, ".", ncp, &(ncp->nclogp));
-			}
-			/* If pnetcdf_log_keep is enabled, keep log after flushing */
-			MPI_Info_get(env_info, "pnetcdf_log_keep", MPI_MAX_INFO_VAL - 1, value, &flag);
-			if (flag && (strcasecmp(value, "enable") == 0)){
-				ncp->nclogp->DeleteOnClose = NC_LOG_FALSE;
-			}
-			else{
-				ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
-			}
-		}
-	}
     
-	ncp->safe_mode = safe_mode;
+    /* get log hints from user info */
+    ncp->nclogp = NULL;
+    if (env_info != MPI_INFO_NULL) {
+        int flag;
+        char value[MPI_MAX_INFO_VAL];
+        MPI_Info_get(env_info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
+
+        /* If pnetcdf_log is enable, enable log */
+        if (flag && (strcasecmp(value, "enable") == 0)){    
+            /* Get log base from hint pnetcdf_log_base, if not set, use CWD */
+            MPI_Info_get(env_info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag){
+                ncmpii_log_open(comm, path, value, ncp, &(ncp->nclogp));
+            }    
+            else{
+                ncmpii_log_open(comm, path, ".", ncp, &(ncp->nclogp));
+            }
+            /* If pnetcdf_log_keep is enabled, keep log after flushing */
+            MPI_Info_get(env_info, "pnetcdf_log_keep", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag && (strcasecmp(value, "enable") == 0)){
+                ncp->nclogp->DeleteOnClose = NC_LOG_FALSE;
+            }
+            else{
+                ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
+            }
+        }
+    }
+    
+    ncp->safe_mode = safe_mode;
     ncp->old       = NULL;
 #ifdef ENABLE_SUBFILING
     ncp->subfile_mode = 1;
