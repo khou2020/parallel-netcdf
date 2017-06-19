@@ -2,7 +2,7 @@
 # Copyright (C) 2003, Northwestern University and Argonne National Laboratory
 # See COPYRIGHT notice in top-level directory.
 #
-# $Id$
+# $Id: Makefile.am 3118 2017-06-18 20:13:06Z wkliao $
 #
 # @configure_input@
 
@@ -65,12 +65,20 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                redef1 \
 			   log \
 			   test_log \
-			   #test_logi \
-			   test_log_simple \
-			   #test_logi_simple \
-			   logi 
+			   test_logi \
+			   logi
 
-M4_SRCS  = erange_fill.m4
+M4_SRCS  = put_all_kinds.m4
+
+TESTPROGRAMS += put_all_kinds
+BUILT_SOURCES = put_all_kinds.c
+
+if ENABLE_ERANGE_FILL
+   M4_SRCS += erange_fill.m4
+   M4FLAGS += -DERANGE_FILL
+   TESTPROGRAMS += erange_fill
+   BUILT_SOURCES += erange_fill.c
+endif
 
 M4FLAGS += -I${top_srcdir}/m4
 
@@ -78,12 +86,6 @@ $(M4_SRCS:.m4=.c): Makefile
 
 .m4.c:
 	$(M4) $(AM_M4FLAGS) $(M4FLAGS) $< >$@
-
-if ENABLE_ERANGE_FILL
-   M4FLAGS += -DERANGE_FILL
-   TESTPROGRAMS += erange_fill
-   BUILT_SOURCES = erange_fill.c
-endif
 
 if HAS_FORTRAN
    TESTPROGRAMS += varn_intf \
@@ -129,7 +131,8 @@ TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
 
 TESTS = seq_runs.sh
 
-CLEANFILES = $(M4_SRCS:.m4=.c) *.nc core core.* *.gcda *.gcno *.gcov gmon.out
+CLEANFILES = $(M4_SRCS:.m4=.c) *.nc core core.* *.gcda *.gcno *.gcov gmon.out \
+             testfile.nc.cdf1 testfile.nc.cdf2 testfile.nc.cdf5
 
 EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump
 
