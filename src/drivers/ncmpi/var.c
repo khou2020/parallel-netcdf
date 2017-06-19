@@ -625,8 +625,13 @@ ncmpii_def_var(void       *ncdp,
         goto err_check;
     }
 
-    if (name == NULL || *name == 0 || strlen(name) > NC_MAX_NAME) {
+    if (name == NULL || *name == 0) {
         DEBUG_ASSIGN_ERROR(err, NC_EBADNAME)
+        goto err_check;
+    }
+
+    if (strlen(name) > NC_MAX_NAME) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAXNAME)
         goto err_check;
     }
 
@@ -645,15 +650,21 @@ ncmpii_def_var(void       *ncdp,
     }
 
     /* TODO: make ndims of type MPI_Offset so ndims can be > 2^31-1 in CDF-5
-    if ((ndims < 0) || ndims > X_INT_MAX) DEBUG_RETURN_ERROR(NC_EINVAL)
+     *
+     * When checking against max number of dimensions per variable,
+     * because there is no error code for this, thus we use NC_EINVAL
     */
-    if (ndims < 0) {
+    if (ndims < 0 || ndims == NC_MAX_VAR_DIMS) {
         DEBUG_ASSIGN_ERROR(err, NC_EINVAL)
         goto err_check;
     }
 
-    /* there is an upperbound for the number of variables defined in a file */
-    if (ncp->vars.ndefined >= NC_MAX_VARS) {
+    /* Note we no longer limit the number of variables, as CDF file formats
+     * impose no such limit. Thus, the value of NC_MAX_VARS has been changed
+     * to NC_MAX_INT, as NC_vararray.ndefined is of type signd int and so is
+     * nvars argument in ncmpi_inq_nvars()
+     */
+    if (ncp->vars.ndefined == NC_MAX_VARS) {
         DEBUG_ASSIGN_ERROR(err, NC_EMAXVARS)
         goto err_check;
     }
@@ -922,8 +933,13 @@ ncmpii_rename_var(void       *ncdp,
         goto err_check;
     }
 
-    if (newname == NULL || *newname == 0 || strlen(newname) > NC_MAX_NAME) {
+    if (newname == NULL || *newname == 0) {
         DEBUG_ASSIGN_ERROR(err, NC_EBADNAME)
+        goto err_check;
+    }
+
+    if (strlen(newname) > NC_MAX_NAME) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAXNAME)
         goto err_check;
     }
 

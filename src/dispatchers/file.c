@@ -95,7 +95,7 @@ PNC_check_id(int ncid, PNC **pncp)
 {
     assert(pncp != NULL);
 
-    if (pnc_numfiles == 0 || ncid < 0 || ncid > NC_MAX_NFILES)
+    if (pnc_numfiles == 0 || ncid < 0 || ncid >= NC_MAX_NFILES)
         DEBUG_RETURN_ERROR(NC_EBADID)
 
     *pncp = pnc_filelist[ncid];
@@ -195,19 +195,11 @@ ncmpi_create(MPI_Comm    comm,
     /* set the file format version based on the create mode, cmode */
     ncmpi_inq_default_format(&default_format);
     if (cmode & NC_64BIT_DATA) {
-        pncp->format = 5;
+        pncp->format = NC_FORMAT_CDF5;
     } else if (cmode & NC_64BIT_OFFSET) {
-        pncp->format = 2;
+        pncp->format = NC_FORMAT_CDF2;
     } else {
-        if (default_format == NC_FORMAT_CDF5) {
-            pncp->format = 5;
-        }
-        else if (default_format == NC_FORMAT_CDF2) {
-            pncp->format = 2;
-        }
-        else {
-            pncp->format = 1;
-        }
+        pncp->format = default_format;
     }
 
     /* add to the PNCList and obtain ncid */
@@ -305,6 +297,10 @@ ncmpi_open(MPI_Comm    comm,
          */
         dispatcher = ncmpii_inq_dispatcher();
     }
+    else if (format == NC_FORMAT_NETCDF4_CLASSIC) {
+        fprintf(stderr,"NC_FORMAT_NETCDF4_CLASSIC is not yet supported\n");
+        DEBUG_RETURN_ERROR(NC_ENOTSUPPORT)
+    }
     else if (format == NC_FORMAT_NETCDF4) {
         fprintf(stderr,"NC_FORMAT_NETCDF4 is not yet supported\n");
         DEBUG_RETURN_ERROR(NC_ENOTSUPPORT)
@@ -335,10 +331,7 @@ ncmpi_open(MPI_Comm    comm,
         return status;
     }
 
-    if (format == NC_FORMAT_CDF5) pncp->format = 5;
-    else if (format == NC_FORMAT_CDF2) pncp->format = 2;
-    else if (format == NC_FORMAT_CLASSIC) pncp->format = 1;
-    else if (format == NC_FORMAT_NETCDF4) pncp->format = 4;
+    pncp->format = format;
 
     /* add to the PNCList and obtain ncid */
     err = add_to_PNCList(pncp, ncidp);
@@ -501,21 +494,7 @@ ncmpi_inq_format(int  ncid,
     err = PNC_check_id(ncid, &pncp);
     if (err != NC_NOERR) return err;
 
-    if (pncp->format == 5) {
-        *formatp = NC_FORMAT_CDF5;
-    } else if (pncp->format == 2) {
-        *formatp = NC_FORMAT_CDF2;
-    } else if (pncp->format == 1) {
-        *formatp = NC_FORMAT_CLASSIC;
-    } else if (pncp->format == 4) {
-        *formatp = NC_FORMAT_NETCDF4;
-    } else {
-        /* this should not happen, because if ncid is valid, checking whether
-         * the file is in a supported CDF format should have already been done
-         * at ncmpi_open or ncmpi_create
-         */
-        *formatp = NC_FORMAT_UNKNOWN;
-    }
+    *formatp = pncp->format;
 
     return NC_NOERR;
 }
@@ -558,10 +537,10 @@ ncmpi_inq_file_format(const char *filename,
     }
 
     if (memcmp(signature, hdf5_signature, 8) == 0) {
-        /* whether the file is NC_FORMAT_NETCDF4_CLASSIC is determined by HDF5
-         * attribute "_nc3_strict" which requires a call to H5Aget_name(). Here
-         * we do not distinguish NC_CLASSIC_MODEL, but simply return NETCDF4
-         * format.
+        /* TODO: whether the file is NC_FORMAT_NETCDF4_CLASSIC is determined by
+         * HDF5 attribute "_nc3_strict" which requires a call to H5Aget_name().
+         * For now, we do not distinguish NC_CLASSIC_MODEL, but simply return
+         * NETCDF4 format.
          */
         *formatp = NC_FORMAT_NETCDF4;
     }

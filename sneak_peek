@@ -23,6 +23,14 @@ This is essentially a placeholder for the next release note ...
       process is now limited to 1024 (a new constant NC_MAX_NFILES defined in
       pnetcdf.h). When this limit is reached, error code NC_ENFILE will be
       thrown.
+    * NC_MAX_VAR_DIMS, the maximum number of dimensions per variable is lifted
+      to 2147483647, i.e. NC_MAX_INT
+    * NC_MAX_DIMS, the maximum number of dimensions per file is lifted to
+      2147483647, i.e. NC_MAX_INT
+    * NC_MAX_ATTRS, the maximum number of attributes per file is lifted to
+      2147483647, i.e. NC_MAX_INT
+    * NC_MAX_VARS, the maximum number of variables per file is lifted to
+      2147483647, i.e. NC_MAX_INT
 
   o New constants
     * NC_FORMAT_UNKNOWN, NF_FORMAT_UNKNOWN, and NF90_FORMAT_UNKNOWN are new
@@ -75,6 +83,7 @@ This is essentially a placeholder for the next release note ...
     * doc/README.Ubuntu provides build instructions for Ubuntu Linux OS.
 
   o New test program
+    * test/testcases/put_all_kinds.m4 - tests various blocking put APIs.
     * test/testcases/tst_dimsizes.c - borrowed from netCDF library to test
       define/inquire the maximum allowable dimension sizes. This test program
       is similar to (or a subset of) test/cdf_format/dim_cdf12.c
@@ -82,6 +91,10 @@ This is essentially a placeholder for the next release note ...
       be returned when using NULL arguments for start, count, stride, or imap
 
   o Other updates:
+    * When using OpenMPI 2.1.1 and priors built with Intel compilers 17.0.0,
+      the test program nonblocking/mcoll_testf.f90 fails with segmentation
+      fault. This is due to a bug in OpenMPI. See discussion in
+      https://github.com/open-mpi/ompi/issues/3695
     * All build recipes (README files) have been moved to folder doc. Most of
       the recipes have been updated with instructions for building shared
       libraries.

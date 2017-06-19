@@ -99,6 +99,12 @@ int main(int argc, char *argv[]) {
         printf("%-66s ------ ", cmd_str); fflush(stdout);
         free(cmd_str);
     }
+    if (filename[0] == '\0') {
+        printf(PASS_STR);
+        fprintf(stderr,"Error: invalid filename, Exiting ...\n");
+        MPI_Finalize();
+        return 1;
+    }
 
   verbose = 0;
   nerrs = 0;

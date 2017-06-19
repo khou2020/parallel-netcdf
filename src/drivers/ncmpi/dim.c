@@ -372,8 +372,13 @@ ncmpii_def_dim(void       *ncdp,    /* IN:  NC object */
         goto err_check;
     }
 
-    if (name == NULL || *name == 0 || strlen(name) > NC_MAX_NAME) {
+    if (name == NULL || *name == 0) {
         DEBUG_ASSIGN_ERROR(err, NC_EBADNAME)
+        goto err_check;
+    }
+
+    if (strlen(name) > NC_MAX_NAME) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAXNAME)
         goto err_check;
     }
 
@@ -422,10 +427,12 @@ ncmpii_def_dim(void       *ncdp,    /* IN:  NC object */
         }
     }
 
-    /* TODO: We should not limit the number of dimensions, as CDF file formats 
-     * impose no such limit */
-    /* check if number of dimensions exceeds the upper bound */
-    if (ncp->dims.ndefined >= NC_MAX_DIMS) {
+    /* Note we no longer limit the number of dimensions, as CDF file formats
+     * impose no such limit. Thus, the value of NC_MAX_DIMS has been changed
+     * to NC_MAX_INT, as NC_dimarray.ndefined is of type signd int and so is
+     * ndims argument in ncmpi_inq_varndims()
+     */
+    if (ncp->dims.ndefined == NC_MAX_DIMS) {
         DEBUG_ASSIGN_ERROR(err, NC_EMAXDIMS)
         goto err_check;
     }
@@ -448,31 +455,34 @@ ncmpii_def_dim(void       *ncdp,    /* IN:  NC object */
 
 err_check:
     if (ncp->safe_mode) {
-        int root_name_len, status, mpireturn;
-        char *root_name;
+        int root_name_len, rank, status, mpireturn;
+        char *root_name=NULL;
         MPI_Offset root_size;
+
+        MPI_Comm_rank(ncp->nciop->comm, &rank);
 
         /* check if name is consistent among all processes */
         root_name_len = 1;
-        if (name != NULL) root_name_len += strlen(name);
+        if (rank == 0 && name != NULL) root_name_len += strlen(name);
         TRACE_COMM(MPI_Bcast)(&root_name_len, 1, MPI_INT, 0, ncp->nciop->comm);
         if (mpireturn != MPI_SUCCESS) {
             if (nname != NULL) free(nname);
             return ncmpii_handle_error(mpireturn, "MPI_Bcast root_name_len");
         }
 
-        root_name = (char*) NCI_Malloc((size_t)root_name_len);
-        root_name[0] = '\0';
-        if (name != NULL) strcpy(root_name, name);
+        if (rank == 0)
+            root_name = (char*)name;
+        else
+            root_name = (char*) NCI_Malloc((size_t)root_name_len);
         TRACE_COMM(MPI_Bcast)(root_name, root_name_len, MPI_CHAR, 0, ncp->nciop->comm);
         if (mpireturn != MPI_SUCCESS) {
             if (nname != NULL) free(nname);
-            NCI_Free(root_name);
+            if (rank > 0) NCI_Free(root_name);
             return ncmpii_handle_error(mpireturn, "MPI_Bcast");
         }
-        if (err == NC_NOERR && strcmp(root_name, name))
+        if (err == NC_NOERR && rank > 0 && strcmp(root_name, name))
             DEBUG_ASSIGN_ERROR(err, NC_EMULTIDEFINE_DIM_NAME)
-        NCI_Free(root_name);
+        if (rank > 0) NCI_Free(root_name);
 
         /* check if sizes are consistent across all processes */
         root_size = size;
@@ -516,7 +526,7 @@ err_check:
     }
 
     /* ncp->dims.ndefined has been increased in incr_NC_dimarray() */
-    dimid = (int)ncp->dims.ndefined -1;
+    dimid = (int)ncp->dims.ndefined - 1;
 
     if (size == NC_UNLIMITED) ncp->dims.unlimited_id = dimid;
 
@@ -600,8 +610,13 @@ ncmpii_rename_dim(void       *ncdp,
         goto err_check;
     }
 
-    if (newname == NULL || *newname == 0 || strlen(newname) > NC_MAX_NAME) {
+    if (newname == NULL || *newname == 0) {
         DEBUG_ASSIGN_ERROR(err, NC_EBADNAME)
+        goto err_check;
+    }
+
+    if (strlen(newname) > NC_MAX_NAME) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAXNAME)
         goto err_check;
     }
 
@@ -661,30 +676,33 @@ err_check:
     if (nnewname != NULL) free(nnewname);
 
     if (ncp->safe_mode) {
-        int root_name_len, root_dimid, status, mpireturn;
-        char *root_name;
+        int root_name_len, root_dimid, rank, status, mpireturn;
+        char *root_name=NULL;
+
+        MPI_Comm_rank(ncp->nciop->comm, &rank);
 
         /* check if newname is consistent among all processes */
         root_name_len = 1;
-        if (newname != NULL) root_name_len += strlen(newname);
+        if (rank == 0 && newname != NULL) root_name_len += strlen(newname);
         TRACE_COMM(MPI_Bcast)(&root_name_len, 1, MPI_INT, 0, ncp->nciop->comm);
         if (mpireturn != MPI_SUCCESS) {
             if (newStr != NULL) ncmpii_free_NC_string(newStr);
             return ncmpii_handle_error(mpireturn, "MPI_Bcast root_name_len");
         }
 
-        root_name = (char*) NCI_Malloc((size_t)root_name_len);
-        root_name[0] = '\0';
-        if (newname != NULL) strcpy(root_name, newname);
+        if (rank == 0)
+            root_name = (char*)newname;
+        else
+            root_name = (char*) NCI_Malloc((size_t)root_name_len);
         TRACE_COMM(MPI_Bcast)(root_name, root_name_len, MPI_CHAR, 0, ncp->nciop->comm);
         if (mpireturn != MPI_SUCCESS) {
             if (newStr != NULL) ncmpii_free_NC_string(newStr);
-            NCI_Free(root_name);
+            if (rank > 0) NCI_Free(root_name);
             return ncmpii_handle_error(mpireturn, "MPI_Bcast");
         }
-        if (err == NC_NOERR && strcmp(root_name, newname))
+        if (err == NC_NOERR && rank > 0 && strcmp(root_name, newname))
             DEBUG_ASSIGN_ERROR(err, NC_EMULTIDEFINE_DIM_NAME)
-        NCI_Free(root_name);
+        if (rank > 0) NCI_Free(root_name);
 
         /* check if dimid is consistent across all processes */
         root_dimid = dimid;
