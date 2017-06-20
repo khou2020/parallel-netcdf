@@ -30,10 +30,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pnc_debug.h>
+#include <common.h>
 
 #define META_BUFFER_SIZE 1024 /* Size of initial metadata buffer */
 #define META_OFFSET_BUFFER_SIZE 32 /* Size of initial metadata offset list */    
-#define META_BUFFER_MULTIPLIER 20    /* When metadata buffer is full, we'll reallocate it to META_BUFFER_MULTIPLIER times the original size*/
+#define META_BUFFER_MULTIPLIER 20    /* When metadata buffer is full, we'll NCI_Reallocate it to META_BUFFER_MULTIPLIER times the original size*/
 
 /*
  * Create directories along the log file path
@@ -82,7 +83,7 @@ int WriteInt32(int fd, int *buf, int count){
 #else
     int i, j;
     char* tmp;
-    tmp = (char*)malloc(X_SIZEOF_INT * count);
+    tmp = (char*)NCI_Malloc(X_SIZEOF_INT * count);
     if (tmp == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -103,7 +104,7 @@ int WriteInt32(int fd, int *buf, int count){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
  
-    free(tmp);
+    NCI_Free(tmp);
 #endif
     return NC_NOERR;
 }
@@ -127,7 +128,7 @@ int ReadInt32(int fd, int *buf, int count){
 #else
     int i, j;
     char* tmp;
-    tmp = (char*)malloc(X_SIZEOF_INT * count);
+    tmp = (char*)NCI_Malloc(X_SIZEOF_INT * count);
     if (tmp == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -149,7 +150,7 @@ int ReadInt32(int fd, int *buf, int count){
 #endif
         }
     }
-    free(tmp);
+    NCI_Free(tmp);
 #endif
     return NC_NOERR;
 }
@@ -166,7 +167,7 @@ int AppendMetaOffset(NC_Log *F, size_t offset) {
     /* Expand buffer if needed */
     if (F->MetaOffsetBufferSize < F->MetaOffsetHead + 1) {
         F->MetaOffsetBufferSize *= META_BUFFER_MULTIPLIER;
-        ret = (size_t*)realloc(F->MetaOffset, F->MetaOffsetBufferSize * SIZEOF_SIZE_T);
+        ret = (size_t*)NCI_Realloc(F->MetaOffset, F->MetaOffsetBufferSize * SIZEOF_SIZE_T);
         if (ret == NULL) {
             return ret;
         }
@@ -180,7 +181,7 @@ int AppendMetaOffset(NC_Log *F, size_t offset) {
 
 /*
  * Allocate space in the metadata buffer
- * This function works as malloc in the metadata buffer
+ * This function works as NCI_Malloc in the metadata buffer
  * IN    F:    log structure
  * IN    size:    size required in the buffer
  */
@@ -193,7 +194,7 @@ char* meta_alloc(NC_Log *F, size_t size) {
             F->MetaBufferSize *= META_BUFFER_MULTIPLIER;
         }
         /* ret is used to temporaryly hold the allocated buffer so we don't lose F->Metadata if allocation fails */
-        ret = (char*)realloc(F->Metadata, F->MetaBufferSize);
+        ret = (char*)NCI_Realloc(F->Metadata, F->MetaBufferSize);
         if (ret == NULL) {
             return ret;
         }
@@ -273,7 +274,7 @@ int init_file_metadata(MPI_Comm comm, const char* path, const char* bufferdir, N
     F->MetaBufferSize = META_BUFFER_SIZE;
     F->MetaHead = 0;
     F->MetaOffsetBufferSize = META_OFFSET_BUFFER_SIZE;
-    F->Metadata = (char*)malloc(F->MetaBufferSize); /* Allocate metadata buffer */
+    F->Metadata = (char*)NCI_Malloc(F->MetaBufferSize); /* Allocate metadata buffer */
     if (F->Metadata == NULL) {
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -283,7 +284,7 @@ int init_file_metadata(MPI_Comm comm, const char* path, const char* bufferdir, N
     F->Communitator = comm;
     F->MetaHeader = H;
     F->Flushing = 0;
-    F->MetaOffset = (size_t*)malloc(F->MetaOffsetBufferSize * SIZEOF_SIZE_T);
+    F->MetaOffset = (size_t*)NCI_Malloc(F->MetaOffsetBufferSize * SIZEOF_SIZE_T);
     if (F->MetaOffset == NULL) {
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -375,7 +376,7 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     int ret;
     NC_Log *F;
 
-    F = (NC_Log*)malloc(sizeof(NC_Log));
+    F = (NC_Log*)NCI_Malloc(sizeof(NC_Log));
     
     F->Parent = Parent; /* The NC structure holding the log */
 
@@ -395,7 +396,7 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
 
 ERROR:;
     if (ret != NC_NOERR) {
-        free(F);
+        NCI_Free(F);
     }
     
     return ret;
@@ -441,7 +442,7 @@ int open_log_file(NC_Log *F) {
             F->MetaBufferSize *= META_BUFFER_MULTIPLIER;
         }
         /* Allocate memory buffer */
-        F->Metadata = (char*)realloc(F->Metadata, F->MetaBufferSize);
+        F->Metadata = (char*)NCI_Realloc(F->Metadata, F->MetaBufferSize);
     }
 
     /* Read metadata to memory buffer */
@@ -495,7 +496,7 @@ int ncmpii_log_open(MPI_Comm comm, const char* path, const char* BufferDir, NC* 
     int ret;
     NC_Log *F;
 
-    F = (NC_Log*)malloc(sizeof(NC_Log));
+    F = (NC_Log*)NCI_Malloc(sizeof(NC_Log));
 
     F->Parent = Parent;
 
@@ -544,7 +545,7 @@ int ncmpii_log_open(MPI_Comm comm, const char* path, const char* BufferDir, NC* 
 
 ERROR:;
     if (ret != NC_NOERR) {
-        free(F);
+        NCI_Free(F);
     }
     return ret;
 }
@@ -575,7 +576,7 @@ int flush_log(NC_Log *nclogp) {
     /* Get file size */
     fstat(F->DataLog, &datastat);
     /* Prepare data buffer */
-    data = (char*)malloc(datastat.st_size);
+    data = (char*)NCI_Malloc(datastat.st_size);
     ioret = lseek(F->DataLog, 0, SEEK_SET);    /* Seek to the start of data log */
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
@@ -593,8 +594,8 @@ int flush_log(NC_Log *nclogp) {
     }
 
     /* Handle to non-blocking requrest */
-    req = (int*)malloc(SIZEOF_INT * F->MetaHeader.num_entries);
-    //stat = (int*)malloc(SIZEOF_INT * F->MetaHeader.num_entries);
+    req = (int*)NCI_Malloc(SIZEOF_INT * F->MetaHeader.num_entries);
+    //stat = (int*)NCI_Malloc(SIZEOF_INT * F->MetaHeader.num_entries);
 
     /* Iterate through meta log entries */
     head = F->Metadata + F->MetaHeader.entry_begin;
@@ -678,9 +679,9 @@ int flush_log(NC_Log *nclogp) {
         return ret;
     }
 
-    free(data);
-    free(req);
-    //free(stat);
+    NCI_Free(data);
+    NCI_Free(req);
+    //NCI_Free(stat);
     
     /* Turn off the flushing flag, enable logging on non-blocking call */
     nclogp->Flushing = 0;
@@ -714,11 +715,11 @@ int ncmpii_log_close(NC_Log *nclogp) {
     }
 
     /* Free meta data buffer */
-    free(F->Metadata);
-    free(F->MetaOffset);
+    NCI_Free(F->Metadata);
+    NCI_Free(F->MetaOffset);
 
     /* Delete log structure */
-    free(F);
+    NCI_Free(F);
 
     return NC_NOERR;
 }
@@ -865,13 +866,13 @@ char* BufferUnroll(int dim, const MPI_Offset count[], const MPI_Offset imap[], c
     MPI_Offset *idx;
     size_t size, src, dst;
 
-    idx = (MPI_Offset*)malloc((dim + 1) * SIZEOF_MPI_OFFSET);
+    idx = (MPI_Offset*)NCI_Malloc((dim + 1) * SIZEOF_MPI_OFFSET);
 
     size = 0;
     for (i = 0; i < dim; i++) {
         size *= count[i];
     }
-    buffer = (char*)malloc(size * unit);
+    buffer = (char*)NCI_Malloc(size * unit);
 
     /* Unroll Buffer */
     src = 0;
@@ -895,9 +896,9 @@ char* BufferUnroll(int dim, const MPI_Offset count[], const MPI_Offset imap[], c
         src += unit;
     }
 
-    free(idx);
+    NCI_Free(idx);
 
-    return buffer;    /* Note: User must free this buffer */
+    return buffer;    /* Note: User must NCI_Free this buffer */
 }
 
 /*
@@ -941,7 +942,7 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
     vid = get_varid(nclogp->Parent, varp);
 
     /* We may need to modify count, make a copy */
-    Count = (MPI_Offset*)malloc(SIZEOF_MPI_OFFSET * dim);
+    Count = (MPI_Offset*)NCI_Malloc(SIZEOF_MPI_OFFSET * dim);
     for (i = 0; i < varp->ndims; i++) {
         Count[i] = count[i];
     }
@@ -1026,7 +1027,6 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
  */
 int ncmpii_logi_put_var(NC_Log *nclogp, int api_kind, int itype, int varid, int ndim, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], const void *ip) {
     int i, j, tsize;
-    int dimids[NC_MAX_DIMS];
     ssize_t ret;
     MPI_Offset usize, dsize, asize, metasize;
     NC_Log_metadataentry E;

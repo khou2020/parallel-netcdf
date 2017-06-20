@@ -90,7 +90,6 @@ int simpletest(char* fname, int enable_log){
 	int dims[2];
 	char tmp[1024], tmp2[1024];
 	MPI_Info Info;
-
 	MPI_Comm_size(MPI_COMM_WORLD, &NP);
 	MPI_Comm_rank(MPI_COMM_WORLD, &MyRank);
 
@@ -101,7 +100,6 @@ int simpletest(char* fname, int enable_log){
 	else{
 		NProc = NP;
 	}
-
 	if (MyRank < MAXPROCESSES) {
 		// Ensure each process have a independent buffer directory
 
@@ -109,14 +107,13 @@ int simpletest(char* fname, int enable_log){
 		if(enable_log){
 			MPI_Info_set(Info, "pnetcdf_log", "enable");
 		}
-
 		// Create new cdf file
 		ret = ncmpi_create(MPI_COMM_WORLD, fname, NC_CLOBBER, Info, &fid);
 		if (ret != NC_NOERR) {
 			printf("Error create file\n");
 			goto ERROR;
 		}
-		ret = ncmpi_set_fill(fid, NC_FILL, NULL);
+        ret = ncmpi_set_fill(fid, NC_FILL, NULL);
 		if (ret != NC_NOERR) {
 			printf("Error set fill\n");
 			goto ERROR;
@@ -141,14 +138,12 @@ int simpletest(char* fname, int enable_log){
 			printf("Error enddef\n");
 			goto ERROR;
 		}
-
 		// Indep mode
 		ret = ncmpi_begin_indep_data(fid);
 		if (ret != NC_NOERR) {
 			printf("Error begin indep\n");
 			goto ERROR;
 		}
-	
 		// We all write rank from now on
 		for (i = 0; i < NProc; i++) {
 			buffer[i] = MyRank;
@@ -159,26 +154,24 @@ int simpletest(char* fname, int enable_log){
 		count[1] = NProc;
 		start[0] = MyRank;
 		start[1] = 0;
-		ret = ncmpi_put_vara_int(fid, vid, start, count, buffer);
-		if (ret != NC_NOERR) {
+        ret = ncmpi_put_vara_int(fid, vid, start, count, buffer);
+        if (ret != NC_NOERR) {
 			MPI_Error_string(ret, tmp, &errlen);
 			printf("Error put_varn: %d\n%s\n", errlen, tmp);
 			goto ERROR;
 		}
-
 		// Collective mode
 		ncmpi_end_indep_data(fid);
 		if (ret != NC_NOERR) {
 			printf("Error end indep");
 			goto ERROR;
 		}
-
 		ncmpi_close(fid);       // Close file
 		if (ret != NC_NOERR) {
 			printf("Error close");
 			goto ERROR;
 		}
-	}
+    }
 
 ERROR:
 	return 0;
@@ -317,7 +310,7 @@ int test(char* fname, int enable_log){
 		for (i = 0; i < NProc; i++) {
 			buffer[i] = MyRank;
 		}
-		
+
 		// put_var1
 		for (i = 0; i < 4; i++) {
 			for (j = 0; j < NProc; j++) {
@@ -416,7 +409,6 @@ int main(int argc, char* argv[]) {
 		printf("Error in %s line %d: Flushed result mismatch\n", __FILE__,__LINE__);
 		err += 1;
 	}
-	
 	test("test.cdf", 0);
 	test("test_log.cdf", 1);
 
@@ -437,5 +429,5 @@ int main(int argc, char* argv[]) {
 
 ERROR:;
 	MPI_Finalize();
-	return 0;
+	return err;
 }

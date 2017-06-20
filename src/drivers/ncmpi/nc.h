@@ -798,8 +798,6 @@ ncmpii_getput_zero_req(NC *ncp, int rw_flag);
 extern int
 ncmpii_NC_check_vlens(NC *ncp);
 
-#define NC_LOG_ERR_BASENAME_NOT_EQUAL -6
-
 #define NC_LOG_TYPE_TEXT 1
 #define NC_LOG_TYPE_SCHAR 2
 #define NC_LOG_TYPE_UCHAR 3
