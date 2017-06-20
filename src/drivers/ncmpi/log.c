@@ -21,7 +21,7 @@
 #include <assert.h>
 #include "nc.h"
 #include "ncx.h"
-#include "log_io.h"
+#include <fcntl.h>
 #include <errno.h>
 #include <stdint.h>
 #include <pnetcdf.h>
@@ -285,6 +285,8 @@ int init_file_metadata(MPI_Comm comm, const char* path, const char* bufferdir, N
     F->MetaHeader = H;
     F->Flushing = 0;
     F->MetaOffset = (size_t*)NCI_Malloc(F->MetaOffsetBufferSize * SIZEOF_SIZE_T);
+    F->DataLog = -1;    /* Log not created */
+    F->MetaLog = -1;
     if (F->MetaOffset == NULL) {
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -318,23 +320,17 @@ int create_log_file(NC_Log *F) {
     F->DataLog = F->MetaLog = 0;
     /* TODO: use separate directory for absolute and relative path to prevent conflict */
     mkpath(F->MetaPath, 0744); /* Log file path may contain directory */
-    F->MetaLog = open(F->MetaPath, O_RDWR | O_CREAT, 0744);
+    F->MetaLog = open(F->MetaPath, O_RDWR | O_CREAT | O_TRUNC, 0744);
     if (F->MetaLog < 0) {
         err = ncmpii_handle_io_error("open"); 
-        //if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
         DEBUG_RETURN_ERROR(err); 
     }
-    F->DataLog = open(F->DataPath, O_RDWR | O_CREAT, 0744);
+    F->DataLog = open(F->DataPath, O_RDWR | O_CREAT | O_TRUNC, 0744);
     if (F->DataLog < 0) {
         err = ncmpii_handle_io_error("open"); 
-        //if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
         DEBUG_RETURN_ERROR(err); 
     }
-    /* Disable buffering */
-    /*setvbuf(F->DataLog, NULL, _IONBF, 0);
-    :setvbuf(F->MetaLog, NULL, _IONBF, 0);
-	*/
-
+   
     /* Write metadata header to file */
     ret = lseek(F->MetaLog, 0, SEEK_SET);
     if (ret < 0){ 
@@ -385,13 +381,7 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     if (ret != NC_NOERR) {
         goto ERROR;
     }
-
-    /* Create log files */
-    ret = create_log_file(F);
-    if (ret != NC_NOERR) {
-        goto ERROR;
-    }
-
+   
     *nclogp = F;
 
 ERROR:;
@@ -399,6 +389,21 @@ ERROR:;
         NCI_Free(F);
     }
     
+    return ret;
+}
+
+/*
+ * Create log file
+ * IN    nclogp:    log structure
+ */
+int ncmpii_log_enddef(NC_Log *nclogp){   
+    int ret = NC_NOERR;
+
+    /* Create log files if not created*/
+    if (nclogp->MetaLog < 0){
+        ret = create_log_file(nclogp);
+    }
+
     return ret;
 }
 
@@ -595,7 +600,6 @@ int flush_log(NC_Log *nclogp) {
 
     /* Handle to non-blocking requrest */
     req = (int*)NCI_Malloc(SIZEOF_INT * F->MetaHeader.num_entries);
-    //stat = (int*)NCI_Malloc(SIZEOF_INT * F->MetaHeader.num_entries);
 
     /* Iterate through meta log entries */
     head = F->Metadata + F->MetaHeader.entry_begin;
@@ -681,7 +685,6 @@ int flush_log(NC_Log *nclogp) {
 
     NCI_Free(data);
     NCI_Free(req);
-    //NCI_Free(stat);
     
     /* Turn off the flushing flag, enable logging on non-blocking call */
     nclogp->Flushing = 0;
@@ -697,21 +700,24 @@ int flush_log(NC_Log *nclogp) {
 int ncmpii_log_close(NC_Log *nclogp) {
     int ret;
     NC_Log *F = nclogp;
+    
+    /* If log file is created */
+    if (nclogp->MetaLog >= 0){
+        /* Commit to CDF file */
+        flush_log(nclogp);
 
-    /* Commit to CDF file */
-    flush_log(nclogp);
+        /* Close log file */
+        ret = close(F->MetaLog);
+        ret |= close(F->DataLog);
+        if (ret < 0){
+            DEBUG_RETURN_ERROR(ncmpii_handle_io_error("close"));        
+        }
 
-    /* Close log file */
-    ret = close(F->MetaLog);
-    ret |= close(F->DataLog);
-    if (ret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("close"));        
-    }
-
-    /* Delete log files */
-    if (nclogp->DeleteOnClose){
-        remove(F->DataPath);
-        remove(F->MetaPath);
+        /* Delete log files */
+        if (nclogp->DeleteOnClose){
+            remove(F->DataPath);
+            remove(F->MetaPath);
+        }
     }
 
     /* Free meta data buffer */
@@ -735,6 +741,8 @@ int ncmpii_log_update_max_ndim(NC_Log *nclogp, long long ndims) {
 #if (X_SIZEOF_INT != SIZEOF_INT)
 /*
  * Write metadata to metadata log in external format
+ * This function is not used
+ *
  * IN    F: log structure
  * IN    E: metadata entry header
  * IN    start: start in put_var* call
@@ -753,9 +761,6 @@ int WriteXMeta(NC_Log *F, NC_Log_metadataentry *E, const MPI_Offset start[], con
      * External size is different than internal
      */
     lseek(F->MetaLog, F->num_entrie * xsize, SEEK_SET);   
-
-    //write()
-    
 
     /* Write to disk and update the log structure */
     write(F->MetaLog, buffer, size);
@@ -936,6 +941,11 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
     int i, size, ret, vid, dim;
     int itype;    /* Type used in log file */
     MPI_Offset *Count;
+
+    /* Enddef must be called at least once */
+    if (nclogp->MetaLog < 0){
+        DEBUG_RETURN_ERROR(NC_ELOGNOTINIT);        
+    }
 
     /* Get variable id and dimension */
     dim = varp->ndims;
@@ -1128,9 +1138,23 @@ int ncmpii_log_flush(NC_Log *nclogp) {
     int ret;
     NC_Log *F = nclogp;
 
+    /* Enddef must be called at least once */
+    if (nclogp->MetaLog < 0){
+        DEBUG_RETURN_ERROR(NC_ELOGNOTINIT);        
+    }
+
     if ((ret = flush_log(nclogp)) != NC_NOERR) {
         return ret;
     }
+    
+    /* Close log file */
+    ret = close(F->MetaLog);
+    ret |= close(F->DataLog);
+    if (ret < 0){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("close"));        
+    }
+    F->MetaLog = -1;
+    F->DataLog = -1;
 
     /* Reset metadata buffer */
     F->MetaHead = 0;

@@ -766,6 +766,11 @@ ncmpii_enddef(void *ncdp)
 
     if (!NC_indef(ncp)) /* must currently in define mode */
         DEBUG_RETURN_ERROR(NC_ENOTINDEFINE)
+    
+    /* Update log structure */
+    if (ncp->nclogp != NULL){
+        ncmpii_log_enddef(ncp->nclogp);
+    }
 
     return ncmpiio_enddef(ncp);
 }

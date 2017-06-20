@@ -899,5 +899,6 @@ int ncmpii_logi_put_var(NC_Log *nclogp, int api_kind, int itype, int varid, int 
 int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);
 int ncmpii_log_close(NC_Log *nclogp);
 int ncmpii_log_flush(NC_Log *nclogp);
+int ncmpii_log_enddef(NC_Log *nclogp);
 
 #endif /* _NC_H */

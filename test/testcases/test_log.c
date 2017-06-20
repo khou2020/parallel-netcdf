@@ -141,7 +141,16 @@ int main(int argc, char* argv[]) {
 			printf("Error def var M3\n");
 			goto ERROR;
 		}
-		ret = ncmpi_enddef(fid);
+        
+        if (MyRank == 0 || NP == 1) {
+			printf("Size before enddef:\n");
+			system("ls -lh *.{cdf,bin}");
+		
+			printf("Press any key to switch to data mode.");
+			getchar();
+		}
+	    
+        ret = ncmpi_enddef(fid);
 		if (ret != NC_NOERR) {
 			printf("Error enddef\n");
 			goto ERROR;

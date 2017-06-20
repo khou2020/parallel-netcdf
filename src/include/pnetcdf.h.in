@@ -599,6 +599,7 @@ by the desired type. */
 #define NC_EBADLOG              (-301) /**< Wrong log format */
 #define NC_EWRONGBASE		    (-302) /**< Base name not match */
 #define NC_ENODATALOG           (-303) /**< Data log does not exist */
+#define NC_ELOGNOTINIT           (-304) /**< Log file hasn't initialized */
 
 #define NC_EMULTIDEFINE_FIRST		NC_EMULTIDEFINE
 #define NC_EMULTIDEFINE_LAST		NC_EMULTIDEFINE_FNC_ARGS
