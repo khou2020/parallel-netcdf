@@ -2,7 +2,6 @@
 #include <config.h>
 #else
 /* Define size as computed by sizeof. */
-/*
 #define SIZEOF_DOUBLE sizeof(double)
 #define SIZEOF_FLOAT sozepf(float)
 #define SIZEOF_INT sizeof(int)
@@ -18,7 +17,6 @@
 #define SIZEOF_UNSIGNED_LONG_LONG sizeof(unsigned long long)
 #define SIZEOF_UNSIGNED_SHORT sizeof(unsigned short)
 #define WORDS_BIGENDIAN IsBigEndian()
-*/
 #endif
 #include <assert.h>
 #include "nc.h"
@@ -60,7 +58,7 @@ int mkpath(char* file_path, mode_t mode) {
  * Check if running on a little endian machine
  */
 int IsBigEndian() {
-    uint32_t n = 1;
+    unsigned int n = 1;
     char* b1 = (char*)&n;
     return (int)(*b1) != 1;
 }
@@ -1026,7 +1024,7 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
  * IN    stride: stride in put_var* call
  * IN    ip:    buffer of data to write
  */
-int ncmpii_logi_put_var(NC_Log *nclogp, int32_t api_kind, int32_t itype, int varid, int ndim, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], const void *ip) {
+int ncmpii_logi_put_var(NC_Log *nclogp, int api_kind, int itype, int varid, int ndim, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], const void *ip) {
     int i, j, tsize;
     int dimids[NC_MAX_DIMS];
     ssize_t ret;

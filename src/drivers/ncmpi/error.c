@@ -19,7 +19,7 @@
 #include <pnetcdf.h>
 #include <nc.h>
 
-//#include <errno.h.>
+#include <errno.h>
 
 /*----< ncmpii_handle_error() ------------------------------------------------*/
 /* translate MPI error codes to PnetCDF/netCDF error codes */
@@ -104,7 +104,7 @@ int ncmpii_handle_io_error(char *err_msg)       /* extra error message */
 
     /* check for specific error codes understood by PnetCDF */
 
-/*
+
     io_errorcode = errno;
     switch (io_errorcode){
         case ENOSPC :
@@ -118,10 +118,10 @@ int ncmpii_handle_io_error(char *err_msg)       /* extra error message */
         case ENOENT:
             return NC_ENOENT;
     }
-*/  
+  
     /* other errors that currently have no corresponding PnetCDF error codes */
 
-    //strerror_r(io_errorcode, errorString, MPI_MAX_ERROR_STRING);
+    strerror_r(io_errorcode, errorString, MPI_MAX_ERROR_STRING);
     if (err_msg == NULL) err_msg = "";
 #ifdef PNETCDF_DEBUG
     /* report the world rank */

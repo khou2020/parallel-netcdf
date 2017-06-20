@@ -798,13 +798,6 @@ ncmpii_getput_zero_req(NC *ncp, int rw_flag);
 extern int
 ncmpii_NC_check_vlens(NC *ncp);
 
-#define NC_LOG_SUCCESS 0
-#define NC_LOG_ERR_LOG_CORRUPTED -1
-#define NC_LOG_ERR_INVALID_ID -2
-#define NC_LOG_ERR_LOG_CREATE -3
-#define NC_LOG_ERR_RECORD_CORRUPTED -4
-#define NC_LOG_ERR_MEM_ALLOC -4
-#define NC_LOG_ERR_UNKNOWN -5
 #define NC_LOG_ERR_BASENAME_NOT_EQUAL -6
 
 #define NC_LOG_TYPE_TEXT 1
@@ -847,33 +840,35 @@ ncmpii_NC_check_vlens(NC *ncp);
 #define NC_LOG_PATH_MAX PATH_MAX + 1
 #endif
 
+// #define SIZEOF_METADATAHEADER (NC_LOG_MAGIC_SIZE + NC_LOG_FORMAT_SIZE + 2 * SIZEOF_INT + 5 * SIZEOF_MPI_OFFSET + NC_LOG_PATH_MAX)
+
 /* Metadata header
- * * Variable named according to the spec
- * */
+ * Variable named according to the spec
+ */
 typedef struct NC_Log_metadataheader {
     char magic[NC_LOG_MAGIC_SIZE];
     char format[NC_LOG_MAGIC_SIZE];
-    int32_t big_endian;
-    int32_t is_external;
-    int64_t num_ranks;
-    int64_t rank_id;
-    int64_t entry_begin;
-    int64_t max_ndims;
-    int64_t num_entries;
+    int big_endian;
+    int is_external;
+    MPI_Offset num_ranks;
+    MPI_Offset rank_id;
+    MPI_Offset entry_begin;
+    MPI_Offset max_ndims;
+    MPI_Offset num_entries;
     char basename[NC_LOG_PATH_MAX];
 } NC_Log_metadataheader;
 
 /* Metadata entry header 
- * * Variable named according to the spec
- * */
+ * Variable named according to the spec
+ */
 typedef struct NC_Log_metadataentry {
-    int64_t esize;
-    int32_t api_kind;
-    int32_t itype;
-    int64_t varid;
-    int64_t ndims;
-    int64_t data_off;
-    int64_t data_len;
+    MPI_Offset esize;
+    int api_kind;
+    int itype;
+    MPI_Offset varid;
+    MPI_Offset ndims;
+    MPI_Offset data_off;
+    MPI_Offset data_len;
 } NC_Log_metadataentry;
 
 /* Log structure */
@@ -881,8 +876,6 @@ typedef struct NC_Log {
     char Path[NC_LOG_PATH_MAX];    /* path of the CDF file */
     char MetaPath[NC_LOG_PATH_MAX];    /* path of metadata log */    
     char DataPath[NC_LOG_PATH_MAX];    /* path of data log */
-    //FILE* MetaLog;    /* file handle of metadata log */
-    //FILE* DataLog;    /* file handle of data log */
     int MetaLog;    /* file handle of metadata log */
     int DataLog;    /* file handle of data log */
 	MPI_Offset MaxSize;    /* max data size in byte among all log entries */ 
@@ -896,13 +889,15 @@ typedef struct NC_Log {
     size_t MetaOffsetHead;    /* used space of metadata offset list */
     int DeleteOnClose;    /* Delete log on close or not */
     struct NC* Parent; /* NC structure hosting this log structure */
-    int Flushing;
+    int Flushing;   /* If log is flushing */
+    int FlushOnWait;   /* If log shoud be flushed on wait and wait_all */
+    int FlushOnSync;   /* If log should be flushed on Sync */
 } NC_Log;
 
 int ncmpii_log_get_comm(NC_Log *nclogp, MPI_Comm *comm);
 int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC* Parent, NC_Log **nclogp);
 int ncmpii_log_open(MPI_Comm comm, const char* path, const char* BufferDir, NC* Parent, NC_Log **nclogp);
-int ncmpii_logi_put_var(NC_Log *nclogp, int32_t api_kind, int32_t itype, int varid, int ndim, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], const void *ip);
+int ncmpii_logi_put_var(NC_Log *nclogp, int api_kind, int itype, int varid, int ndim, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], const void *ip);
 int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);
 int ncmpii_log_close(NC_Log *nclogp);
 int ncmpii_log_flush(NC_Log *nclogp);
