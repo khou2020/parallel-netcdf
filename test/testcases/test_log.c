@@ -149,6 +149,7 @@ int main(int argc, char* argv[]) {
 			printf("Press any key to switch to data mode.");
 			getchar();
 		}
+		MPI_Barrier(MPI_COMM_WORLD);
 	    
         ret = ncmpi_enddef(fid);
 		if (ret != NC_NOERR) {
@@ -163,8 +164,9 @@ int main(int argc, char* argv[]) {
 			printf("Press any key to start writing.");
 			getchar();
 		}
-
-		// We all write rank from now on
+		MPI_Barrier(MPI_COMM_WORLD);
+		
+        // We all write rank from now on
 		for (i = 0; i < NProc; i++) {
 			buffer[i] = MyRank;
 		}

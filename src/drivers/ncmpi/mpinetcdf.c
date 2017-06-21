@@ -284,6 +284,7 @@ ncmpii_create(MPI_Comm     comm,
             else{
                 ncmpii_log_create(comm, path, ".", ncp, &(ncp->nclogp));
             }
+            
             /* If pnetcdf_log_keep is enabled, keep log after flushing */
             MPI_Info_get(env_info, "pnetcdf_log_keep", MPI_MAX_INFO_VAL - 1, value, &flag);
             if (flag && (strcasecmp(value, "enable") == 0)){
@@ -291,6 +292,24 @@ ncmpii_create(MPI_Comm     comm,
             }
             else{
                 ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
+            }
+            
+            /* If pnetcdf_log_flushonwait is enabled, flush log on ncmpi_wait and ncmpi_wait_all */
+            MPI_Info_get(env_info, "pnetcdf_log_flushonwait", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag && (strcasecmp(value, "enable") == 0)){
+                ncp->nclogp->FlushOnWait = NC_LOG_TRUE;
+            }
+            else{
+                ncp->nclogp->FlushOnWait = NC_LOG_FALSE;
+            }
+       
+            /* If pnetcdf_log_flushonsync is enabled, flush log on ncmpi_sync */
+            MPI_Info_get(env_info, "pnetcdf_log_flushonsync", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag && (strcasecmp(value, "enable") == 0)){
+                ncp->nclogp->FlushOnSync = NC_LOG_TRUE;
+            }
+            else{
+                ncp->nclogp->FlushOnSync = NC_LOG_FALSE;
             }
         }
     }
@@ -493,6 +512,24 @@ ncmpii_open(MPI_Comm    comm,
             }
             else{
                 ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
+            }
+            
+            /* If pnetcdf_log_flushonwait is enabled, flush log on ncmpi_wait and ncmpi_wait_all */
+            MPI_Info_get(env_info, "pnetcdf_log_flushonwait", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag && (strcasecmp(value, "enable") == 0)){
+                ncp->nclogp->FlushOnWait = NC_LOG_TRUE;
+            }
+            else{
+                ncp->nclogp->FlushOnWait = NC_LOG_FALSE;
+            }
+       
+            /* If pnetcdf_log_flushonsync is enabled, flush log on ncmpi_sync */
+            MPI_Info_get(env_info, "pnetcdf_log_flushonsync", MPI_MAX_INFO_VAL - 1, value, &flag);
+            if (flag && (strcasecmp(value, "enable") == 0)){
+                ncp->nclogp->FlushOnSync = NC_LOG_TRUE;
+            }
+            else{
+                ncp->nclogp->FlushOnSync = NC_LOG_FALSE;
             }
         }
     }

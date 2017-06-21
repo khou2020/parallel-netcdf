@@ -169,7 +169,7 @@ int AppendMetaOffset(NC_Log *F, size_t offset) {
         F->MetaOffsetBufferSize *= META_BUFFER_MULTIPLIER;
         ret = (size_t*)NCI_Realloc(F->MetaOffset, F->MetaOffsetBufferSize * SIZEOF_SIZE_T);
         if (ret == NULL) {
-            return ret;
+            DEBUG_RETURN_ERROR(NC_ENOMEM);
         }
         F->MetaOffset = ret;
     }

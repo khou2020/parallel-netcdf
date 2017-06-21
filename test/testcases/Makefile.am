@@ -64,7 +64,7 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                tst_dimsizes \
                redef1 \
 			   log \
-			   #test_log \
+			   test_log \
 			   #test_logi \
 			   logi
 
