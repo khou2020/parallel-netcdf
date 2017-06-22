@@ -978,15 +978,21 @@ ncmpii_wait(void *ncdp,
             int  *statuses,  /* [num_reqs] */
             int   io_method) /* COLL_IO or INDEP_IO */
 {
+    NC *ncp = (NC*)ncdp;
+    int err, status = NC_NOERR;
+
 #ifdef ENABLE_REQ_AGGREGATION
-    return ncmpiio_wait((NC*)ncdp, num_reqs, req_ids, statuses, io_method);
+    err = ncmpiio_wait((NC*)ncdp, num_reqs, req_ids, statuses, io_method);
+    if (status == NC_NOERR){
+        status = err;
+    }
 #else
     /* If request aggregation is disabled, we call an independent wait() for
      * each request
      */
-    NC *ncp = (NC*)ncdp;
-    int i, status=NC_NOERR, err, *reqids=NULL;
+    int i, *reqids=NULL;
 
+    
     if (io_method == INDEP_IO) {
         /* ncmpi_wait() is an independent call
      * Argument num_reqs can be NC_REQ_ALL which means to flush all pending
@@ -998,7 +1004,10 @@ ncmpii_wait(void *ncdp,
      * the error code returned by this call, but not the statuses of
      * individual nonblocking requests.
          */
-        if (num_reqs == 0) return NC_NOERR;
+        if (num_reqs == 0){
+            status = NC_NOERR;
+            goto WaitFinished;
+        }
 
     /* This is called from ncmpi_wait which must be called in independent
      * data mode, illegal in collective mode.
@@ -1055,9 +1064,21 @@ ncmpii_wait(void *ncdp,
         err = ncmpii_end_indep_data(ncp);
         if (status == NC_NOERR) status = err;
     }
+#endif
+
+WaitFinished:;
+    /* Flush the log if flushing flag is set */
+    if (ncp->nclogp != NULL){
+        if (ncp->nclogp->FlushOnWait == NC_LOG_TRUE){
+            /* Prevent recursive flushing if wait is called by log_flush */
+            if (ncp->nclogp->Flushing == NC_LOG_FALSE){
+                err = ncmpii_log_flush(ncp->nclogp);       
+                if (status == NC_NOERR) status = err;
+            }
+        }
+    }
 
     return status; /* return the first error encountered, if there is any */
-#endif
 }
 
 /* C struct for breaking down a request to a list of offset-length segments */

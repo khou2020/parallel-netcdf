@@ -10,6 +10,7 @@
 #include <stddef.h>       /* size_t */
 #include <sys/types.h>    /* off_t */
 #include <mpi.h>
+#include <limits.h>
 #include "pnetcdf.h"
 
 #define MPI_COLLECTIVE_FH 2
@@ -36,6 +37,11 @@ typedef struct {
     MPI_Offset v_align; /* file alignment size for each fixed variable */
     MPI_Offset r_align; /* file alignment size for record variable section */
     MPI_Offset header_read_chunk_size;
+    int log_enable;
+    int log_del_on_close;
+    int log_flush_on_wait;
+    int log_flush_on_sync;
+    char log_base[PATH_MAX];
 #ifdef ENABLE_SUBFILING
     int subfile_mode;
     int num_subfiles;

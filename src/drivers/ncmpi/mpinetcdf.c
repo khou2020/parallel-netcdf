@@ -911,7 +911,7 @@ ncmpii_sync_numrecs(void *ncdp)
 int
 ncmpii_sync(void *ncdp)
 {
-    int err;
+    int err, status = NC_NOERR;
     NC *ncp = (NC*)ncdp;
 
     /* cannot be in define mode */
@@ -930,8 +930,27 @@ ncmpii_sync(void *ncdp)
         if (err != NC_NOERR) return err;
     }
 
+    /* Flush the log if flushing flag is set */
+    if (ncp->nclogp != NULL){
+        if (ncp->nclogp->FlushOnSync == NC_LOG_TRUE){
+            /* Prevent recursive flushing if wait is called by log_flush */
+            if (ncp->nclogp->Flushing == NC_LOG_FALSE){
+                err = ncmpii_log_flush(ncp->nclogp);       
+                if (status == NC_NOERR){
+                    status = err;                      
+                }
+            }
+        }
+    }
+
+
     /* calling MPI_File_sync() on both collective and independent handlers */
-    return ncmpiio_sync(ncp->nciop);
+    err = ncmpiio_sync(ncp->nciop);
+    if (status == NC_NOERR){
+        status = err;                      
+    }
+
+    return status;
 }
 
 /*----< ncmpii_abort() >-----------------------------------------------------*/

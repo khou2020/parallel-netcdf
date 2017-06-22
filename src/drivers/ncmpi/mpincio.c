@@ -88,7 +88,7 @@ ncmpiio_new(const char *path, int ioflags)
 
 /*----< ncmpiio_extract_hints() >--------------------------------------------*/
 /* this is where the I/O hints designated to pnetcdf are extracted */
-static
+//static
 void ncmpiio_extract_hints(ncio     *nciop,
                            MPI_Info  info)
 {
@@ -100,6 +100,11 @@ void ncmpiio_extract_hints(ncio     *nciop,
     nciop->hints.v_align                = 0;
     nciop->hints.r_align                = 0;
     nciop->hints.header_read_chunk_size = 0;
+    nciop->hints.log_enable = 0;
+    strncpy(nciop->hints.log_base, ".", PATH_MAX);   
+    nciop->hints.log_del_on_close = 1;
+    nciop->hints.log_flush_on_wait = 0;
+    nciop->hints.log_flush_on_sync = 0;
 #ifdef ENABLE_SUBFILING
     nciop->hints.subfile_mode           = 1;
     nciop->hints.num_subfiles           = 0;
@@ -123,6 +128,30 @@ void ncmpiio_extract_hints(ncio     *nciop,
     MPI_Info_get(info, "nc_header_read_chunk_size", MPI_MAX_INFO_VAL-1,
                  value, &flag);
     if (flag) nciop->hints.header_read_chunk_size = strtoll(value,NULL,10);
+
+    MPI_Info_get(info, "pnetcdf_log", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "enable") == 0)
+        nciop->hints.log_enable = 1;
+
+    MPI_Info_get(info, "pnetcdf_log_base", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag) strncpy(nciop->hints.log_base, value, PATH_MAX);    
+
+    MPI_Info_get(info, "pnetcdf_log_del_on_close", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "disable") == 0)
+        nciop->hints.log_del_on_close = 0;
+
+    MPI_Info_get(info, "pnetcdf_log_flush_on_wait", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "enable") == 0)
+        nciop->hints.log_flush_on_wait = 1;
+
+    MPI_Info_get(info, "pnetcdf_log_flush_on_sync", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "enable") == 0)
+        nciop->hints.log_flush_on_sync = 1;
 
 #ifdef ENABLE_SUBFILING
     MPI_Info_get(info, "pnetcdf_subfiling", MPI_MAX_INFO_VAL-1,
