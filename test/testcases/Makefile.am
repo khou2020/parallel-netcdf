@@ -66,10 +66,13 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
 			   log \
 			   logi
 
-M4_SRCS  = put_all_kinds.m4
+M4_SRCS  = put_all_kinds.m4 \
+		   iput_all_kinds.m4
 
-TESTPROGRAMS += put_all_kinds
-BUILT_SOURCES = put_all_kinds.c
+TESTPROGRAMS += put_all_kinds \
+				iput_all_kinds
+BUILT_SOURCES = put_all_kinds.c \
+				iput_all_kinds.c
 
 if ENABLE_ERANGE_FILL
    M4_SRCS += erange_fill.m4

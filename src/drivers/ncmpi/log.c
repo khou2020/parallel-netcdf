@@ -952,10 +952,10 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
     vid = get_varid(nclogp->Parent, varp);
 
     /* We may need to modify count, make a copy */
-    Count = (MPI_Offset*)NCI_Malloc(SIZEOF_MPI_OFFSET * dim);
+    /*Count = (MPI_Offset*)NCI_Malloc(SIZEOF_MPI_OFFSET * dim);
     for (i = 0; i < varp->ndims; i++) {
         Count[i] = count[i];
-    }
+    }*/
         
     /* Convert to log types */
     switch (buftype) {
@@ -974,6 +974,7 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
             /* Modify count to reflect size of original type */ 
             Count[varp->ndims - 1] *= PackedSize / size;
         }
+        MPI_Abort(MPI_COMM_AORLD, -1);
         break;
     case MPI_CHAR:    /* put_*_char */
         itype = NC_LOG_TYPE_SCHAR;
@@ -1014,10 +1015,10 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
     }
 
     if (stride == NULL){
-        ret = ncmpii_logi_put_var(nclogp, NC_LOG_API_KIND_VARA, itype, vid, dim, start, Count, stride, buf); 
+        ret = ncmpii_logi_put_var(nclogp, NC_LOG_API_KIND_VARA, itype, vid, dim, start, count, stride, buf); 
     }
     else{
-        ret = ncmpii_logi_put_var(nclogp, NC_LOG_API_KIND_VARS, itype, vid, dim, start, Count, stride, buf); 
+        ret = ncmpii_logi_put_var(nclogp, NC_LOG_API_KIND_VARS, itype, vid, dim, start, count, stride, buf); 
     }
 
     return ret;
