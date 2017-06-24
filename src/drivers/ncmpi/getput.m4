@@ -416,7 +416,16 @@ err_check:
 
         /* If log is enable */
         if (ncp->nclogp != NULL){
-            return ncmpii_log_put_var(ncp->nclogp, varp, start, count, stride, cbuf, buftype, position);
+            /* Record in log file */
+            err = ncmpii_log_put_var(ncp->nclogp, varp, start, count, stride, cbuf, ptype, bnelems * el_size);
+            /* Free the buffer */
+            if (cbuf != lbuf){
+                NCI_Free(cbuf);
+            }
+            if (lbuf != buf){
+                NCI_Free(lbuf);
+            }
+            return err;
         }
 
         /* Step 3: pack cbuf to xbuf. The contents of xbuf will be in the

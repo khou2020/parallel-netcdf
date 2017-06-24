@@ -974,7 +974,7 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
             /* Modify count to reflect size of original type */ 
             Count[varp->ndims - 1] *= PackedSize / size;
         }
-        MPI_Abort(MPI_COMM_AORLD, -1);
+        MPI_Abort(MPI_COMM_WORLD, -1);
         break;
     case MPI_CHAR:    /* put_*_char */
         itype = NC_LOG_TYPE_SCHAR;

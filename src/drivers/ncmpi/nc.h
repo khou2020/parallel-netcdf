@@ -842,6 +842,7 @@ ncmpii_NC_check_vlens(NC *ncp);
 
 /* Metadata header
  * Variable named according to the spec
+ * ToDo: Replace int with 4 byte integer variable if int is not 4 byte
  */
 typedef struct NC_Log_metadataheader {
     char magic[NC_LOG_MAGIC_SIZE];
@@ -858,6 +859,7 @@ typedef struct NC_Log_metadataheader {
 
 /* Metadata entry header 
  * Variable named according to the spec
+ * ToDo: Replace int with 4 byte integer variable if int is not 4 byte
  */
 typedef struct NC_Log_metadataentry {
     MPI_Offset esize;
