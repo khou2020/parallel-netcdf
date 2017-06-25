@@ -269,7 +269,7 @@ ncmpii_create(MPI_Comm     comm,
 
     /* get log hints from user info */
     ncp->nclogp = NULL;
-    if (env_info != MPI_INFO_NULL) {
+    if (0 && env_info != MPI_INFO_NULL) {
         int flag;
         char value[MPI_MAX_INFO_VAL];
         MPI_Info_get(env_info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
@@ -531,6 +531,8 @@ ncmpii_open(MPI_Comm    comm,
             else{
                 ncp->nclogp->FlushOnSync = NC_LOG_FALSE;
             }
+
+            ncmpii_log_enddef(ncp->nclogp);
         }
     }
     
@@ -804,9 +806,33 @@ ncmpii_enddef(void *ncdp)
     if (!NC_indef(ncp)) /* must currently in define mode */
         DEBUG_RETURN_ERROR(NC_ENOTINDEFINE)
     
-    /* Update log structure */
-    if (ncp->nclogp != NULL){
-        ncmpii_log_enddef(ncp->nclogp);
+    /* Create log structure if hint is set */
+    if (ncp->nciop->hints.log_enable){
+        /* Create log file if not created */
+        if (ncp->nclogp == NULL){
+            ncmpii_log_create(ncp->nciop->comm, ncp->nciop->path, ncp->nciop->hints.log_base, ncp, &(ncp->nclogp));
+            
+            if (ncp->nciop->hints.log_del_on_close){
+                ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
+            }
+            else{
+                ncp->nclogp->DeleteOnClose = NC_LOG_FALSE;
+            }
+            if (ncp->nciop->hints.log_flush_on_wait){
+                ncp->nclogp->FlushOnWait = NC_LOG_TRUE;
+            }
+            else{
+                ncp->nclogp->FlushOnWait = NC_LOG_FALSE;
+            }
+            if (ncp->nciop->hints.log_flush_on_sync){
+                ncp->nclogp->FlushOnSync = NC_LOG_TRUE;
+            }
+            else{
+                ncp->nclogp->FlushOnSync = NC_LOG_FALSE;
+            }
+            
+            ncmpii_log_enddef(ncp->nclogp);
+        }
     }
 
     return ncmpiio_enddef(ncp);
