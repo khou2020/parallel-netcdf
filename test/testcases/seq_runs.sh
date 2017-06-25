@@ -21,12 +21,12 @@ export PNETCDF_HINTS="pnetcdf_log=enable"
 ./put_all_kinds blocking_log
 ./iput_all_kinds nonblocking_log
 unset PNETCDF_HINTS
-ncmpidiff blocking.cdf1 blocking_log.cdf1
-ncmpidiff blocking.cdf2 blocking_log.cdf2
-ncmpidiff blocking.cdf5 blocking_log.cdf5
-ncmpidiff nonblocking.cdf1 nonblocking_log.cdf1
-ncmpidiff nonblocking.cdf2 nonblocking_log.cdf2
-ncmpidiff nonblocking.cdf5 nonblocking_log.cdf5
+../../src/utils/ncmpidiff/ncmpidiff blocking.cdf1 blocking_log.cdf1
+../../src/utils/ncmpidiff/ncmpidiff blocking.cdf2 blocking_log.cdf2
+../../src/utils/ncmpidiff/ncmpidiff blocking.cdf5 blocking_log.cdf5
+../../src/utils/ncmpidiff/ncmpidiff nonblocking.cdf1 nonblocking_log.cdf1
+../../src/utils/ncmpidiff/ncmpidiff nonblocking.cdf2 nonblocking_log.cdf2
+../../src/utils/ncmpidiff/ncmpidiff nonblocking.cdf5 nonblocking_log.cdf5
 rm -f *.cdf1
 rm -f *.cdf2
 rm -f *.cdf5

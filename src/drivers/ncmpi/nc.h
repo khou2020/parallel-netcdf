@@ -881,12 +881,12 @@ typedef struct NC_Log {
 	MPI_Offset MaxSize;    /* max data size in byte among all log entries */ 
     char* Metadata;    /* metadata buffer */
     size_t MetaBufferSize;    /* size of metadata buffer */
-    size_t MetaHead;    /* used size of metadata buffer */
+    size_t MetaSize;    /* used size of metadata buffer */
     NC_Log_metadataheader MetaHeader;    /* metadata header */
     MPI_Comm Communitator;    /* communicator of associate with the CDF file */
     size_t* MetaOffset;    /* metadata offset list */
     size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
-    size_t MetaOffsetHead;    /* used space of metadata offset list */
+    size_t MetaOffsetSize;    /* used space of metadata offset list */
     int DeleteOnClose;    /* Delete log on close or not */
     struct NC* Parent; /* NC structure hosting this log structure */
     int Flushing;   /* If log is flushing */
