@@ -817,10 +817,10 @@ ncmpii_NC_check_vlens(NC *ncp);
 #define NC_LOG_API_KIND_VARS 4
 
 #define NC_LOG_MAGIC_SIZE 8
-#define NC_LOG_MAGIC "PnetCDF\0"
+#define NC_LOG_MAGIC "PnetCDF0"
 
 #define NC_LOG_FORMAT_SIZE 8
-#define NC_LOG_FORMAT_CDF_MAGIC "CDF\0\0\0\0\0"
+#define NC_LOG_FORMAT_CDF_MAGIC "CDF0\0\0\0\0"
 #define NC_LOG_FORMAT_HDF5_MAGIC "\211HDF\r\n\032\n"
 #define NC_LOG_FORMAT_BP_MAGIC "BP\0\0\0\0\0\0"
 
