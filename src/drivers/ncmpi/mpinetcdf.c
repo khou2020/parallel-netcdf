@@ -257,7 +257,11 @@ ncmpii_create(MPI_Comm     comm,
         char value[MPI_MAX_INFO_VAL];
         MPI_Info_get(env_info, "nc_header_read_chunk_size", MPI_MAX_INFO_VAL-1,
                      value, &flag);
-        if (flag) chunksize = strtoll(value,NULL,10);
+        if (flag) {
+            errno = 0;
+            chunksize = strtoll(value,NULL,10);
+            if (errno != 0) chunksize = NC_DEFAULT_CHUNKSIZE;
+        }
     }
 
     /* allocate buffer for header object NC */
@@ -434,7 +438,11 @@ ncmpii_open(MPI_Comm    comm,
         char value[MPI_MAX_INFO_VAL];
         MPI_Info_get(env_info, "nc_header_read_chunk_size", MPI_MAX_INFO_VAL-1,
                      value, &flag);
-        if (flag) chunksize = strtoll(value,NULL,10);
+        if (flag) {
+            errno = 0;
+            chunksize = strtoll(value,NULL,10);
+            if (errno != 0) chunksize = NC_DEFAULT_CHUNKSIZE;
+        }
     }
 
     /* allocate NC file object */
@@ -595,7 +603,7 @@ ncmpii_open(MPI_Comm    comm,
         nameT = &ncp->dims.nameT[key];
         if (nameT->num % NC_NAME_TABLE_CHUNK == 0)
             nameT->list = (int*) NCI_Realloc(nameT->list,
-                          (size_t)(nameT->num+NC_NAME_TABLE_CHUNK) * sizeof(int));
+                          (size_t)(nameT->num+NC_NAME_TABLE_CHUNK) * SIZEOF_INT);
         nameT->list[nameT->num] = i;
         nameT->num++;
     }
@@ -611,7 +619,7 @@ ncmpii_open(MPI_Comm    comm,
         nameT = &ncp->vars.nameT[key];
         if (nameT->num % NC_NAME_TABLE_CHUNK == 0)
             nameT->list = (int*) NCI_Realloc(nameT->list,
-                          (size_t)(nameT->num+NC_NAME_TABLE_CHUNK) * sizeof(int));
+                          (size_t)(nameT->num+NC_NAME_TABLE_CHUNK) * SIZEOF_INT);
         nameT->list[nameT->num] = i;
         nameT->num++;
     }
@@ -1109,14 +1117,22 @@ ncmpii_inq_misc(void       *ncdp,
         MPI_Info_get(ncp->nciop->mpiinfo, "striping_unit", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         *striping_size = 0;
-        if (flag) *striping_size = (int)strtol(value,NULL,10);
+        if (flag) {
+            errno = 0;
+            *striping_size = (int)strtol(value,NULL,10);
+            if (errno != 0) *striping_size = 0;
+        }
     }
 
     if (striping_count != NULL) {
         MPI_Info_get(ncp->nciop->mpiinfo, "striping_factor", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         *striping_count = 0;
-        if (flag) *striping_count = (int)strtol(value,NULL,10);
+        if (flag) {
+            errno = 0;
+            *striping_count = (int)strtol(value,NULL,10);
+            if (errno != 0) *striping_count = 0;
+        }
     }
 
     /* the amount of writes, in bytes, committed to file system so far */

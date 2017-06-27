@@ -207,7 +207,6 @@ ncmpii_dup_NC(const NC *ref)
         ncmpii_free_NC(ncp);
         return NULL;
     }
-
     ncp->xsz       = ref->xsz;
     ncp->begin_var = ref->begin_var;
     ncp->begin_rec = ref->begin_rec;
@@ -1180,14 +1179,26 @@ ncmpii_inq_env_align_hints(MPI_Offset *h_align,
             if (val == NULL) continue; /* ill-formed hint */
             *val = '\0';
             val++;
-            if (strcasecmp(key, "nc_header_align_size") == 0)
+            if (strcasecmp(key, "nc_header_align_size") == 0) {
+                errno = 0;
                 *h_align = strtoll(val,NULL,10);
-            else if (strcasecmp(key, "nc_var_align_size") == 0)
+                if (errno != 0) *h_align = 0;
+            }
+            else if (strcasecmp(key, "nc_var_align_size") == 0) {
+                errno = 0;
                 *v_align = strtoll(val,NULL,10);
-            else if (strcasecmp(key, "nc_header_read_chunk_size") == 0)
+                if (errno != 0) *v_align = 0;
+            }
+            else if (strcasecmp(key, "nc_header_read_chunk_size") == 0) {
+                errno = 0;
                 *h_chunk = strtoll(val,NULL,10);
-            else if (strcasecmp(key, "nc_record_align_size") == 0)
+                if (errno != 0) *h_chunk = 0;
+            }
+            else if (strcasecmp(key, "nc_record_align_size") == 0) {
+                errno = 0;
                 *r_align = strtoll(val,NULL,10);
+                if (errno != 0) *r_align = 0;
+            }
             key = strtok(NULL, ";");
         }
         NCI_Free(env_str_cpy);
@@ -1216,7 +1227,11 @@ ncmpiio_enddef(NC *ncp)
     MPI_Info_get(ncp->nciop->mpiinfo, "striping_unit", MPI_MAX_INFO_VAL-1,
                  value, &flag);
     striping_unit = 0;
-    if (flag) striping_unit = (int)strtol(value,NULL,10);
+    if (flag) {
+        errno = 0;
+        striping_unit = (int)strtol(value,NULL,10);
+        if (errno != 0) striping_unit = 0;
+    }
     ncp->nciop->striping_unit = striping_unit;
 
     all_var_size = 0;  /* sum of all defined variables */
@@ -1293,7 +1308,11 @@ ncmpiio__enddef(NC         *ncp,
     MPI_Info_get(ncp->nciop->mpiinfo, "striping_unit", MPI_MAX_INFO_VAL-1,
                  value, &flag);
     striping_unit = 0;
-    if (flag) striping_unit = (int)strtol(value,NULL,10);
+    if (flag) {
+        errno = 0;
+        striping_unit = (int)strtol(value,NULL,10);
+        if (errno != 0) striping_unit = 0;
+    }
     ncp->nciop->striping_unit = striping_unit;
 
     all_var_size = 0;  /* sum of all defined variables */

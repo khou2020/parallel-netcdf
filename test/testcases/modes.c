@@ -41,7 +41,7 @@ int check_modes(char *filename)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* delete the file and ignore error */
-    unlink(filename);
+    if (rank == 0) unlink(filename);
     MPI_Barrier(MPI_COMM_WORLD);
 
     /* create a new file and test various cmodes ----------------------------*/
@@ -144,21 +144,15 @@ int main(int argc, char** argv)
         MPI_Finalize();
         return 1;
     }
-    if (argc == 2) snprintf(filename, 256, "%s", argv[1]);
-    else           strcpy(filename, "testfile.nc");
-    MPI_Bcast(filename, 256, MPI_CHAR, 0, MPI_COMM_WORLD);
+    if (argc == 2) snprintf(filename, 256, "%s", argv[1]); 
+    else           strcpy(filename, "testfile.nc"); 
+    MPI_Bcast(filename, 256, MPI_CHAR, 0, MPI_COMM_WORLD); 
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
         sprintf(cmd_str, "*** TESTING C   %s for file create/open modes ", basename(argv[0]));
         printf("%-66s ------ ", cmd_str); fflush(stdout);
         free(cmd_str);
-    }
-    if (filename[0] == '\0') {
-        printf(PASS_STR);
-        fprintf(stderr,"Error: invalid filename, Exiting ...\n");
-        MPI_Finalize();
-        return 1;
     }
 
     /* test under safe mode enabled */
