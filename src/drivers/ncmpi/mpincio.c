@@ -147,7 +147,7 @@ void ncmpiio_extract_hints(ncio     *nciop,
 
     MPI_Info_get(info, "pnetcdf_log", MPI_MAX_INFO_VAL-1,
                  value, &flag);
-    if (flag && strcasecmp(value, "enable") == 0)
+    if (flag && strcasecmp(value, "1") == 0)
         nciop->hints.log_enable = 1;
 
     MPI_Info_get(info, "pnetcdf_log_base", MPI_MAX_INFO_VAL-1,
@@ -156,17 +156,17 @@ void ncmpiio_extract_hints(ncio     *nciop,
 
     MPI_Info_get(info, "pnetcdf_log_del_on_close", MPI_MAX_INFO_VAL-1,
                  value, &flag);
-    if (flag && strcasecmp(value, "disable") == 0)
+    if (flag && strcasecmp(value, "0") == 0)
         nciop->hints.log_del_on_close = 0;
 
     MPI_Info_get(info, "pnetcdf_log_flush_on_wait", MPI_MAX_INFO_VAL-1,
                  value, &flag);
-    if (flag && strcasecmp(value, "enable") == 0)
+    if (flag && strcasecmp(value, "1") == 0)
         nciop->hints.log_flush_on_wait = 1;
 
     MPI_Info_get(info, "pnetcdf_log_flush_on_sync", MPI_MAX_INFO_VAL-1,
                  value, &flag);
-    if (flag && strcasecmp(value, "enable") == 0)
+    if (flag && strcasecmp(value, "1") == 0)
         nciop->hints.log_flush_on_sync = 1;
 
 #ifdef ENABLE_SUBFILING
