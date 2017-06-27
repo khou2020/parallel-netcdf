@@ -93,6 +93,10 @@ non_blocking_put_$1(int         rank,
 
     err = ncmpi_iput_varm_double(ncid, varm_id, startM, countM, NULL, imap, buf, NULL);
     CHECK_ERR
+    
+    /* wait for all input */
+    err = ncmpi_wait_all(ncid, NC_REQ_ALL, NULL, NULL);
+    CHECK_ERR
 
     return nerrs;
 }
@@ -133,8 +137,8 @@ ifelse(`$1', `NC_FORMAT_64BIT_DATA',
     _CAT(`nerrs += non_blocking_put_',itype)'`(rank, ncid, dimids, start, count,
              startS, countS, stride, startM, countM, imap, buf);'))
     /* wait for all input */
-    err = ncmpi_wait_all(ncid, NC_REQ_ALL, NULL, NULL);
-    CHECK_ERR
+    //err = ncmpi_wait_all(ncid, NC_REQ_ALL, NULL, NULL);
+    //CHECK_ERR
 
     /* close the file */
     err = ncmpi_close(ncid);
