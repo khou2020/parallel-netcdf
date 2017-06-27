@@ -231,63 +231,42 @@ char* meta_alloc(NC_Log *nclogp, size_t size) {
 }
 
 /*
- * Initialize the log structure
- * This function initialize the information required to operate the log, but it does not create log file
+ * Create a new log structure
  * IN    comm:    communicator passed to ncmpi_open
  * IN    path:    path of the CDF file
- * IN    bufferdir:    root directory to store log file
- * IN    nclogp:    log structure to be initialized
+ * IN    BufferDir:    root directory to store log file
+ * IN    Parent:    NC structure that will host the log structure
+ * OUT    nclogp:    Initialized log structure 
  */
-int init_file_metadata(MPI_Comm comm, const char* path, const char* bufferdir, NC_Log *nclogp) {
-    int rank, np, ret;
+int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC *Parent, NC_Log **nclogpp) {
+    int ret, rank, np, err;
     char logpath[NC_LOG_PATH_MAX], *abspath;
-    NC_Log_metadataheader H;
+    size_t ioret;
+    NC_Log_metadataheader *H;
+    NC_Log *nclogp;
+    
+    
+    /* Allocate the structure */
+    nclogp = (NC_Log*)NCI_Malloc(sizeof(NC_Log));
+    /* Record the parent NC structure */ 
+    nclogp->Parent = Parent;
 
-    ret = MPI_Comm_rank(comm, &rank);
-    if (ret != MPI_SUCCESS) {
-        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
-        DEBUG_RETURN_ERROR(ret);
-    }
-    ret = MPI_Comm_size(comm, &np);
-    if (ret != MPI_SUCCESS) {
-        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
-        DEBUG_RETURN_ERROR(ret);
-    }
-
-    /* Fill up the metadata log header */
-    memset(H.magic, 0, sizeof(H.magic)); /* Magic */
-    strncpy(H.magic, NC_LOG_MAGIC, sizeof(H.magic));
-    memset(H.format, 0, sizeof(H.format)); /* Format */
-    strncpy(H.format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(H.format));
-    memset(H.basename, 0, sizeof(H.basename)); /* Path */
-    abspath = realpath(path, H.basename); /* Resolve absolute path */
-    if (abspath == NULL){
-        /* Can not resolve absolute path */
-        DEBUG_RETURN_ERROR(NC_EBAD_FILE);
-    }
-    H.rank_id = rank;   /* Rank */
-    H.num_ranks = np;   /* Number of processes */
-    H.is_external = 0;    /* Without convertion before logging, data in native representation */
-    /* Determine endianess */
-    if (WORDS_BIGENDIAN) {
-        H.big_endian = NC_LOG_TRUE;
-    }
-    else {
-        H.big_endian = NC_LOG_FALSE;
-    }
-    H.num_entries = 0;    /* The log is empty */
-    H.max_ndims = 0;    /* Highest dimension among all variables, not used */
-    H.entry_begin = sizeof(H);  /* Location of the first entry */
-
-    /* Fill up the log structure */
+    /* Initialize log structure */
     
     /* Determine log file name
      * Log file name is $(bufferdir)$(basename)_$(rank).{meta/data}.bin
      * Basename is absolute path to the cdf file
      */
-    sprintf(nclogp->MetaPath, "%s%s_%d.meta.bin", bufferdir, H.basename, rank);
-    sprintf(nclogp->DataPath, "%s%s_%d.data.bin", bufferdir, H.basename, rank);
-    strncpy(nclogp->Path, H.basename, sizeof(nclogp->Path));
+
+    /* Resolve absolute path */
+    memset(nclogp->Path, 0, sizeof(nclogp->Path));
+    abspath = realpath(path, nclogp->Path);
+    if (abspath == NULL){
+        /* Can not resolve absolute path */
+        DEBUG_RETURN_ERROR(NC_EBAD_FILE);
+    }
+    sprintf(nclogp->MetaPath, "%s%s_%d.meta.bin", BufferDir, nclogp->Path, rank);
+    sprintf(nclogp->DataPath, "%s%s_%d.data.bin", BufferDir, nclogp->Path, rank);
     
     /* Initialize metadata buffer */
     nclogp->MetaBufferSize = META_BUFFER_SIZE;  /* Size of metadata buffer */
@@ -311,31 +290,50 @@ int init_file_metadata(MPI_Comm comm, const char* path, const char* bufferdir, N
  
     /* Misc */
     nclogp->Communitator = comm;    /* Communicator passed to ncmpi_create/open */
-    nclogp->MetaHeader = H; /* Link Metadata header to Log structure */
     nclogp->Flushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
-    nclogp->MaxSize = 0;    /* Max size of buffer ever passed to put_var function, not used */
-      
-    return NC_NOERR;
-}
-
-/*
- * This function creates the log file for a new log structure
- * IN    nclogp:    log structure
- */
-int create_log_file(NC_Log *nclogp) {
-    int err;
-    char* buffer;
-    size_t size, ret;
+    nclogp->MaxSize = 0;    /* Max size of buffer ever passed to put_var function, not used */ 
+    //nclogp->MetaHeader = (NC_Log_metadataheader*)nclogp->Metadata; /* Link Metadata header to Log structure */
     
+    /* Initialize metadata header */
+    
+    /* Allocate space for metadata header */
+    H = (NC_Log_metadataheader*)meta_alloc(nclogp, sizeof(NC_Log_metadataheader));
 
-    /* Write metadata header to metadata buffer 
-     * Allocate a space in the metadata buffer, then copy the header structre
-     */
-    buffer = meta_alloc(nclogp, nclogp->MetaHeader.entry_begin);
-    if (buffer == NULL){
-        DEBUG_RETURN_ERROR(NC_ENOMEM);
+    /* Get rank and number of processes */
+    ret = MPI_Comm_rank(comm, &rank);
+    if (ret != MPI_SUCCESS) {
+        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
+        DEBUG_RETURN_ERROR(ret);
     }
-    memcpy(buffer, &nclogp->MetaHeader, sizeof(nclogp->MetaHeader));
+    ret = MPI_Comm_size(comm, &np);
+    if (ret != MPI_SUCCESS) {
+        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
+        DEBUG_RETURN_ERROR(ret);
+    }
+
+    /* Fill up the metadata log header */
+    memset(H->magic, 0, sizeof(H->magic)); /* Magic */
+    strncpy(H->magic, NC_LOG_MAGIC, sizeof(H->magic));
+    memset(H->format, 0, sizeof(H->format)); /* Format */
+    strncpy(H->format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(H->format));
+    memset(H->basename, 0, sizeof(H->basename)); /* Path */
+    strncpy(H->basename, nclogp->Path, sizeof(H->basename));
+    H->rank_id = rank;   /* Rank */
+    H->num_ranks = np;   /* Number of processes */
+    H->is_external = 0;    /* Without convertion before logging, data in native representation */
+    /* Determine endianess */
+    if (WORDS_BIGENDIAN) {
+        H->big_endian = NC_LOG_TRUE;
+    }
+    else {
+        H->big_endian = NC_LOG_FALSE;
+    }
+    H->num_entries = 0;    /* The log is empty */
+    H->max_ndims = 0;    /* Highest dimension among all variables, not used */
+    H->entry_begin = nclogp->MetaSize;  /* Location of the first entry */
+
+    
+    /* Create log file */
     
     /* Log file path may contain directory
      * open does not create directory, so we need to prepare all directory along the path
@@ -343,6 +341,7 @@ int create_log_file(NC_Log *nclogp) {
     mkpath(nclogp->MetaPath, 0744); 
 
     /* Create log files */
+    
     nclogp->DataLog = nclogp->MetaLog = -1;
     nclogp->MetaLog = open(nclogp->MetaPath, O_RDWR | O_CREAT | O_TRUNC, 0744);
     if (nclogp->MetaLog < 0) {
@@ -358,65 +357,45 @@ int create_log_file(NC_Log *nclogp) {
     /* Write metadata header to file
      * Write from the memory buffer to file
      */
-    ret = lseek(nclogp->MetaLog, 0, SEEK_SET);
-    if (ret < 0){ 
+    ioret = lseek(nclogp->MetaLog, 0, SEEK_SET);
+    if (ioret < 0){ 
         err = ncmpii_handle_io_error("lseek");
         DEBUG_RETURN_ERROR(err);
     }
-    ret = write(nclogp->MetaLog, buffer, sizeof(nclogp->MetaHeader));
-    if (ret < 0){
+    ioret = write(nclogp->MetaLog, H, sizeof(NC_Log_metadataheader));
+    if (ioret < 0){
         err = ncmpii_handle_io_error("write");
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
         DEBUG_RETURN_ERROR(err);
+    }
+    if (ioret != sizeof(NC_Log_metadataheader)){
+        DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
     /* Write data header to file 
      * Data header consists of a fixed sized string PnetCDF0
      */
-    ret = lseek(nclogp->DataLog, 0, SEEK_SET);
-    if (ret < 0){ 
+    ioret = lseek(nclogp->DataLog, 0, SEEK_SET);
+    if (ioret < 0){ 
         err = ncmpii_handle_io_error("lseek");
         DEBUG_RETURN_ERROR(err);
     }
-    ret = write(nclogp->DataLog, "PnetCDF0", 8);
-    if (ret < 0){ 
+    ioret = write(nclogp->DataLog, "PnetCDF0", 8);
+    if (ioret < 0){ 
         err = ncmpii_handle_io_error("write");
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
         DEBUG_RETURN_ERROR(err);
     }
-
-    return NC_NOERR;
-}
-
-/*
- * Create a new log structure
- * IN    comm:    communicator passed to ncmpi_open
- * IN    path:    path of the CDF file
- * IN    BufferDir:    root directory to store log file
- * IN    Parent:    NC structure that will host the log structure
- * OUT    nclogp:    Initialized log structure 
- */
-int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC *Parent, NC_Log **nclogp) {
-    int ret;
-    NC_Log *F;
-
-    /* Allocate the structure */
-    F = (NC_Log*)NCI_Malloc(sizeof(NC_Log));
-    
-    F->Parent = Parent; /* The NC structure holding the log */
-
-    /* Initialize log structure */
-    ret = init_file_metadata(comm, path, BufferDir, F);
-    if (ret != NC_NOERR) {
-        goto ERROR;
+    if (ioret != 8){
+        DEBUG_RETURN_ERROR(NC_EWRITE);
     }
-   
+
     /* return to the caller */
-    *nclogp = F;
+    *nclogpp = nclogp;
 
 ERROR:;
     if (ret != NC_NOERR) {
-        NCI_Free(F);
+        NCI_Free(nclogp);
     }
     
     return ret;
@@ -431,158 +410,9 @@ int ncmpii_log_enddef(NC_Log *nclogp){
 
     /* Create log files if not created*/
     if (nclogp->MetaLog < 0){
-        ret = create_log_file(nclogp);
+        //ret = create_log_file(nclogp);
     }
 
-    return ret;
-}
-
-/*
- * Open an existing log file associate with the log structure
- * This may happens when recover from a crash or when replay is delayed (currently not supported)
- * This function is not used
- * In addition to opening the file, we also need to restore previous status based on the log file
- * IN    nclogp:    log structure
- */
-int open_log_file(NC_Log *nclogp) {
-    int i, fd, namelen, err;
-    char* buffer;
-    size_t ret, nrec, size, offset;
-    struct stat metastat;
-    NC_Log_metadataentry *E;
-
-    /* Open existing log file */
-    nclogp->DataLog = nclogp->MetaLog = -1;
-    nclogp->MetaLog = open(nclogp->MetaPath, O_RDWR, 0744);
-    if (nclogp->MetaLog < 0) {
-        err = ncmpii_handle_io_error("open"); 
-        DEBUG_RETURN_ERROR(err); 
-    }
-    nclogp->DataLog = open(nclogp->DataPath, O_RDWR, 0744);
-    if (nclogp->DataLog < 0) {
-        err = ncmpii_handle_io_error("open"); 
-        DEBUG_RETURN_ERROR(err); 
-    }
-
-    /* Get file size */
-    fstat(nclogp->MetaLog, &metastat);
-
-    /* The metadata is mirrored in memory, we need to populate the memory buffer with exiting metadata in the file */
-    /* Preparing the buffer
-     */
-    if (nclogp->MetaBufferSize < metastat.st_size) {
-        if (nclogp->MetaBufferSize <= 0) {
-            nclogp->MetaBufferSize = META_BUFFER_SIZE;
-        }
-        while (nclogp->MetaBufferSize < metastat.st_size) {    /* Calculating the required size */
-            nclogp->MetaBufferSize *= META_BUFFER_MULTIPLIER;
-        }
-        /* Allocate memory buffer */
-        nclogp->Metadata = (char*)NCI_Realloc(nclogp->Metadata, nclogp->MetaBufferSize);
-    }
-
-    /* Read metadata to memory buffer */
-    ret = read(nclogp->MetaLog, nclogp->Metadata, metastat.st_size);
-    if (ret < 0){ 
-        err = ncmpii_handle_io_error("write");
-        if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
-        DEBUG_RETURN_ERROR(err);
-    }
-    if (ret != metastat.st_size){
-        DEBUG_RETURN_ERROR(NC_EBADLOG);
-    }
-
-    /* Restore the metadata header in the log structure */
-    size = 0;
-    memcpy(buffer + size, &nclogp->MetaHeader, sizeof(nclogp->MetaHeader));
-    size += sizeof(nclogp->MetaHeader);
-
-    /* Restore the metadata record list */
-    offset = nclogp->MetaHeader.entry_begin;
-    for(i = 0; i < nclogp->MetaHeader.num_entries; i++) {
-        /* Record the offset */
-        AppendMetaOffset(nclogp, offset);
-
-        /* Get metaheader */
-        E = (NC_Log_metadataentry*)(nclogp->Metadata + offset);
-
-        /* Update datasize info */
-        if (nclogp->MaxSize < E->data_len) {
-            nclogp->MaxSize = E->data_len;
-        }
-
-        offset += E->esize;    /* Jump to next location */
-    }
-    nclogp->MetaSize = offset;
-
-    return NC_NOERR;
-}
-
-/*
- * Create new log structure of existing CDF file
- * The old log file, if exists, is used 
- * Used by ncmpi_open()
- * IN    comm:    communicator passed to ncmpi_open
- * IN    path:    path of the CDF file
- * IN    BufferDir:    root directory to store log file
- * IN    Parent:    NC structure that will host the log structure
- * OUT    nclogp:    Initialized log structure
- */
-int ncmpii_log_open(MPI_Comm comm, const char* path, const char* BufferDir, NC* Parent, NC_Log **nclogp) {
-    int ret;
-    NC_Log *F;
-
-    F = (NC_Log*)NCI_Malloc(sizeof(NC_Log));
-
-    F->Parent = Parent;
-
-    /* Initialize log info */
-    ret = init_file_metadata(comm, path, BufferDir, F);
-    if (ret != NC_NOERR) {
-        return ret;
-    }
-
-    /* Prepare log file */
-    F->DataLog = F->MetaLog = -1;
-#ifdef HAVE_ACCESS
-    if (access(F->MetaPath, F_OK) != -1) { /* If log file already exists */
-        if (access(F->DataPath, F_OK) != -1) { /* Data log should also exists */
-            /* Continue on previous status when log already exists (abnormal terminstion previously) */
-            ret = open_log_file(F);
-            if (ret != NC_NOERR) {
-                return ret;
-            }
-        }
-        else {
-            DEBUG_RETURN_ERROR(NC_ENODATALOG);    /* 2 Logs must exist simultenously */
-        }
-    }
-    else {
-        /* Create new log files */
-        ret = create_log_file(F);
-        if (ret != NC_NOERR) {
-            return ret;
-        }
-    }
-#else
-    /* Try open */
-    ret = open_log_file(F);
-    if (ret != NC_NOERR) {
-        if (ret == NC_ENOENT){
-            ret = create_log_file(F);
-        }
-        if (ret != NC_NOERR){
-            return ret;
-        }
-    }
-
-#endif
-    *nclogp = F;
-
-ERROR:;
-    if (ret != NC_NOERR) {
-        NCI_Free(F);
-    }
     return ret;
 }
 
@@ -602,6 +432,7 @@ int flush_log(NC_Log *nclogp) {
     MPI_Datatype buftype;
     char *data, *head, *tail;
     struct stat datastat;
+    NC_Log_metadataheader* H;
 
     /* Turn on the flushing flag so non-blocking call won't be logged */
     nclogp->Flushing = 1;
@@ -630,9 +461,10 @@ int flush_log(NC_Log *nclogp) {
     }
 
     /* Iterate through meta log entries */
-    head = nclogp->Metadata + nclogp->MetaHeader.entry_begin;   /* Head points to the current metadata entry */
+    H = (NC_Log_metadataheader*)nclogp->Metadata;
+    head = nclogp->Metadata + H->entry_begin;   /* Head points to the current metadata entry */
     tail = head + sizeof(NC_Log_metadataentry); /* Tail points to the end of current metadata entry header, the locaation of start, count, and stride */
-    for (i = 0; i < nclogp->MetaHeader.num_entries; i++) {
+    for (i = 0; i < H->num_entries; i++) {
         /* Treate the data at head as a metadata entry header */
         E = (NC_Log_metadataentry*)head;
 
@@ -796,114 +628,6 @@ int WriteXMeta(NC_Log *nclogp, NC_Log_metadataentry *E, const MPI_Offset start[]
 #endif
 
 /*
- * Write metadata to memory buffer as well as metadata log
- * IN    nclogp: log structure
- * IN    E: metadata entry header
- * IN    start: start in put_var* call
- * IN    count: count in put_var* call
- * IN    stride: stride in put_var* call
- */
-int WriteMeta(NC_Log *nclogp, NC_Log_metadataentry E, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[]) {
-    size_t size, vsize;
-    ssize_t ret;
-    char *buffer;
-    
-    /* Seek to the head of metadata
-     * Note: partial record may exist, so can not use EOF as start point
-     * Note: metadata will be updated after allocating metadata buffer space, seek must be done first 
-     */
-    ret = lseek(nclogp->MetaLog, nclogp->MetaSize, SEEK_SET);   
-    if (ret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
-    }
-    
-    /* Record offset 
-     * Note: metadata will be updated after allocating metadata buffer space, seek must be done first 
-     */
-    AppendMetaOffset(nclogp, nclogp->MetaSize);
-
-
-    /* Allocate space in metadata buffer */
-    buffer = meta_alloc(nclogp, E.esize);
-    if (buffer == NULL) {
-        DEBUG_RETURN_ERROR(NC_ENOMEM);
-    }
-
-    size = 0; /* Total size written */
-    
-    /* Write metadata entry header to metadata buffer */
-    memcpy(buffer + size, &E, sizeof(E));
-    size += sizeof(E);
-    /* Write variable length additional data to metadata buffer */
-    /* Length of start, count, stride vector */
-    vsize = SIZEOF_LONG_LONG * E.ndims;
-    /* Start */
-    if (start != NULL) {
-        memcpy(buffer + size, start, vsize);
-    }
-    size += vsize;
-    /* Count */
-    if (count != NULL) {
-        memcpy(buffer + size, count, vsize);
-    }
-    size += vsize;
-    /* Stride */
-    if (stride != NULL) {
-        memcpy(buffer + size, stride, vsize);
-    }
-    size += vsize;
-    
-    /* Total size should match that recorded in the entry heaer */
-    if (size != E.esize) {
-        DEBUG_RETURN_ERROR(NC_EUNKNOWN);
-    }
-
-    /* Write from metadata buffer to disk */
-    ret = write(nclogp->MetaLog, buffer, size);
-    if (ret < 0){
-        ret = ncmpii_handle_io_error("write");
-        if (ret == NC_EFILE){
-            ret = NC_EWRITE;
-        }
-        DEBUG_RETURN_ERROR(ret);
-    }
-    if (ret != size){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
-    }
-
-    /* Increase number of entry
-     * This must be the final step of a log record
-     * Increasing num_entries marks the completion of the record
-     */
-
-    /* Increase num_entries in the metadata buffer */
-    nclogp->MetaHeader.num_entries++;
-    /* Seek to the location of num_entries
-     * Note: location need to be updated when struct change
-     */
-    ret = lseek(nclogp->MetaLog, sizeof(nclogp->MetaHeader) - sizeof(nclogp->MetaHeader.basename) - sizeof(nclogp->MetaHeader.num_entries), SEEK_SET);
-    if (ret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
-    }
-    /* Overwrite num_entries
-     * This marks the completion of the record
-     */
-    ret = write(nclogp->MetaLog, &nclogp->MetaHeader.num_entries, sizeof(nclogp->MetaHeader.num_entries));
-    if (ret < 0){
-        ret = ncmpii_handle_io_error("write");
-        if (ret == NC_EFILE){
-            ret = NC_EWRITE;
-        }
-        DEBUG_RETURN_ERROR(ret);
-    }
-    if (ret != sizeof(nclogp->MetaHeader.num_entries)){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
-    }
-
-    return NC_NOERR;
-}
-
-/*
  * Retrieve variable id given NC_var and NC
  * IN    ncp:    NC structure
  * IN    varp:    NC_var structure
@@ -939,8 +663,12 @@ int get_varid(NC *ncp, NC_var *varp){
 int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize){
     int ret, vid, dim;
     int itype;    /* Type used in log file */
+    char *buffer;
+    MPI_Offset esize, dataoff;
+    MPI_Offset *Start, *Count, *Stride;
     ssize_t ioret;
-    NC_Log_metadataentry E;
+    NC_Log_metadataentry *E;
+    NC_Log_metadataheader *H;
 
     /* Enddef must be called at least once */
     if (nclogp->MetaLog < 0){
@@ -993,12 +721,63 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
         break;
     }
     
+    /* Writing to data log
+     * Note: Metadata record indicate completion, so data must go first 
+     */
+    
+    /* Find out the location of data in datalog
+     * Which is current possition in data log 
+     * Datalog descriptor should always points to the end of file
+     * Position must be recorded first before writing
+     */
+    ioret = lseek(nclogp->DataLog, 0, SEEK_CUR);
+    if (ioret < 0){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+    }
+    dataoff = (MPI_Offset)ioret;
+    
+    /* Write data log */
+    ioret = write(nclogp->DataLog, buf, PackedSize);
+    if (ioret < 0){
+        ret = ncmpii_handle_io_error("write");
+        if (ret == NC_EFILE){
+            ret = NC_EWRITE;
+        }
+        DEBUG_RETURN_ERROR(ret);
+    }
+    if (ioret != PackedSize){
+        DEBUG_RETURN_ERROR(NC_EWRITE);
+    }
+ 
     /* Prepare metadata entry header */
     
-    E.itype = itype; /* Variable type */
-    E.varid = vid;  /* Variable id */
-    E.ndims = dim;  /* Number of dimensions of the variable*/
-	E.data_len = PackedSize; /* The size of data in bytes. The size that will be write to data log */
+    /* Record offset 
+     * Note: metadata will be updated after allocating metadata buffer space, seek must be done first 
+     */
+    AppendMetaOffset(nclogp, nclogp->MetaSize);
+    
+    /* Seek to the head of metadata
+     * Note: EOF may not be the place for next entry after a flush
+     * Note: metadata size will be updated after allocating metadata buffer space, seek must be done first 
+     */
+    ret = lseek(nclogp->MetaLog, nclogp->MetaSize, SEEK_SET);   
+    if (ret < 0){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+    }
+
+    /* Size of metadata entry
+     * Include metadata entry header and variable size additional data (start, count, stride) 
+     */
+    esize = sizeof(NC_Log_metadataentry) + dim * 3 * SIZEOF_MPI_OFFSET;
+    
+    /* Allocate space for metadata entry header */
+    buffer = meta_alloc(nclogp, esize);
+    E = (NC_Log_metadataentry*)buffer;
+    E->esize = esize; /* Entry size */
+    E->itype = itype; /* Variable type */
+    E->varid = vid;  /* Variable id */
+    E->ndims = dim;  /* Number of dimensions of the variable*/
+	E->data_len = PackedSize; /* The size of data in bytes. The size that will be write to data log */
 
     /* Find out the location of data in datalog
      * Which is current possition in data log 
@@ -1008,53 +787,83 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
-    E.data_off = (MPI_Offset)ioret;
+    E->data_off = dataoff;
     
-    /* Size of metadata entry
-     * Include metadata entry header and variable size additional data (start, count, stride) 
-     */
-    E.esize = sizeof(NC_Log_metadataentry) + dim * 3 * SIZEOF_MPI_OFFSET;
     
     /* Determine the api kind of original call
      * If stride is NULL, we log it as a vara call, otherwise, a vars call 
      * Upper layer translates var1 and var to vara, so we only have vara and vars
      */
     if (stride == NULL){
-        E.api_kind = NC_LOG_API_KIND_VARA;
+        E->api_kind = NC_LOG_API_KIND_VARA;
     }
     else{
-        E.api_kind = NC_LOG_API_KIND_VARS;
+        E->api_kind = NC_LOG_API_KIND_VARS;
     }
 
     /* Record the maximum size of data
      * In a batched or 1 by 1 flushing approach, we need to know the size of data buffer needed
      * This is not used for current implementation
      */
-    if (E.data_len > nclogp->MaxSize) {
-        nclogp->MaxSize = E.data_len;
+    if (E->data_len > nclogp->MaxSize) {
+        nclogp->MaxSize = E->data_len;
     }
 
-    /* Writing to log
-     * Note: Metadata record indicate completion, so data must go first 
-     */
-
-    /* Write data log */
-    ioret = write(nclogp->DataLog, buf, E.data_len);
-    if (ioret < 0){
+    /* Calculate location of start, count, stride in metadata buffer */
+    Start = (MPI_Offset*)(buffer + sizeof(NC_Log_metadataentry));
+    Count = Start + dim;
+    Stride = Count + dim;
+    
+    /* Fill up start, count, and stride */
+    memcpy(Start, start, dim * SIZEOF_MPI_OFFSET);
+    memcpy(Count, count, dim * SIZEOF_MPI_OFFSET);
+    if(stride != NULL){
+        memcpy(Stride, stride, dim * SIZEOF_MPI_OFFSET);
+    }
+    /* Write meta data log */
+    ret = write(nclogp->MetaLog, buffer, esize);
+    if (ret < 0){
         ret = ncmpii_handle_io_error("write");
         if (ret == NC_EFILE){
             ret = NC_EWRITE;
         }
         DEBUG_RETURN_ERROR(ret);
     }
-    if (ioret != E.data_len){
+    if (ret != esize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
-    /* Write meta log */
-    ret = WriteMeta(nclogp, E, start, count, stride);
+    /* Increase number of entry
+     * This must be the final step of a log record
+     * Increasing num_entries marks the completion of the record
+     */
 
-    return ret;
+    /* Increase num_entries in the metadata buffer */
+    H = (NC_Log_metadataheader*)nclogp->Metadata;
+    H->num_entries++;
+    /* Seek to the location of num_entries
+     * Note: location need to be updated when struct change
+     */
+    ret = lseek(nclogp->MetaLog, sizeof(NC_Log_metadataheader) - sizeof(H->basename) - sizeof(H->num_entries), SEEK_SET);
+    if (ret < 0){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+    }
+    /* Overwrite num_entries
+     * This marks the completion of the record
+     */
+    ret = write(nclogp->MetaLog, &H->num_entries, SIZEOF_MPI_OFFSET);
+    if (ret < 0){
+        ret = ncmpii_handle_io_error("write");
+        if (ret == NC_EFILE){
+            ret = NC_EWRITE;
+        }
+        DEBUG_RETURN_ERROR(ret);
+    }
+    if (ret != SIZEOF_MPI_OFFSET){
+        DEBUG_RETURN_ERROR(NC_EWRITE);
+    }
+
+    return NC_NOERR;
 }
 
 /*
@@ -1065,34 +874,54 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
  */
 int ncmpii_log_flush(NC_Log *nclogp) {
     int ret;
+    size_t ioret;
+    NC_Log_metadataheader *H;
 
     /* Enddef must be called at least once */
     if (nclogp->MetaLog < 0){
         DEBUG_RETURN_ERROR(NC_ELOGNOTINIT);        
     }
-
+    
+    /* Replay log file */
     if ((ret = flush_log(nclogp)) != NC_NOERR) {
         return ret;
     }
     
-    /* Close log file */
-    ret = close(nclogp->MetaLog);
-    ret |= close(nclogp->DataLog);
-    if (ret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("close"));        
-    }
-    nclogp->MetaLog = -1;
-    nclogp->DataLog = -1;
-
-    /* Reset metadata buffer */
-    nclogp->MetaSize = 0;
-    nclogp->MetaOffsetSize = 0;
-    nclogp->MetaHeader.num_entries = 0;
+    /* Reset log status */
     
-    /* Create new log file */
-    ret = create_log_file(nclogp);
-    if (ret != NC_NOERR) {
-        return ret;
+    /* Set num_entries to 0 */
+    H = (NC_Log_metadataheader*)nclogp->Metadata;
+    H->num_entries = 0;
+    /* Seek to the location of num_entries
+     * Note: location need to be updated when struct change
+     */
+    ioret = lseek(nclogp->MetaLog, sizeof(NC_Log_metadataheader) - sizeof(H->basename) - sizeof(H->num_entries), SEEK_SET);
+    if (ioret < 0){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+    }
+    /* Overwrite num_entries
+     * This marks the completion of flush
+     */
+    ioret = write(nclogp->MetaLog, &H->num_entries, SIZEOF_MPI_OFFSET);
+    if (ioret < 0){
+        ret = ncmpii_handle_io_error("write");
+        if (ret == NC_EFILE){
+            ret = NC_EWRITE;
+        }
+        DEBUG_RETURN_ERROR(ret);
+    }
+    if (ioret != SIZEOF_MPI_OFFSET){
+        DEBUG_RETURN_ERROR(NC_EWRITE);
+    }
+
+    /* Reset buffer status */
+    nclogp->MetaSize = H->entry_begin;
+    nclogp->MetaOffsetSize = 0;
+        
+    /* Rewind data log file descriptors */
+    ioret = lseek(nclogp->DataLog, 8, SEEK_SET);
+    if (ioret != 8){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
 
     return NC_NOERR;

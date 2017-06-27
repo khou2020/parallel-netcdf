@@ -17,7 +17,7 @@ diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
 
 ./put_all_kinds ${TESTOUTDIR}/blocking
 ./iput_all_kinds ${TESTOUTDIR}/nonblocking
-export PNETCDF_HINTS="pnetcdf_log=enable;pnetcdf_log_flush_on_wait=enable"
+export PNETCDF_HINTS="pnetcdf_log=1"
 ./put_all_kinds ${TESTOUTDIR}/blocking_log
 ./iput_all_kinds ${TESTOUTDIR}/nonblocking_log
 unset PNETCDF_HINTS

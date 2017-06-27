@@ -750,7 +750,7 @@ ncmpii_enddef(void *ncdp)
                 ncp->nclogp->FlushOnSync = NC_LOG_FALSE;
             }
             
-            ncmpii_log_enddef(ncp->nclogp);
+            //ncmpii_log_enddef(ncp->nclogp);
         }
     }
 

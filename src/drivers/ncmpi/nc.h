@@ -829,7 +829,7 @@ ncmpii_NC_check_vlens(NC *ncp);
 
 /* PATH_MAX after padding to 4 byte allignment */
 #if PATH_MAX % 4 == 0
-#define NC_LOG_PATH_MAX 64
+#define NC_LOG_PATH_MAX PATH_MAX
 #elif PATH_MAX % 4 == 1
 #define NC_LOG_PATH_MAX PATH_MAX + 3
 #elif PATH_MAX % 4 == 2
@@ -882,7 +882,7 @@ typedef struct NC_Log {
     char* Metadata;    /* metadata buffer */
     size_t MetaBufferSize;    /* size of metadata buffer */
     size_t MetaSize;    /* used size of metadata buffer */
-    NC_Log_metadataheader MetaHeader;    /* metadata header */
+    //NC_Log_metadataheader MetaHeader;    /* metadata header */
     MPI_Comm Communitator;    /* communicator of associate with the CDF file */
     size_t* MetaOffset;    /* metadata offset list */
     size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
