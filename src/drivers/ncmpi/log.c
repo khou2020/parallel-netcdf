@@ -482,12 +482,26 @@ int flush_log(NC_Log *nclogp) {
     struct stat datastat;
     NC_Log_metadataheader* H;
 
+#ifdef PNETCDF_DEBUG
+    int rank;
+    double tstart, tend, tread, twait, treplay, tbegin, ttotal;
+    
+    MPI_Comm_rank(nclogp->Communitator, &rank);
+
+    tstart = MPI_Wtime();
+#endif
+
     /* Turn on the flushing flag so non-blocking call won't be logged */
     nclogp->Flushing = 1;
 
     /* Read datalog in to memory */
     /* Get data log size */
     fstat(nclogp->DataLog, &datastat);
+    
+#ifdef PNETCDF_DEBUG
+    tbegin = MPI_Wtime();
+#endif
+    
     /* Prepare data buffer */
     data = (char*)NCI_Malloc(datastat.st_size);
     /* Seek to the start of data log */
@@ -507,6 +521,12 @@ int flush_log(NC_Log *nclogp) {
     if (ioret != datastat.st_size){
         DEBUG_RETURN_ERROR(NC_EBADLOG);
     }
+
+#ifdef PNETCDF_DEBUG
+    tend = MPI_Wtime();
+    tread = tend - tbegin;
+    tbegin = MPI_Wtime();
+#endif
 
     /* Iterate through meta log entries */
     H = (NC_Log_metadataheader*)nclogp->Metadata;
@@ -588,11 +608,22 @@ int flush_log(NC_Log *nclogp) {
         tail = head + sizeof(NC_Log_metadataentry);
     }
 
+#ifdef PNETCDF_DEBUG
+    tend = MPI_Wtime();
+    treplay = tend - tbegin;
+    tbegin = MPI_Wtime();
+#endif
+
     /* Collective wait */
     ret = ncmpii_wait(nclogp->Parent, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
     if (ret != NC_NOERR) {
         return ret;
     }
+
+#ifdef PNETCDF_DEBUG
+    tend = MPI_Wtime();
+    twait = tend - tbegin;
+#endif
 
     /* Free the data buffer */ 
     NCI_Free(data);
@@ -600,6 +631,22 @@ int flush_log(NC_Log *nclogp) {
     /* Flusg complete. Turn off the flushing flag, enable logging on non-blocking call */
     nclogp->Flushing = 0;
 
+#ifdef PNETCDF_DEBUG
+    tend = MPI_Wtime();
+    ttotal = tend - tstart;
+
+    if (rank == 0){
+        printf("Size of data log:       %lld\n", datastat.st_size);
+        printf("Size of metadata log:   %lld\n", nclogp->MetaSize);
+        printf("Number of log entries:  %lld\n", H->num_entries);
+    
+        printf("Time reading data (s):              %lf\n", tread);
+        printf("Time replaying log (s):             %lf\n", treplay);
+        printf("Time waiting non-blocking put (s):  %lf\n", twait);
+        printf("Total time flushing (s):            %lf\n", ttotal);
+    }
+#endif
+    
     return NC_NOERR;
 }
 
