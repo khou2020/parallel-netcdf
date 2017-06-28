@@ -239,13 +239,25 @@ char* meta_alloc(NC_Log *nclogp, size_t size) {
  * OUT    nclogp:    Initialized log structure 
  */
 int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC *Parent, NC_Log **nclogpp) {
-    int ret, rank, np, err;
-    char logpath[NC_LOG_PATH_MAX], *abspath;
+    int ret, rank, np, err, id;
+    char logbase[NC_LOG_PATH_MAX];
+    char *abspath, *fname;
     size_t ioret;
     NC_Log_metadataheader *H;
     NC_Log *nclogp;
     
-    
+    /* Get rank and number of processes */
+    ret = MPI_Comm_rank(comm, &rank);
+    if (ret != MPI_SUCCESS) {
+        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
+        DEBUG_RETURN_ERROR(ret);
+    }
+    ret = MPI_Comm_size(comm, &np);
+    if (ret != MPI_SUCCESS) {
+        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
+        DEBUG_RETURN_ERROR(ret);
+    }
+ 
     /* Allocate the structure */
     nclogp = (NC_Log*)NCI_Malloc(sizeof(NC_Log));
     /* Record the parent NC structure */ 
@@ -265,8 +277,55 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
     }
-    sprintf(nclogp->MetaPath, "%s%s_%d.meta.bin", BufferDir, nclogp->Path, rank);
-    sprintf(nclogp->DataPath, "%s%s_%d.data.bin", BufferDir, nclogp->Path, rank);
+    abspath = realpath(BufferDir, logbase);
+    if (abspath == NULL){
+        /* Can not resolve absolute path */
+        DEBUG_RETURN_ERROR(NC_EBAD_FILE);
+    }
+
+    /* Extract file anme 
+     * Search for first / charactor from the tail
+     * Absolute path should always contains one '/'
+     * We return the string including '/' for convenience
+     */
+    for (fname = nclogp->Path + strlen(nclogp->Path); fname > nclogp->Path; fname--){
+        if (*fname == '/'){
+            break;
+        }
+    }
+    /* Something wrong if not found */
+    if (fname == nclogp->Path){
+        DEBUG_RETURN_ERROR(NC_EBAD_FILE);  
+    }
+
+    /* Searching for avaiable logid that won't cause a file conflict
+     * If there's no conflict on process 0, we assume no conflict on all processes
+     * If there's no conflict on metadata log, we assume no conflict on data log
+     */
+    if (rank == 0){
+        for(id = 0;;id++){
+            sprintf(nclogp->MetaPath, "%s%s_%d_%d.meta.bin", logbase, fname, id, rank);
+#ifdef HAVE_ACCESS
+            /* Break if file not exists */
+            if (access(nclogp->MetaPath, F_OK) < 0){
+                break;
+            }
+#else
+            /* Try opening */
+            ret = open(nclogp->MetaPath, O_RDONLY);
+            /* Break if file not exists */
+            if (ret < 0 && errno == ENOENT){
+                break;
+            }
+#endif
+        }
+    }
+    ret = MPI_Bcast(&id, 1, MPI_INT, 0, comm);
+    if (ret != MPI_SUCCESS) {
+        err = ncmpii_handle_error(ret, "MPI_Bcast log id");
+    }
+    sprintf(nclogp->MetaPath, "%s%s_%d_%d.meta.bin", logbase, fname, id, rank);
+    sprintf(nclogp->DataPath, "%s%s_%d_%d.data.bin", logbase, fname, id, rank);
     
     /* Initialize metadata buffer */
     nclogp->MetaBufferSize = META_BUFFER_SIZE;  /* Size of metadata buffer */
@@ -292,25 +351,14 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     nclogp->Communitator = comm;    /* Communicator passed to ncmpi_create/open */
     nclogp->Flushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
     nclogp->MaxSize = 0;    /* Max size of buffer ever passed to put_var function, not used */ 
-    //nclogp->MetaHeader = (NC_Log_metadataheader*)nclogp->Metadata; /* Link Metadata header to Log structure */
+    nclogp->LogId = id;    /* Id associate with the log structure to prevent file name conflict */ 
     
     /* Initialize metadata header */
     
     /* Allocate space for metadata header */
     H = (NC_Log_metadataheader*)meta_alloc(nclogp, sizeof(NC_Log_metadataheader));
 
-    /* Get rank and number of processes */
-    ret = MPI_Comm_rank(comm, &rank);
-    if (ret != MPI_SUCCESS) {
-        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
-        DEBUG_RETURN_ERROR(ret);
-    }
-    ret = MPI_Comm_size(comm, &np);
-    if (ret != MPI_SUCCESS) {
-        ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
-        DEBUG_RETURN_ERROR(ret);
-    }
-
+   
     /* Fill up the metadata log header */
     memset(H->magic, 0, sizeof(H->magic)); /* Magic */
     strncpy(H->magic, NC_LOG_MAGIC, sizeof(H->magic));

@@ -876,6 +876,7 @@ typedef struct NC_Log {
     char Path[NC_LOG_PATH_MAX];    /* path of the CDF file */
     char MetaPath[NC_LOG_PATH_MAX];    /* path of metadata log */    
     char DataPath[NC_LOG_PATH_MAX];    /* path of data log */
+    int LogId;
     int MetaLog;    /* file handle of metadata log */
     int DataLog;    /* file handle of data log */
 	MPI_Offset MaxSize;    /* max data size in byte among all log entries */ 
