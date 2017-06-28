@@ -483,6 +483,15 @@ err_check:
         if (cbuf != buf && cbuf != xbuf) NCI_Free(cbuf);
     }
     else { /* rw_flag == READ_REQ */
+        /* Replay if log is enabled */
+        if (ncp->nclogp != NULL){
+            /* Record in log file */
+            err = ncmpii_log_flush(ncp->nclogp);    
+            if (status == NC_NOERR){
+                status = err;
+            }
+        }
+
         /* allocate xbuf for reading */
         if (buftype_is_contig && imaptype == MPI_DATATYPE_NULL && !need_convert)
             xbuf = buf;

@@ -366,6 +366,15 @@ ncmpii_igetput_varm(NC               *ncp,
         if (cbuf != buf && cbuf != xbuf) NCI_Free(cbuf);
     }
     else { /* rw_flag == READ_REQ */
+        /* Replay if log is enabled */
+        if (ncp->nclogp != NULL){
+            /* Record in log file */
+            err = ncmpii_log_flush(ncp->nclogp);    
+            if (status == NC_NOERR){
+                status = err;
+            }
+        }
+
         /* Type conversion and byte swap for read are done at wait call, we
          * need bnelems to reverse the steps as done in write case
          */

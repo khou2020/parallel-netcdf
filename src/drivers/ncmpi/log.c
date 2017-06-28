@@ -352,6 +352,7 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     nclogp->Flushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
     nclogp->MaxSize = 0;    /* Max size of buffer ever passed to put_var function, not used */ 
     nclogp->LogId = id;    /* Id associate with the log structure to prevent file name conflict */ 
+    nclogp->UpToDate = 1;   /* Nothing in the log to flush */
     
     /* Initialize metadata header */
     
@@ -958,6 +959,9 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
+    /* Mark netcdf file as outdated */
+    nclogp->UpToDate = 0;
+
     return NC_NOERR;
 }
 
@@ -972,9 +976,9 @@ int ncmpii_log_flush(NC_Log *nclogp) {
     size_t ioret;
     NC_Log_metadataheader *H;
 
-    /* Enddef must be called at least once */
-    if (nclogp->MetaLog < 0){
-        DEBUG_RETURN_ERROR(NC_ELOGNOTINIT);        
+    /* Nothing to replay if nothing have been written */
+    if (nclogp->UpToDate){
+        return NC_NOERR;
     }
     
     /* Replay log file */
@@ -984,6 +988,9 @@ int ncmpii_log_flush(NC_Log *nclogp) {
     
     /* Reset log status */
     
+    /* Everything is flushed */
+    nclogp->UpToDate = 1;
+
     /* Set num_entries to 0 */
     H = (NC_Log_metadataheader*)nclogp->Metadata;
     H->num_entries = 0;

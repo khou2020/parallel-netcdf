@@ -273,7 +273,7 @@ ncmpii_create(MPI_Comm     comm,
 
     /* the log structure will be created on enddef, NULL mark as uninitialized */
     ncp->nclogp = NULL;
-    
+     
     ncp->safe_mode = safe_mode;
     ncp->abuf      = NULL;
     ncp->old       = NULL;
@@ -749,8 +749,6 @@ ncmpii_enddef(void *ncdp)
             else{
                 ncp->nclogp->FlushOnSync = NC_LOG_FALSE;
             }
-            
-            //ncmpii_log_enddef(ncp->nclogp);
         }
     }
 
