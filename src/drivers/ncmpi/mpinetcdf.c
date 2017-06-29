@@ -719,7 +719,8 @@ ncmpiio_end_indep_data(NC *ncp)
 /* This is a collective subroutine. */
 int
 ncmpii_enddef(void *ncdp)
-{
+{   
+    int ret;
     NC *ncp = (NC*)ncdp;
 
     if (!NC_indef(ncp)) /* must currently in define mode */
@@ -729,26 +730,15 @@ ncmpii_enddef(void *ncdp)
     if (ncp->nciop->hints.log_enable){
         /* Create log file if not created */
         if (ncp->nclogp == NULL){
-            ncmpii_log_create(ncp->nciop->comm, ncp->nciop->path, ncp->nciop->hints.log_base, ncp, &(ncp->nclogp));
-            
-            if (ncp->nciop->hints.log_del_on_close){
-                ncp->nclogp->DeleteOnClose = NC_LOG_TRUE;
+            ret = ncmpii_log_create(ncp->nciop->comm, ncp->nciop->path, ncp->nciop->hints.log_base, ncp, &(ncp->nclogp));
+            if (ret != NC_NOERR){
+                return ret;
             }
-            else{
-                ncp->nclogp->DeleteOnClose = NC_LOG_FALSE;
-            }
-            if (ncp->nciop->hints.log_flush_on_wait){
-                ncp->nclogp->FlushOnWait = NC_LOG_TRUE;
-            }
-            else{
-                ncp->nclogp->FlushOnWait = NC_LOG_FALSE;
-            }
-            if (ncp->nciop->hints.log_flush_on_sync){
-                ncp->nclogp->FlushOnSync = NC_LOG_TRUE;
-            }
-            else{
-                ncp->nclogp->FlushOnSync = NC_LOG_FALSE;
-            }
+
+            ncp->nclogp->DeleteOnClose = ncp->nciop->hints.log_del_on_close;
+            ncp->nclogp->FlushOnWait = ncp->nciop->hints.log_flush_on_wait;
+            ncp->nclogp->FlushOnSync = ncp->nciop->hints.log_flush_on_sync;
+            ncp->nclogp->FlushOnRead = ncp->nciop->hints.log_flush_on_read;
         }
     }
 

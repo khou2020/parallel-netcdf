@@ -46,16 +46,30 @@
  * Code is copied from internet
  * IN    file_path:    path of the file
  * IN    mode: file permission mode of the newly created firectory    
+ * IN    isdir: if file_path is a directory, we need to create the directly for final directory even if it don't end with '/'    
  */
-int mkpath(char* file_path, mode_t mode) {
-    char* p;
+int mkpath(char* file_path, mode_t mode, int isdir) {
+    char *p;
+    
+    /* Call mkdir for each '/' encountered along the path
+     * The first charactor is skipped, preventing calling on /
+     */
     for (p = strchr(file_path + 1, '/'); p; p = strchr(p + 1, '/')) {
         *p = '\0';
         if (mkdir(file_path, mode) == -1) {
-            if (errno != EEXIST) { *p = '/'; return -1; }
+            if (errno != EEXIST) { 
+                *p = '/';
+                return -1;
+            }
         }
         *p = '/';
     }
+    
+    /* If target is itself a directory, we must create it even if it don't end with '/' */
+    if (isdir) {
+        return mkdir(file_path, mode);
+    }
+    
     return 0;
 }
 
@@ -270,7 +284,13 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
      * Basename is absolute path to the cdf file
      */
 
-    /* Resolve absolute path */
+    /* path and BufferDir may contain non-existing directory
+     * We need to creat them before realpath can work
+     */
+    mkpath(path, 0744, 0); 
+    mkpath(BufferDir, 0744, 1); 
+
+    /* Resolve absolute path */    
     memset(nclogp->Path, 0, sizeof(nclogp->Path));
     abspath = realpath(path, nclogp->Path);
     if (abspath == NULL){
@@ -297,6 +317,13 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     if (fname == nclogp->Path){
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);  
     }
+    
+    /* Log file path may also contain non-existing directory
+     * We need to create them before we can search for usable id
+     * As log file name hasn't been determined, we need to use a dummy one here
+     */
+    sprintf(nclogp->MetaPath, "%s%s.meta.bin", logbase, fname);
+    mkpath(nclogp->MetaPath, 0744, 0); 
 
     /* Searching for avaiable logid that won't cause a file conflict
      * If there's no conflict on process 0, we assume no conflict on all processes
@@ -358,7 +385,6 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     
     /* Allocate space for metadata header */
     H = (NC_Log_metadataheader*)meta_alloc(nclogp, sizeof(NC_Log_metadataheader));
-
    
     /* Fill up the metadata log header */
     memset(H->magic, 0, sizeof(H->magic)); /* Magic */
@@ -384,11 +410,7 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     
     /* Create log file */
     
-    /* Log file path may contain directory
-     * open does not create directory, so we need to prepare all directory along the path
-     */
-    mkpath(nclogp->MetaPath, 0744); 
-
+    
     /* Create log files */
     
     nclogp->DataLog = nclogp->MetaLog = -1;

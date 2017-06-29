@@ -893,6 +893,7 @@ typedef struct NC_Log {
     int Flushing;   /* If log is flushing */
     int FlushOnWait;   /* If log shoud be flushed on wait and wait_all */
     int FlushOnSync;   /* If log should be flushed on Sync */
+    int FlushOnRead;    /* If log should be flushed on every get_var call */
     int UpToDate;   /* If the netcdf file is up to date, ie. if there are unflushed log entries */
 } NC_Log;
 

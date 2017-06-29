@@ -485,10 +485,12 @@ err_check:
     else { /* rw_flag == READ_REQ */
         /* Replay if log is enabled */
         if (ncp->nclogp != NULL){
-            /* Record in log file */
-            err = ncmpii_log_flush(ncp->nclogp);    
-            if (status == NC_NOERR){
-                status = err;
+            /* Flush the log file if flag is on */
+            if (ncp->nclogp->FlushOnRead){
+                err = ncmpii_log_flush(ncp->nclogp);    
+                if (status == NC_NOERR){
+                    status = err;
+                }
             }
         }
 
