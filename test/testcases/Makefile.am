@@ -62,9 +62,8 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                scalar \
                null_args \
                tst_dimsizes \
-               redef1 #\
-			   #log \
-			   #logi
+               redef1 \
+			   log_highdim
 
 M4_SRCS  = put_all_kinds.m4 \
 		   iput_all_kinds.m4

@@ -684,7 +684,9 @@ int ncmpii_log_close(NC_Log *nclogp) {
     /* If log file is created, flush the log */
     if (nclogp->MetaLog >= 0){
         /* Commit to CDF file */
-        flush_log(nclogp);
+        if (!nclogp->UpToDate){
+            flush_log(nclogp);
+        }
 
         /* Close log file */
         ret = close(nclogp->MetaLog);
