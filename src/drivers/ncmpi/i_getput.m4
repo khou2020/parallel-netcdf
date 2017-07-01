@@ -367,8 +367,9 @@ ncmpii_igetput_varm(NC               *ncp,
     }
     else { /* rw_flag == READ_REQ */
         /* Replay if log is enabled */
+        /* Can not flush on iget because flush is collective
         if (ncp->nclogp != NULL){
-            /* Flush the log file if flag is on */
+            /* Flush the log file if flag is on 
             if (ncp->nclogp->FlushOnRead){
                 err = ncmpii_log_flush(ncp->nclogp);    
                 if (status == NC_NOERR){
@@ -376,6 +377,7 @@ ncmpii_igetput_varm(NC               *ncp,
                 }
             }
         }
+        */
 
         /* Type conversion and byte swap for read are done at wait call, we
          * need bnelems to reverse the steps as done in write case

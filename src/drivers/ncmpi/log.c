@@ -494,7 +494,7 @@ int ncmpii_log_enddef(NC_Log *nclogp){
  */
 int flush_log(NC_Log *nclogp) {
     int i, ret, fd;
-    size_t nrec, size, offset;
+    size_t nrec, size, datasize, offset;
     ssize_t ioret;
     struct stat metastat;
     NC_Log_metadataentry *E;
@@ -502,7 +502,6 @@ int flush_log(NC_Log *nclogp) {
     MPI_Offset *start, *count, *stride;
     MPI_Datatype buftype;
     char *data, *head, *tail;
-    struct stat datastat;
     NC_Log_metadataheader* H;
 
 #ifdef PNETCDF_DEBUG
@@ -518,22 +517,30 @@ int flush_log(NC_Log *nclogp) {
     nclogp->Flushing = 1;
 
     /* Read datalog in to memory */
-    /* Get data log size */
-    fstat(nclogp->DataLog, &datastat);
+    /* Get data log size 
+     * Since we don't delete log file after flush, the file size is not the size of data log
+     * Use lseek to find the current position of data log descriptor
+     * NOTE: For now, we assume descriptor always points to the end of the last record
+     */
+    ioret = lseek(nclogp->DataLog, 0, SEEK_SET);
+    if (ioret < 0){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+    }
+    datasize = ioret;
     
 #ifdef PNETCDF_DEBUG
     tbegin = MPI_Wtime();
 #endif
     
     /* Prepare data buffer */
-    data = (char*)NCI_Malloc(datastat.st_size);
+    data = (char*)NCI_Malloc(datasize);
     /* Seek to the start of data log */
     ioret = lseek(nclogp->DataLog, 0, SEEK_SET);
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
     /* Read data to buffer */
-    ioret = read(nclogp->DataLog, data, datastat.st_size); 
+    ioret = read(nclogp->DataLog, data, datasize); 
     if (ioret < 0) {
         ioret = ncmpii_handle_io_error("read");
         if (ioret == NC_EFILE){
@@ -541,7 +548,7 @@ int flush_log(NC_Log *nclogp) {
         }
         DEBUG_RETURN_ERROR(ioret);
     }
-    if (ioret != datastat.st_size){
+    if (ioret != datasize){
         DEBUG_RETURN_ERROR(NC_EBADLOG);
     }
 
@@ -659,7 +666,7 @@ int flush_log(NC_Log *nclogp) {
     ttotal = tend - tstart;
 
     if (rank == 0){
-        printf("Size of data log:       %lld\n", datastat.st_size);
+        printf("Size of data log:       %lld\n", datasize);
         printf("Size of metadata log:   %lld\n", nclogp->MetaSize);
         printf("Number of log entries:  %lld\n", H->num_entries);
     
