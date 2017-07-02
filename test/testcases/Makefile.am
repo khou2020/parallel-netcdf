@@ -63,15 +63,20 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                null_args \
                tst_dimsizes \
                redef1 \
-			   log_highdim
+			   log_highdim #\
+			   #log_ctrl
 
 M4_SRCS  = put_all_kinds.m4 \
-		   iput_all_kinds.m4
+		   iput_all_kinds.m4 \
+		   log_ctrl.m4
 
 TESTPROGRAMS += put_all_kinds \
-				iput_all_kinds
+				iput_all_kinds \
+				log_ctrl
+
 BUILT_SOURCES = put_all_kinds.c \
-				iput_all_kinds.c
+				iput_all_kinds.c \
+				log_ctrl.c
 
 if ENABLE_ERANGE_FILL
    M4_SRCS += erange_fill.m4

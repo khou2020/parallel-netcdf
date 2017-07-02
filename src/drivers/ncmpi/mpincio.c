@@ -173,7 +173,7 @@ void ncmpiio_extract_hints(ncio     *nciop,
     MPI_Info_get(info, "pnetcdf_log_flush_on_read", MPI_MAX_INFO_VAL-1,
                  value, &flag);
     if (flag && strcasecmp(value, "0") == 0)
-        nciop->hints.log_flush_on_sync = 0;
+        nciop->hints.log_flush_on_read = 0;
 
 #ifdef ENABLE_SUBFILING
     MPI_Info_get(info, "pnetcdf_subfiling", MPI_MAX_INFO_VAL-1,

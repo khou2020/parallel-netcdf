@@ -522,7 +522,7 @@ int flush_log(NC_Log *nclogp) {
      * Use lseek to find the current position of data log descriptor
      * NOTE: For now, we assume descriptor always points to the end of the last record
      */
-    ioret = lseek(nclogp->DataLog, 0, SEEK_SET);
+    ioret = lseek(nclogp->DataLog, 0, SEEK_CUR);
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
