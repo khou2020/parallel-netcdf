@@ -492,13 +492,14 @@ int ncmpii_log_enddef(NC_Log *nclogp){
  * Meta data is stored in memory, metalog is only used for restoration after abnormal shutdown
  * IN    nclogp:    log structure
  */
-int flush_log(NC_Log *nclogp) {
+int log_flush(NC_Log *nclogp) {
     int i, ret, fd;
-    size_t nrec, size, datasize, offset;
+    size_t dsize, dbsize;
     ssize_t ioret;
     struct stat metastat;
     NC_Log_metadataentry *E;
     NC_var *varp;
+    MPI_Offset dblow, dbup;
     MPI_Offset *start, *count, *stride;
     MPI_Datatype buftype;
     char *data, *head, *tail;
@@ -506,7 +507,7 @@ int flush_log(NC_Log *nclogp) {
 
 #ifdef PNETCDF_DEBUG
     int rank;
-    double tstart, tend, tread, twait, treplay, tbegin, ttotal;
+    double tstart, tend, tread = 0, twait = 0, treplay = 0, tbegin, ttotal;
     
     MPI_Comm_rank(nclogp->Communitator, &rank);
 
@@ -517,6 +518,7 @@ int flush_log(NC_Log *nclogp) {
     nclogp->Flushing = 1;
 
     /* Read datalog in to memory */
+   
     /* Get data log size 
      * Since we don't delete log file after flush, the file size is not the size of data log
      * Use lseek to find the current position of data log descriptor
@@ -526,37 +528,26 @@ int flush_log(NC_Log *nclogp) {
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
-    datasize = ioret;
+    dsize = ioret;
     
-#ifdef PNETCDF_DEBUG
-    tbegin = MPI_Wtime();
-#endif
-    
-    /* Prepare data buffer */
-    data = (char*)NCI_Malloc(datasize);
-    /* Seek to the start of data log */
-    ioret = lseek(nclogp->DataLog, 0, SEEK_SET);
-    if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+    /* 
+     * Prepare data buffer
+     * We determine the data buffer size according to:
+     * hints, size of data log, the largest size of single record
+     * 0 in hint means no limit
+     * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
+     */
+    dbsize = dsize;
+    if (dbsize > nclogp->DataBufferSize){
+        dbsize = nclogp->DataBufferSize;
     }
-    /* Read data to buffer */
-    ioret = read(nclogp->DataLog, data, datasize); 
-    if (ioret < 0) {
-        ioret = ncmpii_handle_io_error("read");
-        if (ioret == NC_EFILE){
-            ioret = NC_EREAD;
-        }
-        DEBUG_RETURN_ERROR(ioret);
+    if (dbsize < MaxSize){
+        dbsize = MaxSize;
     }
-    if (ioret != datasize){
-        DEBUG_RETURN_ERROR(NC_EBADLOG);
-    }
-
-#ifdef PNETCDF_DEBUG
-    tend = MPI_Wtime();
-    tread = tend - tbegin;
-    tbegin = MPI_Wtime();
-#endif
+    /* Allocate buffer */
+    data = (char*)NCI_Malloc(dbsize);
+    /* Set lower and upper bound to 0 */
+    dblow = dbup = 0;
 
     /* Iterate through meta log entries */
     H = (NC_Log_metadataheader*)nclogp->Metadata;
@@ -566,6 +557,68 @@ int flush_log(NC_Log *nclogp) {
         /* Treate the data at head as a metadata entry header */
         E = (NC_Log_metadataentry*)head;
 
+        /* 
+         * Read from data log if data not in buffer 
+         * We don't need to check lower bound when data is logged monotonically
+         * We also wait for replayed entries to free memory
+         */
+        if (E->data_off + E->data_len >= dbup){
+            size_t rsize;
+#ifdef PNETCDF_DEBUG
+            tbegin = MPI_Wtime();
+#endif
+            /* Update buffer lower bound */
+            dblow = E->data_off;
+            /* Seek to new lower bound */
+            ioret = lseek(nclogp->DataLog, dblow, SEEK_SET);
+            if (ioret < 0){
+                DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+            }
+            /* 
+             * Read data to buffer
+             * We calculate the size to read based on data buffer size, and remaining of the data log
+             * In this case, we know there is an error if actual size read is not expected
+             */
+            if (dsize - dblow < dbsize){
+                rsize = dsize - dblow;   
+            }
+            else{
+                rsize = dbsize;
+            }
+            ioret = read(nclogp->DataLog, data, rsize); 
+            if (ioret < 0) {
+                ioret = ncmpii_handle_io_error("read");
+                if (ioret == NC_EFILE){
+                    ioret = NC_EREAD;
+                }
+                DEBUG_RETURN_ERROR(ioret);
+            }
+            if (ioret != rsize){
+                DEBUG_RETURN_ERROR(NC_EBADLOG);
+            }
+            /* Update buffer upper bound */
+            dbup = dblow + rsize;
+
+#ifdef PNETCDF_DEBUG
+            tend = MPI_Wtime();
+            tread += tend - tbegin;
+            tbegin = MPI_Wtime();
+#endif
+            /* Collective wait */
+            ret = ncmpii_wait(nclogp->Parent, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+            if (ret != NC_NOERR) {
+                return ret;
+            }
+
+#ifdef PNETCDF_DEBUG
+            tend = MPI_Wtime();
+            twait += tend - tbegin;
+#endif
+        }
+
+#ifdef PNETCDF_DEBUG
+        tbegin = MPI_Wtime();
+#endif
         /* start, count, stride */
         start = (MPI_Offset*)tail;
         count = start + E->ndims;
@@ -619,7 +672,7 @@ int flush_log(NC_Log *nclogp) {
         if (E->api_kind == NC_LOG_API_KIND_VARA){
             stride = NULL;    
         }
-        
+
         /* Play event */
         
         /* Translate varid to varp */
@@ -628,7 +681,7 @@ int flush_log(NC_Log *nclogp) {
             return ret;
         }
         /* Replay event with non-blocking call */
-        ret = ncmpii_igetput_varm(nclogp->Parent, varp, start, count, stride, NULL, (void*)(data + E->data_off), -1, buftype, NULL, WRITE_REQ, 0, 0);
+        ret = ncmpii_igetput_varm(nclogp->Parent, varp, start, count, stride, NULL, (void*)(data + E->data_off - dblow), -1, buftype, NULL, WRITE_REQ, 0, 0);
         if (ret != NC_NOERR) {
             return ret;
         }
@@ -636,11 +689,14 @@ int flush_log(NC_Log *nclogp) {
         /* Move to next record */
         head += E->esize;
         tail = head + sizeof(NC_Log_metadataentry);
+
+#ifdef PNETCDF_DEBUG
+        tend = MPI_Wtime();
+        treplay += tend - tbegin;
+#endif
     }
 
 #ifdef PNETCDF_DEBUG
-    tend = MPI_Wtime();
-    treplay = tend - tbegin;
     tbegin = MPI_Wtime();
 #endif
 
@@ -652,7 +708,7 @@ int flush_log(NC_Log *nclogp) {
 
 #ifdef PNETCDF_DEBUG
     tend = MPI_Wtime();
-    twait = tend - tbegin;
+    twait += tend - tbegin;
 #endif
 
     /* Free the data buffer */ 
@@ -666,7 +722,8 @@ int flush_log(NC_Log *nclogp) {
     ttotal = tend - tstart;
 
     if (rank == 0){
-        printf("Size of data log:       %lld\n", datasize);
+        printf("Size of data log:       %lld\n", dsize);
+        printf("Size of data buffer:    %lld\n", dbsize);
         printf("Size of metadata log:   %lld\n", nclogp->MetaSize);
         printf("Number of log entries:  %lld\n", H->num_entries);
     
@@ -1013,7 +1070,7 @@ int ncmpii_log_flush(NC_Log *nclogp) {
     }
     
     /* Replay log file */
-    if ((ret = flush_log(nclogp)) != NC_NOERR) {
+    if ((ret = log_flush(nclogp)) != NC_NOERR) {
         return ret;
     }
     

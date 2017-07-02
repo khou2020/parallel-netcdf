@@ -94,6 +94,7 @@ void ncmpiio_extract_hints(ncio     *nciop,
 {
     char value[MPI_MAX_INFO_VAL];
     int  flag;
+    long int bsize;
 
     /* value 0 indicates the hint is not set */
     nciop->hints.h_align                = 0;
@@ -106,6 +107,7 @@ void ncmpiio_extract_hints(ncio     *nciop,
     nciop->hints.log_flush_on_wait = 0;
     nciop->hints.log_flush_on_sync = 0;
     nciop->hints.log_flush_on_read = 1;
+    nciop->hints.log_flush_buffer_size = 0;
 #ifdef ENABLE_SUBFILING
     nciop->hints.subfile_mode           = 1;
     nciop->hints.num_subfiles           = 0;
@@ -174,6 +176,16 @@ void ncmpiio_extract_hints(ncio     *nciop,
                  value, &flag);
     if (flag && strcasecmp(value, "0") == 0)
         nciop->hints.log_flush_on_read = 0;
+
+    MPI_Info_get(info, "pnetcdf_log_flush_buffer_size", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "0") == 0){
+        bsize = strtol(value);
+        if (bsize < 0) {
+            bsize = 0;
+        }
+        nciop->hints.log_flush_buffer_size = (size_t)bsize; /* Unit: byte */
+    }
 
 #ifdef ENABLE_SUBFILING
     MPI_Info_get(info, "pnetcdf_subfiling", MPI_MAX_INFO_VAL-1,

@@ -43,6 +43,7 @@ typedef struct {
     int log_flush_on_sync;
     int log_flush_on_read;
     char log_base[PATH_MAX];
+    size_t log_flush_buffer_size;
 #ifdef ENABLE_SUBFILING
     int subfile_mode;
     int num_subfiles;

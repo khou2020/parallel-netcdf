@@ -739,6 +739,7 @@ ncmpii_enddef(void *ncdp)
             ncp->nclogp->FlushOnWait = ncp->nciop->hints.log_flush_on_wait;
             ncp->nclogp->FlushOnSync = ncp->nciop->hints.log_flush_on_sync;
             ncp->nclogp->FlushOnRead = ncp->nciop->hints.log_flush_on_read;
+            ncp->nclogp->FlushBufferSize = ncp->nciop->hints.log_flush_buffer_size;
         }
     }
 
