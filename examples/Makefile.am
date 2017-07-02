@@ -7,9 +7,12 @@
 # @configure_input@
 
 SUBDIRS = C tutorial
+DIST_SUBDIRS = C tutorial CXX F77 F90
+
 if HAS_MPICXX
 SUBDIRS += CXX
 endif
+
 if HAS_FORTRAN
 SUBDIRS += F77
 if HAVE_MPI_MOD
@@ -48,6 +51,14 @@ ptests:
 	$(MAKE) $(MFLAGS) -C $$d ptest$$i $$* ; \
 	done ) ; \
 	done ;
+
+# For VPATH build (parallel build), try delete all sub-directories
+distclean-local:
+	if [ "$(abs_builddir)" != "$(abs_srcdir)" ] ; then \
+	   for d in $(DIST_SUBDIRS) ; do \
+	       rmdir $$d || true ; \
+	   done ; \
+	fi
 
 .PHONY: ptest ptests
 

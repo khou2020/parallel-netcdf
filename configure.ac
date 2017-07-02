@@ -136,7 +136,7 @@ AC_ARG_ENABLE(echo,
 MPI_INSTALL=
 AC_ARG_WITH(mpi,
    [AS_HELP_STRING([--with-mpi=/path/to/implementation],
-                   [installation prefix for MPI implementation])],
+                   [The installation prefix path for MPI implementation.])],
    if test x"$withval" = xyes; then
       AC_MSG_ERROR(--with-mpi must be given a pathname)
    else
@@ -280,51 +280,60 @@ AC_ARG_ENABLE(cxx,
 )
 UD_MSG_DEBUG(enable_cxx=$enable_cxx)
 
-dnl Must check MPI C++ compiler, because AC_PROG_CXX cannot be called
-dnl conditionally in Automake. If MPICXX or CXX has not been set by users, then
+dnl If MPICXX or CXX has not been set by users, then
 dnl search from CANDIDATE_MPICXX and find the full path of MPICXX
-if test "x${ac_user_MPICXX}" = x ; then
-   UD_MPI_PATH_PROGS([MPICXX], [$CANDIDATE_MPICXX])
-else
-   UD_MPI_PATH_PROGS([MPICXX], [$ac_user_MPICXX])
-fi
-
-has_mpicxx=yes
-if test "x${MPICXX}" = x ; then
-   has_mpicxx=no
-   if test "x$ac_user_MPICXX" = x ; then
-      ERR_MSG="No MPI C++ compiler can be found"
+if test "x${enable_cxx}" != xno ; then
+   if test "x${ac_user_MPICXX}" = x ; then
+      UD_MPI_PATH_PROGS([MPICXX], [$CANDIDATE_MPICXX])
    else
-      ERR_MSG="Specified MPI C++ compiler \"$ac_user_MPICXX\" cannot be found"
+      UD_MPI_PATH_PROGS([MPICXX], [$ac_user_MPICXX])
    fi
-   if test "x$MPI_INSTALL" != x ; then
-      ERR_MSG+=" under $MPI_INSTALL"
-   fi
-   if test "x${enable_cxx}" = xyes ; then
-      dnl --enable-cxx is explicitly set at command line
-      AC_MSG_ERROR([
+   UD_MSG_DEBUG([MPICXX=$MPICXX])
+
+   if test "x${MPICXX}" = x ; then
+      if test "x$ac_user_MPICXX" = x ; then
+         ERR_MSG="No MPI C++ compiler can be found"
+      else
+         ERR_MSG="Specified MPI C++ compiler \"$ac_user_MPICXX\" cannot be found"
+      fi
+      if test "x$MPI_INSTALL" != x ; then
+         ERR_MSG+=" under $MPI_INSTALL"
+      fi
+      if test "x${enable_cxx}" = xyes ; then
+         dnl --enable-cxx is explicitly set at command line
+         AC_MSG_ERROR([
    -----------------------------------------------------------------------
      $ERR_MSG.
      Please specify the location of the MPI C++ compiler, either in the
      MPICXX environment variable or the --with-mpi configure flag. Abort.
    -----------------------------------------------------------------------])
-   else
-      dnl enable_cxx is auto, i.e. --enable-cxx is not set at command line
-      AC_MSG_WARN([
+      else
+         dnl enable_cxx is auto, i.e. --enable-cxx is not set at command line
+         AC_MSG_WARN([
    -----------------------------------------------------------------------
      $ERR_MSG.
      Thus the C++ feature is disabled.
      The location of the MPI C++ compiler can be specified either in the
      MPICXX environment variable or through the --with-mpi configure flag.
    -----------------------------------------------------------------------])
+      fi
    fi
 fi
-UD_MSG_DEBUG([MPICXX=$MPICXX])
 
-dnl must invoke AC_PROG_CXX here otherwise got "error: conditional
-dnl "am__fastdepCXX" was never defined."
-CXX=${MPICXX}
+if test "x${enable_cxx}" = xno || test "x${MPICXX}" = x ; then
+   dnl when cxx is explicitly disabled or no MPICXX can be found
+   has_mpicxx=no
+else
+   has_mpicxx=yes
+   CXX=${MPICXX}
+fi
+
+dnl Must invoke AC_PROG_CXX here, because AC_PROG_CXX cannot be called
+dnl conditionally in Automake, otherwise got "error: conditional
+dnl "am__fastdepCXX" was never defined." So, if has_mpicxx is no, then
+dnl AC_PROG_CXX will search for g++. However, g++ will not be used at all.
 AC_PROG_CXX
+
 dnl autoconf 2.59 has not yet implemented AC_PROG_CXX_C_O
 dnl AC_PROG_CXX_C_O
 
@@ -1278,9 +1287,9 @@ AC_SUBST(RELAX_COORD_BOUND)
 AM_CONDITIONAL([RELAX_COORD_BOUND], [test "x$RELAX_COORD_BOUND" = x1])
 
 AC_ARG_ENABLE([doxygen],
-  [AS_HELP_STRING([--enable-doxygen],
-    [Enable generation of documentation.])])
-test "x$enable_doxygen" = xyes || enable_doxygen=no
+   [AS_HELP_STRING([--enable-doxygen], [Enable generation of documentation. @<:@default: disabled@:>@])],
+   [enable_doxygen=${enableval}], [enable_doxygen=no]
+)
 AM_CONDITIONAL([BUILD_DOCS], [test "x$enable_doxygen" = xyes])
 
 AC_PATH_PROG([LATEX],  [latex])
@@ -1343,9 +1352,9 @@ fi
 
 dnl Enable creation of libtool-style versioning or no versioning
 AC_ARG_ENABLE(versioning,
-        [AC_HELP_STRING([--enable-versioning],[Enable library versioning])],,
-        [enable_versioning=yes])
-
+        [AC_HELP_STRING([--disable-versioning],[Disable library versioning. @<:@default: enabled@:>@])],
+        [enable_versioning=${enableval}], [enable_versioning=yes]
+)
 dnl For libtool ABI versioning rules see:
 dnl http://www.gnu.org/software/libtool/manual/libtool.html#Updating-version-info
 dnl Update the version information only immediately before a public release
