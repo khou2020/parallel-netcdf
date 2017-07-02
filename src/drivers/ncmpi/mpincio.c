@@ -180,7 +180,7 @@ void ncmpiio_extract_hints(ncio     *nciop,
     MPI_Info_get(info, "pnetcdf_log_flush_buffer_size", MPI_MAX_INFO_VAL-1,
                  value, &flag);
     if (flag && strcasecmp(value, "0") == 0){
-        bsize = strtol(value);
+        bsize = strtol(value, NULL, 0);
         if (bsize < 0) {
             bsize = 0;
         }

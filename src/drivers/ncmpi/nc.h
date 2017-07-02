@@ -887,7 +887,7 @@ typedef struct NC_Log {
     size_t* MetaOffset;    /* metadata offset list */
     size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
     size_t MetaOffsetSize;    /* used space of metadata offset list */
-    size_t FLushBufferSize; /* Buffer size used to flush the log */
+    size_t FlushBufferSize; /* Buffer size used to flush the log */
     int DeleteOnClose;    /* Delete log on close or not */
     struct NC* Parent; /* NC structure hosting this log structure */
     int Flushing;   /* If log is flushing */

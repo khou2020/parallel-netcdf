@@ -538,11 +538,11 @@ int log_flush(NC_Log *nclogp) {
      * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
      */
     dbsize = dsize;
-    if (dbsize > nclogp->DataBufferSize){
-        dbsize = nclogp->DataBufferSize;
+    if (dbsize > nclogp->FlushBufferSize){
+        dbsize = nclogp->FlushBufferSize;
     }
-    if (dbsize < MaxSize){
-        dbsize = MaxSize;
+    if (dbsize < nclogp->MaxSize){
+        dbsize = nclogp->MaxSize;
     }
     /* Allocate buffer */
     data = (char*)NCI_Malloc(dbsize);
@@ -565,6 +565,20 @@ int log_flush(NC_Log *nclogp) {
         if (E->data_off + E->data_len >= dbup){
             size_t rsize;
 #ifdef PNETCDF_DEBUG
+            tbegin = MPI_Wtime();
+#endif
+            /* 
+             * Collective wait
+             * Wait must be called first or previous data will be corrupted
+             */
+            ret = ncmpii_wait(nclogp->Parent, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+            if (ret != NC_NOERR) {
+                return ret;
+            }
+
+#ifdef PNETCDF_DEBUG
+            tend = MPI_Wtime();
+            twait += tend - tbegin;
             tbegin = MPI_Wtime();
 #endif
             /* Update buffer lower bound */
@@ -602,17 +616,6 @@ int log_flush(NC_Log *nclogp) {
 #ifdef PNETCDF_DEBUG
             tend = MPI_Wtime();
             tread += tend - tbegin;
-            tbegin = MPI_Wtime();
-#endif
-            /* Collective wait */
-            ret = ncmpii_wait(nclogp->Parent, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
-            if (ret != NC_NOERR) {
-                return ret;
-            }
-
-#ifdef PNETCDF_DEBUG
-            tend = MPI_Wtime();
-            twait += tend - tbegin;
 #endif
         }
 
@@ -749,7 +752,7 @@ int ncmpii_log_close(NC_Log *nclogp) {
     if (nclogp->MetaLog >= 0){
         /* Commit to CDF file */
         if (!nclogp->UpToDate){
-            flush_log(nclogp);
+            log_flush(nclogp);
         }
 
         /* Close log file */
