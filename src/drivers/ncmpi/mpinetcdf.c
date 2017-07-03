@@ -502,6 +502,24 @@ ncmpii_open(MPI_Comm    comm,
     ncp->numPutReqs = 0;
     ncp->get_list   = NULL;
     ncp->put_list   = NULL;
+    
+    /* Create log structure if hint is set */
+    ncp->nclogp = NULL;
+    if (ncp->nciop->hints.log_enable){
+        /* Create log file if not created */
+        if (ncp->nclogp == NULL){
+            ret = ncmpii_log_create(ncp->nciop->comm, ncp->nciop->path, ncp->nciop->hints.log_base, ncp, &(ncp->nclogp));
+            if (ret != NC_NOERR){
+                return ret;
+            }
+
+            ncp->nclogp->DeleteOnClose = ncp->nciop->hints.log_del_on_close;
+            ncp->nclogp->FlushOnWait = ncp->nciop->hints.log_flush_on_wait;
+            ncp->nclogp->FlushOnSync = ncp->nciop->hints.log_flush_on_sync;
+            ncp->nclogp->FlushOnRead = ncp->nciop->hints.log_flush_on_read;
+            ncp->nclogp->FlushBufferSize = ncp->nciop->hints.log_flush_buffer_size;
+        }
+    }
 
 #ifdef ENABLE_SUBFILING
     if (ncp->subfile_mode) {
