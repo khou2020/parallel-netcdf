@@ -367,7 +367,7 @@ ncmpii_open(MPI_Comm    comm,
             MPI_Info    info,
             void       **ncpp)
 {
-    int i, err, status=NC_NOERR, safe_mode=0, mpireturn;
+    int i, err, status=NC_NOERR, safe_mode=0, mpireturn, ret;
     char *env_str;
     MPI_Info   env_info=MPI_INFO_NULL;
     MPI_Offset chunksize=NC_DEFAULT_CHUNKSIZE;

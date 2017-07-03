@@ -861,8 +861,8 @@ typedef struct NC_Log_metadataentry {
     MPI_Offset esize;
     int api_kind;
     int itype;
-    MPI_Offset varid;
-    MPI_Offset ndims;
+    int varid;
+    int ndims;
     MPI_Offset data_off;
     MPI_Offset data_len;
 } NC_Log_metadataentry;
