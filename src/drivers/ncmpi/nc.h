@@ -434,6 +434,7 @@ struct NC {
 
     ncio         *nciop;
     struct NC    *old;      /* contains the previous NC during redef. */
+
     struct NC_Log         *nclogp;    /* Log io structure, if log is not used, this should be set to null */
 };
 

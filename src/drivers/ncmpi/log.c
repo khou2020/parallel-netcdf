@@ -280,7 +280,7 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     /* Initialize log structure */
     
     /* Determine log file name
-     * Log file name is $(bufferdir)$(basename)_$(rank).{meta/data}.bin
+     * Log file name is $(bufferdir)$(basename)_$(ncid)_$(rank).{meta/data}.bin
      * Basename is absolute path to the cdf file
      */
 
@@ -322,38 +322,10 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
      * We need to create them before we can search for usable id
      * As log file name hasn't been determined, we need to use a dummy one here
      */
-    sprintf(nclogp->MetaPath, "%s%s.meta.bin", logbase, fname);
+    sprintf(nclogp->MetaPath, "%s%s_%d_%d.meta.bin", logbase, fname, Parent->ncid, rank);
+    sprintf(nclogp->DataPath, "%s%s_%d_%d.data.bin", logbase, fname, Parent->ncid, rank);
     mkpath(nclogp->MetaPath, 0744, 0); 
-
-    /* Searching for avaiable logid that won't cause a file conflict
-     * If there's no conflict on process 0, we assume no conflict on all processes
-     * If there's no conflict on metadata log, we assume no conflict on data log
-     */
-    if (rank == 0){
-        for(id = 0;;id++){
-            sprintf(nclogp->MetaPath, "%s%s_%d_%d.meta.bin", logbase, fname, id, rank);
-#ifdef HAVE_ACCESS
-            /* Break if file not exists */
-            if (access(nclogp->MetaPath, F_OK) < 0){
-                break;
-            }
-#else
-            /* Try opening */
-            ret = open(nclogp->MetaPath, O_RDONLY);
-            /* Break if file not exists */
-            if (ret < 0 && errno == ENOENT){
-                break;
-            }
-#endif
-        }
-    }
-    ret = MPI_Bcast(&id, 1, MPI_INT, 0, comm);
-    if (ret != MPI_SUCCESS) {
-        err = ncmpii_handle_error(ret, "MPI_Bcast log id");
-    }
-    sprintf(nclogp->MetaPath, "%s%s_%d_%d.meta.bin", logbase, fname, id, rank);
-    sprintf(nclogp->DataPath, "%s%s_%d_%d.data.bin", logbase, fname, id, rank);
-    
+     
     /* Initialize metadata buffer */
     nclogp->MetaBufferSize = META_BUFFER_SIZE;  /* Size of metadata buffer */
     nclogp->MetaSize = 0;   /* Size of metadata buffer in use */
@@ -407,10 +379,6 @@ int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC
     H->max_ndims = 0;    /* Highest dimension among all variables, not used */
     H->entry_begin = nclogp->MetaSize;  /* Location of the first entry */
 
-    
-    /* Create log file */
-    
-    
     /* Create log files */
     
     nclogp->DataLog = nclogp->MetaLog = -1;
@@ -818,6 +786,8 @@ int WriteXMeta(NC_Log *nclogp, NC_Log_metadataentry *E, const MPI_Offset start[]
  * Retrieve variable id given NC_var and NC
  * IN    ncp:    NC structure
  * IN    varp:    NC_var structure
+ *
+ * This function is not used since NC_var contains varid
  */
 int get_varid(NC *ncp, NC_var *varp){
     int i;
@@ -864,8 +834,8 @@ int ncmpii_log_put_var(NC_Log *nclogp, NC_var *varp, const MPI_Offset start[], c
 
     /* Get variable id and dimension */
     dim = varp->ndims;
-    vid = get_varid(nclogp->Parent, varp);
-            
+    vid = varp->varid;
+
     /* Convert to log types 
      * Log spec has different enum of types than MPI
      */
