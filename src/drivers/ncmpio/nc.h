@@ -21,7 +21,7 @@
 #include <stdlib.h>
 
 #include <dispatch.h>
-#include "ncmpi_dispatch.h"
+#include "ncmpio_dispatch.h"
 #include "ncio.h"       /* ncio */
 #include "fbits.h"
 
