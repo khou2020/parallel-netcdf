@@ -797,7 +797,7 @@ err_check:
     /* carry out writes and reads separately (writes first) 
      * disable write when logging is enabled, it will be write at flushing stage
      */
-    if (ncp->nclogp == NULL || ncp->nclogp->Flushing){
+    if (ncp->nclogp == NULL || ncp->nclogp->isflushing){
         if (do_write > 0)
             err = ncmpii_wait_getput(ncp, num_w_reqs, put_list, WRITE_REQ,
                                      io_method, newnumrecs);
@@ -1071,7 +1071,7 @@ WaitFinished:;
     if (ncp->nclogp != NULL){
         if (ncp->nclogp->FlushOnWait == NC_LOG_TRUE){
             /* Prevent recursive flushing if wait is called by log_flush */
-            if (ncp->nclogp->Flushing == NC_LOG_FALSE){
+            if (ncp->nclogp->isflushing == NC_LOG_FALSE){
                 err = ncmpii_log_flush(ncp->nclogp);       
                 if (status == NC_NOERR) status = err;
             }
