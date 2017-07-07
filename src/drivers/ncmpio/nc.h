@@ -867,8 +867,50 @@ typedef struct NC_Log_metadataentry {
     MPI_Offset data_len;
 } NC_Log_metadataentry;
 
+/* Buffer structure */
+typedef struct NC_Log_buffer {
+    size_t nalloc;
+    size_t nused;
+    void* buffer;
+} NC_Log_buffer;
+
+/* Vector structure */
+typedef struct NC_Log_entarray {
+    size_t nalloc;
+    size_t nused;
+    NC_Log_metadataentry** entries;
+} NC_Log_entarray;
+
 /* Log structure */
 typedef struct NC_Log {
+    char Path[NC_LOG_PATH_MAX];    /* path of the CDF file */
+    char metalogpath[NC_LOG_PATH_MAX];    /* path of metadata log */    
+    char datalogpath[NC_LOG_PATH_MAX];    /* path of data log */
+    int metalog_fd;    /* file handle of metadata log */
+    int datalog_fd;    /* file handle of data log */
+	MPI_Offset MaxSize;    /* max data size in byte among all log entries */ 
+    NC_Log_buffer metadata;
+    NC_Log_entarray metaentries;
+    //char* Metadata;    /* metadata buffer */
+    //size_t MetaBufferSize;    /* size of metadata buffer */
+    //size_t MetaSize;    /* used size of metadata buffer */
+    //NC_Log_metadataheader MetaHeader;    /* metadata header */
+    MPI_Comm Communitator;    /* communicator of associate with the CDF file */
+    //size_t* MetaOffset;    /* metadata offset list */
+    //size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
+    //size_t MetaOffsetSize;    /* used space of metadata offset list */
+    size_t FlushBufferSize; /* Buffer size used to flush the log */
+    int DeleteOnClose;    /* Delete log on close or not */
+    struct NC* Parent; /* NC structure hosting this log structure */
+    int Flushing;   /* If log is flushing */
+    int FlushOnWait;   /* If log shoud be flushed on wait and wait_all */
+    int FlushOnSync;   /* If log should be flushed on Sync */
+    int FlushOnRead;    /* If log should be flushed on every get_var call */
+    int UpToDate;   /* If the netcdf file is up to date, ie. if there are unflushed log entries */
+} NC_Log;
+
+/* Log structure */
+typedef struct NCLog {
     char Path[NC_LOG_PATH_MAX];    /* path of the CDF file */
     char MetaPath[NC_LOG_PATH_MAX];    /* path of metadata log */    
     char DataPath[NC_LOG_PATH_MAX];    /* path of data log */
@@ -892,7 +934,8 @@ typedef struct NC_Log {
     int FlushOnSync;   /* If log should be flushed on Sync */
     int FlushOnRead;    /* If log should be flushed on every get_var call */
     int UpToDate;   /* If the netcdf file is up to date, ie. if there are unflushed log entries */
-} NC_Log;
+} NCLog;
+
 
 int ncmpii_log_get_comm(NC_Log *nclogp, MPI_Comm *comm);
 int ncmpii_log_create(MPI_Comm comm, const char* path, const char* BufferDir, NC* Parent, NC_Log **nclogp);

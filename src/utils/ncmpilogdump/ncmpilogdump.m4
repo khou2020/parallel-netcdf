@@ -33,7 +33,7 @@ define(`PRINTTYPE',dnl
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <../../drivers/ncmpi/nc.h>
+#include <../../drivers/ncmpio/nc.h>
 #include <pnetcdf.h>
 
 int main(int argc, char *argv[]) {
