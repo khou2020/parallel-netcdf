@@ -25,6 +25,9 @@
 #include "ncio.h"       /* ncio */
 #include "fbits.h"
 
+#define FILE_ALIGNMENT_DEFAULT 512
+#define HEADER_ALIGNMENT_LB    4
+
 /* for put request less than 4KB, copy it to a buffer and do byte swap there,
  * so if the user buffer is immutable (assuming smaller than 4KB), it will not
  * cause seg fault. Not a perfect solution, but should be sufficient for most
@@ -110,9 +113,6 @@ typedef struct {
     MPI_Offset  nchars;
     char       *cp;     /* [nchars+1] one additional char for '\0' */
 } NC_string;
-
-extern NC *
-ncmpii_new_NC(const MPI_Offset *chunkp);
 
 extern NC *
 ncmpii_dup_NC(const NC *ref);
@@ -284,7 +284,8 @@ typedef struct {
     int          *dimids_org; /* dimids before subfiling */
 #endif
     int          *dimids; /* array of dimension IDs */
-    MPI_Offset   *shape;  /* dim->size of each dim */
+    MPI_Offset   *shape;  /* dim->size of each dim
+                             shape[0] == NC_UNLIMITED if record variable */
     MPI_Offset   *dsizes; /* the right to left product of shape */
     NC_string    *name;   /* name of the variable */
     MPI_Offset    len;    /* this is the "vsize" defined in header format, the
@@ -410,14 +411,19 @@ struct NC {
     int           flags;
     int           format;       /* 1, 2, or 5 corresponding to CDF-1, 2, or 5 */
     int           safe_mode;    /* 0 or 1, for parameter consistency check */
-    int           subfile_mode; /* 0 or 1, for disable/enable subfiling */
+    int           numGetReqs;   /* number of pending nonblocking get requests */
+    int           numPutReqs;   /* number of pending nonblocking put requests */
 #ifdef ENABLE_SUBFILING
+    int           subfile_mode; /* 0 or 1, for disable/enable subfiling */
     int           nc_num_subfiles; /* number of subfiles */
     int           ncid_sf;         /* ncid of subfile */
 #endif
-    int           numGetReqs;  /* number of pending nonblocking get requests */
-    int           numPutReqs;  /* number of pending nonblocking put requests */
-    MPI_Offset    chunk;    /* chunk size for reading header */
+    MPI_Offset    chunk;       /* chunk size for reading header */
+    MPI_Offset    h_align;     /* file alignment for header */
+    MPI_Offset    v_align;     /* file alignment for each fixed variable */
+    MPI_Offset    r_align;     /* file alignment for record variable section */
+    MPI_Offset    h_minfree;   /* pad at the end of the header section */
+    MPI_Offset    v_minfree;   /* pad at the end of the data section for fixed-size variables */
     MPI_Offset    xsz;      /* external size of this header, <= var[0].begin */
     MPI_Offset    begin_var;/* file offset of the first (non-record) var */
     MPI_Offset    begin_rec;/* file offset of the first 'record' */
@@ -519,13 +525,6 @@ ncmpii_free_NC(NC *ncp);
 extern int
 ncmpii_read_NC(NC *ncp);
 
-extern int
-ncmpiio_enddef(NC *ncp);
-
-extern int
-ncmpiio__enddef(NC *ncp, MPI_Offset h_minfree, MPI_Offset v_align,
-                MPI_Offset v_minfree, MPI_Offset r_align);
-
 /* End defined in nc.c */
 
 #if 0
@@ -596,22 +595,7 @@ ncmpii_hdr_check_NC(bufferinfo *getbuf, NC *ncp);
 
 /* begin defined in mpincio.c */
 extern int
-ncmpiio_create(MPI_Comm comm, const char *path, int ioflags, MPI_Info info,
-               NC *ncp);
-
-extern int
-ncmpiio_open(MPI_Comm comm, const char *path, int ioflags, MPI_Info info,
-             NC *ncp);
-
-extern int
 ncmpiio_sync(ncio *nciop);
-
-extern int
-ncmpiio_move(ncio *const nciop, MPI_Offset to, MPI_Offset from,
-             MPI_Offset nbytes);
-
-extern int
-ncmpiio_move_fixed_vars(NC *ncp, NC *old);
 
 extern int
 ncmpiio_get_hint(NC *ncp, char *key, char *value, int *flag);

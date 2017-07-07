@@ -22,6 +22,9 @@
 
 #include <mpi.h>
 
+/* TODO: should not use any PnetCDF source codes, as this CDF format validate
+ * utility should run independently from PnetCDF
+ */
 #include <nc.h>
 #include <ncx.h>
 #include <common.h>
@@ -266,7 +269,6 @@ val_get_NC_dimarray(int fd, bufferinfo *gbp, NC_dimarray *ncap)
      */
     int status;
     NCtype type = NC_UNSPECIFIED; 
-    NC_dim **dpp, **end;
     int dim;
     unsigned long long err_addr;
     MPI_Offset tmp;
@@ -307,17 +309,15 @@ val_get_NC_dimarray(int fd, bufferinfo *gbp, NC_dimarray *ncap)
         }
 
         /* check each dimension */
-        ncap->value = (NC_dim **) NCI_Malloc(ncap->ndefined * sizeof(NC_dim *));
+        ncap->value = (NC_dim **) malloc(ncap->ndefined * sizeof(NC_dim *));
         if (ncap->value == NULL) return NC_ENOMEM;
         ncap->nalloc = ncap->ndefined;
 
-        dpp = ncap->value;
-        end = &dpp[ncap->ndefined];
-        for (/*NADA*/ dim = 0; dpp < end; dpp++, dim++) {
-            status = val_get_NC_dim(fd, gbp, dpp);
+        for (dim=0; dim<ncap->ndefined; dim++) {
+            status = val_get_NC_dim(fd, gbp, &ncap->value[dim]);
             if (status != NC_NOERR) {
 	        printf("dimension[%d] in ", dim);
-                ncap->ndefined = dpp - ncap->value;
+                ncap->ndefined = dim;
                 ncmpii_free_NC_dimarray(ncap);
                 return status;
             }
@@ -473,7 +473,6 @@ val_get_NC_attrarray(int fd, bufferinfo *gbp, NC_attrarray *ncap)
      */
     int status;
     NCtype type = NC_UNSPECIFIED;
-    NC_attr **app, **end;
     int att;
     MPI_Offset tmp;
     unsigned long long err_addr;
@@ -513,18 +512,15 @@ val_get_NC_attrarray(int fd, bufferinfo *gbp, NC_attrarray *ncap)
             return NC_ENOTNC;
         }
 
-        ncap->value = (NC_attr **) NCI_Malloc(ncap->ndefined * sizeof(NC_attr *));
-        if (ncap->value == NULL)
-            return NC_ENOMEM;
+        ncap->value = (NC_attr **) malloc(ncap->ndefined * sizeof(NC_attr *));
+        if (ncap->value == NULL) return NC_ENOMEM;
         ncap->nalloc = ncap->ndefined; 
 
-        app = ncap->value;
-        end = &app[ncap->ndefined];
-        for( /*NADA*/ att = 0; app < end; app++, att++) {
-            status = val_get_NC_attr(fd, gbp, app);
+        for (att=0; att<ncap->ndefined; att++) {
+            status = val_get_NC_attr(fd, gbp, &ncap->value[att]);
             if (status != NC_NOERR) {
 	        printf("attribute[%d] of ", att);
-                ncap->ndefined = app - ncap->value;
+                ncap->ndefined = att;
                 ncmpii_free_NC_attrarray(ncap);
                 return status;
             }
@@ -664,7 +660,6 @@ val_get_NC_vararray(int fd, bufferinfo *gbp, NC_vararray *ncap)
      */
     int status;
     NCtype type = NC_UNSPECIFIED;
-    NC_var **vpp, **end;
     int var;
     MPI_Offset tmp;
     unsigned long long err_addr;
@@ -702,17 +697,15 @@ val_get_NC_vararray(int fd, bufferinfo *gbp, NC_vararray *ncap)
             return NC_ENOTNC;
         }
  
-        ncap->value = (NC_var **) NCI_Malloc(ncap->ndefined * sizeof(NC_var *));
+        ncap->value = (NC_var **) malloc(ncap->ndefined * sizeof(NC_var *));
         if (ncap->value == NULL) return NC_ENOMEM; 
         ncap->nalloc = ncap->ndefined;
 
-        vpp = ncap->value;
-        end = &vpp[ncap->ndefined];
-        for (/*NADA*/ var = 0; vpp < end; vpp++, var++) {
-            status = val_get_NC_var(fd, gbp, vpp);
+        for (var=0; var<ncap->ndefined; var++) {
+            status = val_get_NC_var(fd, gbp, &ncap->value[var]);
             if (status != NC_NOERR) {
                 printf("variable[%d] in ", var);
-                ncap->ndefined = vpp - ncap->value;
+                ncap->ndefined = var;
                 ncmpii_free_NC_vararray(ncap);
                 return status;
             }
@@ -839,7 +832,7 @@ val_get_NC(int fd, NC *ncp)
     /* CDF-5's minimum header size is 4 bytes more than CDF-1 and CDF-2's */
     getbuf.size = _RNDUP( MAX(MIN_NC_XSZ+4, ncp->chunk), X_ALIGN );
 
-    getbuf.pos = getbuf.base = (void *)NCI_Malloc(getbuf.size);
+    getbuf.pos = getbuf.base = (void *)malloc(getbuf.size);
 
     /* Fetch the next header chunk. The chunk is 'gbp->size' bytes big
      * netcdf_file = header data
@@ -963,7 +956,7 @@ val_get_NC(int fd, NC *ncp)
     if (status != NC_NOERR) goto fn_exit;
 
 fn_exit:
-    NCI_Free(getbuf.base);
+    free(getbuf.base);
 
     return status;
 }
@@ -994,19 +987,30 @@ int main(int argc, char **argv)
     }
 
     /* Allocate NC object */
-    ncp = ncmpii_new_NC(NULL);  /* using zero chunk size */
+    ncp = (NC*) calloc(1, sizeof(NC));
     if (ncp == NULL) {
         status = NC_ENOMEM;
         printf("Error at line %d when calling ncmpii_new_NC()\n",__LINE__);
         goto prog_exit;
     }
 
-    ncp->nciop = ncmpiio_new(filename, NC_NOWRITE);
+    /* allocate ncp->nciop object */
+    size_t sz_ncio = M_RNDUP(sizeof(ncio));
+    size_t sz_path = M_RNDUP(strlen(filename) +1);
+
+    ncp->nciop = (ncio *) NCI_Malloc(sz_ncio + sz_path);
     if (ncp->nciop == NULL) {
         status = NC_ENOMEM;
         printf("Error at line %d when calling ncmpiio_new()\n",__LINE__);
         goto prog_exit;
     }
+
+    ncp->nciop->ioflags  = NC_NOWRITE;
+    ncp->nciop->put_size = 0;
+    ncp->nciop->get_size = 0;
+
+    ncp->nciop->path = (char *) ((char *)ncp->nciop + sz_ncio);
+    (void) strcpy((char *)ncp->nciop->path, filename);
 
     /* read and validate the header */
     status = val_get_NC(fd, ncp);
@@ -1033,10 +1037,8 @@ int main(int argc, char **argv)
 
 prog_exit:
     /* free allocated buffers and close the file */
-    if (ncp != NULL) {
-        if (ncp->nciop != NULL) ncmpiio_free(ncp->nciop);
-        ncmpii_free_NC(ncp);
-    }
+    if (ncp != NULL && ncp->nciop != NULL) free(ncp->nciop);
+
     close(fd);
 
     if (status == NC_NOERR)

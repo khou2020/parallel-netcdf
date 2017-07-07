@@ -823,14 +823,18 @@ stride_flatten(int               isRecVar, /* whether record variable */
         /* array_len is global array size from lowest up to ndim */
         array_len *= dimlen[ndim];
 
-        /* off is the global array offset for this dimension, ndim-1 */
+        /* off is the global array offset for this dimension, ndim-1
+         * For record variable, dimlen[0] is the sum of single record sizes
+         */
         if (ndim == 1 && isRecVar) off = start[0] * dimlen[0];
         else off = start[ndim-1] * array_len * el_size;
 
         /* update all offsets from lowest up to dimension ndim-1 */
         for (j=0; j<subarray_len; j++) disps[j] += off;
 
-        /* update each successive subarray of dimension ndim-1 */
+        /* update each successive subarray of dimension ndim-1
+         * For record variable, dimlen[0] is the sum of single record sizes
+         */
         if (ndim == 1 && isRecVar) off = stride[0] * dimlen[0];
         else off = stride[ndim-1] * array_len * el_size;
 
@@ -864,7 +868,7 @@ ncmpii_vars_create_filetype(NC               *ncp,
 {
     int           dim, err, nblocks, *blocklens;
     MPI_Aint     *disps;
-    MPI_Offset    offset, stride_off, nelems, *shape;
+    MPI_Offset    offset, nelems, *shape;
     MPI_Datatype  filetype=MPI_BYTE;
 
     if (stride == NULL)
@@ -910,6 +914,7 @@ ncmpii_vars_create_filetype(NC               *ncp,
     if (is_filetype_contig != NULL) *is_filetype_contig = 0;
     offset = varp->begin;
 
+#if 1
     blocklens = (int*) NCI_Malloc((size_t)nelems * SIZEOF_INT);
     disps = (MPI_Aint*) NCI_Malloc((size_t)nelems * SIZEOF_MPI_AINT);
     shape = (MPI_Offset*) NCI_Malloc((size_t)varp->ndims * SIZEOF_MPI_OFFSET);
@@ -940,7 +945,7 @@ ncmpii_vars_create_filetype(NC               *ncp,
      * The above approach avoids such problem by flattening stride access into
      * offset-length and using a single call to hindexed constructor.
      */
-#if 0
+#else
     int ndims, *blockcounts;
     MPI_Aint *blockstride;
     MPI_Offset   stride_off;
