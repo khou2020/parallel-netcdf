@@ -899,6 +899,7 @@ typedef struct NC_Log {
     char datalogpath[NC_LOG_PATH_MAX];    /* path of data log */
     int metalog_fd;    /* file handle of metadata log */
     int datalog_fd;    /* file handle of data log */
+    size_t datalogsize;
     NC_Log_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
     NC_Log_entarray metaentries;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */

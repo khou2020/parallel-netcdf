@@ -367,7 +367,7 @@ ncmpii_open(MPI_Comm    comm,
             MPI_Info    info,
             void       **ncpp)
 {
-    int i, err, status=NC_NOERR, safe_mode=0, mpireturn, ret;
+    int i, err, status=NC_NOERR, safe_mode=0, mpireturn;
     char *env_str;
     MPI_Info   env_info=MPI_INFO_NULL;
     MPI_Offset chunksize=NC_DEFAULT_CHUNKSIZE;
@@ -508,9 +508,9 @@ ncmpii_open(MPI_Comm    comm,
     if (ncp->loghints & NC_LOG_HINT_LOG_ENABLE){
         /* Create log file if not created */
         if (ncp->nclogp == NULL){
-            ret = ncmpii_log_create(ncp);
-            if (ret != NC_NOERR){
-                return ret;
+            err = ncmpii_log_create(ncp);
+            if (err != NC_NOERR){
+                return err;
             }
         }
     }

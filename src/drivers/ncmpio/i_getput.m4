@@ -149,7 +149,7 @@ ncmpii_igetput_varm(NC               *ncp,
     MPI_Datatype ptype, imaptype=MPI_DATATYPE_NULL;
     NC_req *req;
 
-    if (ncp->nclogp != NULL && rw_flag == WRITE_REQ){
+    /*if (ncp->nclogp != NULL && rw_flag == WRITE_REQ){
         // Disable logging when the log is flushing via this api 
         if (!ncp->nclogp->isflushing){
             err = ncmpii_getput_varm(ncp, varp, start, count, stride, imap, buf, bufcount, buftype, rw_flag, INDEP_IO);
@@ -158,7 +158,7 @@ ncmpii_igetput_varm(NC               *ncp,
                 return err;                
             }
         }
-    }
+    }*/
 
     /* calculate the followings:
      * ptype: element data type (MPI primitive type) in buftype
@@ -289,10 +289,17 @@ ncmpii_igetput_varm(NC               *ncp,
             cbuf = lbuf;
         
         /* If log is enable */
-        /*
-        if (ncp->nclogp != NULL){
-            ncmpii_log_put_var(ncp, varp, start, count, stride, cbuf, buftype, position);
-        }*/
+        if (ncp->nclogp != NULL && rw_flag == WRITE_REQ){
+            // Disable logging when the log is flushing via this api 
+            if (!ncp->nclogp->isflushing){
+                /* Record in log file */
+                err = ncmpii_log_put_var(ncp, varp, start, count, stride, cbuf, ptype, bnelems * el_size);
+                if (err != NC_NOERR){
+                    *reqid = NC_REQ_NULL;
+                    return err;                
+                }
+            }
+        }
 
         /* Step 3: type-convert and byte-swap cbuf to xbuf, and xbuf will be
          * used in MPI write function to write to file
