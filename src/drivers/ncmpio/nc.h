@@ -19,10 +19,10 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <linux/limits.h>
 
 #include <dispatch.h>
 #include "ncmpio_dispatch.h"
-#include "ncio.h"       /* ncio */
 #include "fbits.h"
 
 #define FILE_ALIGNMENT_DEFAULT 512
@@ -142,7 +142,6 @@ typedef struct {
 #ifdef ENABLE_SUBFILING
     MPI_Offset rcount; /* subfile range count */
     int range[2]; /* subfile range {start, end} */
-    int num_subfiles;
 #endif
 } NC_dim;
 
@@ -408,48 +407,61 @@ typedef struct NC_buf {
 #define NC_HDIRTY 0x800000  /* header info has changed */
 struct NC {
     int           ncid;         /* file ID */
-    int           flags;
+    int           flags;        /* stores all modes */
+    int           iomode;       /* cmode or omode used in ncmpi_create/open */
+    int           mpiomode;     /* mode used in MPI_File_open, passed from
+                                 * collective open to independent open */
     int           format;       /* 1, 2, or 5 corresponding to CDF-1, 2, or 5 */
     int           safe_mode;    /* 0 or 1, for parameter consistency check */
     int           numGetReqs;   /* number of pending nonblocking get requests */
     int           numPutReqs;   /* number of pending nonblocking put requests */
 #ifdef ENABLE_SUBFILING
     int           subfile_mode; /* 0 or 1, for disable/enable subfiling */
-    int           nc_num_subfiles; /* number of subfiles */
-    int           ncid_sf;         /* ncid of subfile */
+    int           num_subfiles; /* number of subfiles */
+    int           ncid_sf;      /* ncid of subfile */
 #endif
+    int           striping_unit; /* file stripe size of the file */
     MPI_Offset    chunk;       /* chunk size for reading header */
     MPI_Offset    h_align;     /* file alignment for header */
     MPI_Offset    v_align;     /* file alignment for each fixed variable */
     MPI_Offset    r_align;     /* file alignment for record variable section */
     MPI_Offset    h_minfree;   /* pad at the end of the header section */
     MPI_Offset    v_minfree;   /* pad at the end of the data section for fixed-size variables */
-    MPI_Offset    xsz;      /* external size of this header, <= var[0].begin */
-    MPI_Offset    begin_var;/* file offset of the first (non-record) var */
-    MPI_Offset    begin_rec;/* file offset of the first 'record' */
+    MPI_Offset    xsz;       /* external size of this header, <= var[0].begin */
+    MPI_Offset    begin_var; /* file offset of the first (non-record) var */
+    MPI_Offset    begin_rec; /* file offset of the first 'record' */
 
-    MPI_Offset    recsize;  /* length of 'record': sum of single record sizes
-                               of all the record variables */
-    MPI_Offset    numrecs;  /* number of 'records' allocated */
+    MPI_Offset    recsize;   /* length of 'record': sum of single record sizes
+                                of all the record variables */
+    MPI_Offset    numrecs;   /* number of 'records' allocated */
+    MPI_Offset    put_size;  /* amount of writes committed so far in bytes */
+    MPI_Offset    get_size;  /* amount of reads  committed so far in bytes */
+
+    MPI_Comm      comm;           /* MPI communicator */
+    MPI_Info      mpiinfo;        /* used MPI info object */
+    MPI_File      collective_fh;  /* file handle for collective mode */
+    MPI_File      independent_fh; /* file handle for independent mode */
+
     NC_dimarray   dims;     /* dimensions defined */
     NC_attrarray  attrs;    /* global attributes defined */
     NC_vararray   vars;     /* variables defined */
+
     NC_req       *get_list; /* list of nonblocking read requests */
     NC_req       *put_list; /* list of nonblocking write requests */
     NC_buf       *abuf;     /* attached buffer, used by bput APIs */
 
-    ncio         *nciop;
+    char         *path;     /* file name */
     struct NC    *old;      /* contains the previous NC during redef. */
 
     struct NC_Log         *nclogp;    /* Log io structure, if log is not used, this should be set to null */
     
     size_t logflushbuffersize; /* Buffer size used to flush the log */
     int loghints;
-    char logbase[MPI_MAX_INFO_VAL];
+    char logbase[PATH_MAX];
 };
 
 #define NC_readonly(ncp) \
-        (!fIsSet((ncp)->nciop->ioflags, NC_WRITE))
+        (!fIsSet((ncp)->iomode, NC_WRITE))
 
 #define NC_IsNew(ncp) \
         fIsSet((ncp)->flags, NC_CREAT)
@@ -476,7 +488,7 @@ struct NC {
         (!fIsSet((ncp)->flags, NC_NOFILL))
 
 #define NC_doFsync(ncp) \
-        fIsSet((ncp)->nciop->ioflags, NC_SHARE)
+        fIsSet((ncp)->iomode, NC_SHARE)
 
 #define NC_doHsync(ncp) \
         fIsSet((ncp)->flags, NC_HSYNC)
@@ -564,7 +576,9 @@ ncmpii_put_rec(int ncid, MPI_Offset recnum, void *const *datap);
 
 /* Begin defined in header.c */
 typedef struct bufferinfo {
-    ncio       *nciop;
+    MPI_Comm    comm;
+    MPI_File    collective_fh;
+    MPI_Offset  get_size; /* amount of reads  committed so far in bytes */
     MPI_Offset  offset;   /* current read/write offset in the file */
     MPI_Offset  size;     /* size of the buffer */
     int         version;  /* 1, 2, and 5 for CDF-1, 2, and 5 respectively */
@@ -599,7 +613,7 @@ ncmpii_hdr_check_NC(bufferinfo *getbuf, NC *ncp);
 
 /* begin defined in mpincio.c */
 extern int
-ncmpiio_sync(ncio *nciop);
+ncmpiio_sync(NC *ncp);
 
 extern int
 ncmpiio_get_hint(NC *ncp, char *key, char *value, int *flag);
@@ -719,9 +733,6 @@ ncmpii_nc2mpitype(nc_type type);
 extern nc_type
 ncmpii_mpi2nctype(MPI_Datatype itype);
 
-extern int
-ncmpiio_end_indep_data(NC *ncp); 
-
 extern int                
 ncmpii_file_set_view(NC *ncp, MPI_File fh, MPI_Offset *offset, MPI_Datatype filetype);
 
@@ -781,6 +792,12 @@ ncmpii_getput_zero_req(NC *ncp, int rw_flag);
 
 extern int
 ncmpii_NC_check_vlens(NC *ncp);
+
+extern void
+ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info);
+
+extern int
+ncmpiio_close(NC *ncp, int doUnlink);
 
 #define NC_LOG_TYPE_TEXT 1
 #define NC_LOG_TYPE_SCHAR 2

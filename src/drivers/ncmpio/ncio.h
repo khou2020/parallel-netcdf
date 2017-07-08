@@ -38,6 +38,10 @@ typedef struct {
      * or ncmpiio_create().
      */
     int ioflags;
+    int mpioflags; /* MPI_COLLECTIVE_FH or MPI_INDEPENDENT_FH */
+
+    int mpiomode;  /* mode used in MPI_File_open, passed from collective open
+                      to independent open */
 
     /*
      * The MPI File handle and the communicator
@@ -47,22 +51,18 @@ typedef struct {
     MPI_Comm comm;
     MPI_Info mpiinfo;
 
-    int mpiomode;        /* mode used in MPI_File_open */
-    int mpioflags;       /* MPI_COLLECTIVE_FH or MPI_INDEPENDENT_FH */
     int striping_unit;   /* file stripe size of the file */
+
+    MPI_Offset put_size;  /* amount of writes committed so far in bytes */
+    MPI_Offset get_size;  /* amount of reads  committed so far in bytes */
 
     /*
      * A copy of the 'path' argument passed in to ncmpiio_open()
      * or ncmpiio_create(). Used by ncabort() to remove (unlink)
      * the file and by error messages.
      */
-    const char *path;
-
-    MPI_Offset put_size;  /* amount of writes committed so far in bytes */
-    MPI_Offset get_size;  /* amount of reads  committed so far in bytes */
+    char *path;
 } ncio;
 
-extern int
-ncmpiio_close(ncio *nciop, int doUnlink);
 
 #endif /* _NCIO_H */

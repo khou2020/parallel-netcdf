@@ -96,21 +96,21 @@ int ncmpii_subfile_create(NC *ncp, int *ncidp)
 
     MPI_Info_create(&info);
 
-    MPI_Comm_rank(ncp->nciop->comm, &myrank);
-    MPI_Comm_size(ncp->nciop->comm, &nprocs);
+    MPI_Comm_rank(ncp->comm, &myrank);
+    MPI_Comm_size(ncp->comm, &nprocs);
 #ifdef SUBFILE_DEBUG
     if (myrank == 0)
-      printf("%s: rank(%d): nprocs=%d, ncp->nc_num_subfiles=%d\n",
-           __func__, myrank, nprocs, ncp->nc_num_subfiles);
+      printf("%s: rank(%d): nprocs=%d, ncp->num_subfiles=%d\n",
+           __func__, myrank, nprocs, ncp->num_subfiles);
 #endif
 
     /* split the orignial comm to subcomm */
-    if (nprocs > ncp->nc_num_subfiles) {
-        ratio = (double)nprocs/(double)(ncp->nc_num_subfiles);
+    if (nprocs > ncp->num_subfiles) {
+        ratio = (double)nprocs/(double)(ncp->num_subfiles);
         color = (int)((double)myrank/ratio);
     }
     else
-        color = myrank%ncp->nc_num_subfiles;
+        color = myrank%ncp->num_subfiles;
 
 #ifdef SUBFILE_DEBUG
     printf("rank(%d): color=%d\n", myrank, color);
@@ -119,17 +119,17 @@ int ncmpii_subfile_create(NC *ncp, int *ncidp)
 
     /* TODO: fix error when using generated key value.
      * for now, just passing 0 value. */
-    TRACE_COMM(MPI_Comm_split)(ncp->nciop->comm, color, myrank, &comm_sf);
+    TRACE_COMM(MPI_Comm_split)(ncp->comm, color, myrank, &comm_sf);
     if (mpireturn != MPI_SUCCESS)
         return ncmpii_handle_error(mpireturn, "MPI_Comm_split"); 
 
-    sprintf(path_sf, "%s.subfile_%i.%s", ncp->nciop->path, color, "nc");
+    sprintf(path_sf, "%s.subfile_%i.%s", ncp->path, color, "nc");
 
     /* MPI_Info_set(info, "romio_lustre_start_iodevice", offset);
        MPI_Info_set(info, "striping_factor", "1");
      */
 
-    status = ncmpi_create(comm_sf, path_sf, ncp->nciop->ioflags, info, ncidp);
+    status = ncmpi_create(comm_sf, path_sf, ncp->iomode, info, ncidp);
     if (status != NC_NOERR && myrank == 0)
         fprintf(stderr, "%s: error in creating file(%s): %s\n",
                 __func__, path_sf, ncmpi_strerror(status));
@@ -148,21 +148,21 @@ ncmpii_subfile_open(NC *ncp, int *ncidp)
     MPI_Comm comm_sf;
     double ratio;
 
-    MPI_Comm_rank(ncp->nciop->comm, &myrank);
-    MPI_Comm_size(ncp->nciop->comm, &nprocs);
+    MPI_Comm_rank(ncp->comm, &myrank);
+    MPI_Comm_size(ncp->comm, &nprocs);
 #ifdef SUBFILE_DEBUG
     if (myrank == 0)
-      printf("%s: rank(%d): nprocs=%d, ncp->nc_num_subfiles=%d\n", __func__,
-           myrank, nprocs, ncp->nc_num_subfiles);
+      printf("%s: rank(%d): nprocs=%d, ncp->num_subfiles=%d\n", __func__,
+           myrank, nprocs, ncp->num_subfiles);
 #endif
 
     /* split the original comm to subcomm */
-    if (nprocs > ncp->nc_num_subfiles) {
-        ratio = (double)nprocs/(double)ncp->nc_num_subfiles;
+    if (nprocs > ncp->num_subfiles) {
+        ratio = (double)nprocs/(double)ncp->num_subfiles;
         color = (int)((double)myrank/ratio);
     }
     else
-        color = myrank%ncp->nc_num_subfiles;
+        color = myrank%ncp->num_subfiles;
 
 #ifdef SUBFILE_DEBUG
     if (myrank == 0)
@@ -172,16 +172,16 @@ ncmpii_subfile_open(NC *ncp, int *ncidp)
 
     /* TODO: fix error when using generated key value.
      * for now, just passing 0 value. */
-    TRACE_COMM(MPI_Comm_split)(ncp->nciop->comm, color, myrank, &comm_sf);
+    TRACE_COMM(MPI_Comm_split)(ncp->comm, color, myrank, &comm_sf);
     if (mpireturn != MPI_SUCCESS)
         return ncmpii_handle_error(mpireturn, "MPI_Comm_split"); 
 
     /* char path[1024], file[1024]; */
-    /* find_path_and_fname(ncp->nciop->path, path, file); */
-    sprintf(path_sf, "%s.subfile_%i.%s", ncp->nciop->path, color, "nc");
+    /* find_path_and_fname(ncp->path, path, file); */
+    sprintf(path_sf, "%s.subfile_%i.%s", ncp->path, color, "nc");
     /* sprintf(path_sf, "%s%d/%s", path, color, file); */
 
-    status = ncmpi_open(comm_sf, path_sf, ncp->nciop->ioflags, MPI_INFO_NULL, ncidp);
+    status = ncmpi_open(comm_sf, path_sf, ncp->iomode, MPI_INFO_NULL, ncidp);
     if (status != NC_NOERR)
         fprintf(stderr, "Error in file %s line %d: %s\n", __FILE__,__LINE__, ncmpi_strerror(status));
 
@@ -210,8 +210,8 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
     NC *ncp_sf;
     double ratio;
 
-    MPI_Comm_rank(ncp->nciop->comm, &myrank);
-    MPI_Comm_size(ncp->nciop->comm, &nprocs);
+    MPI_Comm_rank(ncp->comm, &myrank);
+    MPI_Comm_size(ncp->comm, &nprocs);
 #ifdef SUBFILE_DEBUG
     if (myrank==0)  /* debug */
     {
@@ -220,12 +220,12 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
 #endif
     if (is_partitioned == 1) return NC_NOERR;
 
-    if (nprocs > ncp->nc_num_subfiles) {
-        ratio = (double)nprocs/(double)ncp->nc_num_subfiles;
+    if (nprocs > ncp->num_subfiles) {
+        ratio = (double)nprocs/(double)ncp->num_subfiles;
         color = (int)((double)myrank/ratio);
     }
     else
-        color = myrank%ncp->nc_num_subfiles;
+        color = myrank%ncp->num_subfiles;
 
 #ifdef SUBFILE_DEBUG
     printf("%s: rank(%d): color=%d\n", __func__, myrank, color);
@@ -241,11 +241,11 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
         TEST_HANDLE_ERR(status)
 
         status = ncmpii_put_att(ncp, NC_GLOBAL, "_PnetCDF_SubFiling.num_subfiles",
-                                NC_INT, 1, &ncp->nc_num_subfiles, NC_INT);
+                                NC_INT, 1, &ncp->num_subfiles, NC_INT);
         TEST_HANDLE_ERR(status)
     }
     else if (status == NC_NOERR) { /* attr is already set */
-        assert(num_subfiles == ncp->nc_num_subfiles);
+        assert(num_subfiles == ncp->num_subfiles);
     }
     else /* other error */
         return status;
@@ -260,9 +260,9 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
     ncp_sf = (NC*)pncp->ncp;
 
     /* adjust the hints to be used by PnetCDF; use the same value in master */
-    ncp_sf->nciop->hints.h_align = ncp->nciop->hints.h_align;
-    ncp_sf->nciop->hints.v_align = ncp->nciop->hints.v_align;
-    ncp_sf->nciop->hints.r_align = ncp->nciop->hints.r_align;
+    ncp_sf->h_align = ncp->h_align;
+    ncp_sf->v_align = ncp->v_align;
+    ncp_sf->r_align = ncp->r_align;
 
     for(i=0; i<ncp->vars.ndefined; i++) { /* traverse all variables */
         NC_var **vpp = ncp->vars.value;
@@ -311,13 +311,13 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
         /* divide only when dim is partitionable */
         /* 1. skip sizeof(par_dim_id) is smaller than num_subfiles */
         /* 2. skip if ndims < min_ndims */
-        if ( (dpp[vpp[i]->dimids[par_dim_id]]->size)/(ncp->nc_num_subfiles) != 0 && (vpp[i]->ndims >= par_dim_id+1) && (vpp[i]->ndims >= min_ndims)) {
+        if ( (dpp[vpp[i]->dimids[par_dim_id]]->size)/(ncp->num_subfiles) != 0 && (vpp[i]->ndims >= par_dim_id+1) && (vpp[i]->ndims >= min_ndims)) {
             int varid, j, jj, k;
             int var_ndims = vpp[i]->ndims; /* keep org ndims */
             int dimids[var_ndims];
-            char *key[ncp->nc_num_subfiles][var_ndims];
+            char *key[ncp->num_subfiles][var_ndims];
 
-            for (jj=0; jj < ncp->nc_num_subfiles; jj++)
+            for (jj=0; jj < ncp->num_subfiles; jj++)
                 for (k=0; k<var_ndims; k++)
                     key[jj][k] = (char*) NCI_Calloc(NC_MAX_NAME, 1);
 
@@ -325,7 +325,7 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
             status = ncmpii_put_att(ncp, i, "_PnetCDF_SubFiling.ndims_org", NC_INT, 1, &vpp[i]->ndims, NC_INT);
             TEST_HANDLE_ERR(status)
 
-            int sf_range[ncp->nc_num_subfiles][var_ndims][3];
+            int sf_range[ncp->num_subfiles][var_ndims][3];
 
             /* j: each dimension */
             /* subfile: create a var with partitioned dim sizes */
@@ -340,7 +340,7 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
                 dim_sz = dim_sz0;
 
                 /* determine partition ratio */
-                x = (double)(dim_sz0)/(double)(ncp->nc_num_subfiles);
+                x = (double)(dim_sz0)/(double)(ncp->num_subfiles);
 
                 /* don't partition dim if dim size is less than ratio x */
                 if ((int)x < 1 && j == par_dim_id)
@@ -367,7 +367,7 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
 
                 /* dpp_sf[color][j] = ncp_sf->dims.value[j]; */
 
-                for (jj=0; jj < ncp->nc_num_subfiles; jj++) {
+                for (jj=0; jj < ncp->num_subfiles; jj++) {
                     double xx, yy;
                     sprintf(key[jj][j], "_PnetCDF_SubFiling.range(%s).subfile.%d", dim_name, jj); /* dim name*/
                     xx = x*(double)jj;
@@ -405,17 +405,17 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
                 vpp[i]->shape = NULL;
             }
             vpp[i]->len = vpp[i]->xsz; /* size of type  */
-            vpp[i]->num_subfiles = ncp->nc_num_subfiles;
+            vpp[i]->num_subfiles = ncp->num_subfiles;
 
             status = ncmpii_put_att(ncp, i, "_PnetCDF_SubFiling.dimids_org",
                                     NC_INT, vpp[i]->ndims_org, vpp[i]->dimids_org, NC_INT);
             TEST_HANDLE_ERR(status)
 
             status = ncmpii_put_att(ncp, i, "_PnetCDF_SubFiling.num_subfiles",
-                                    NC_INT, 1, &ncp->nc_num_subfiles, NC_INT);
+                                    NC_INT, 1, &ncp->num_subfiles, NC_INT);
             TEST_HANDLE_ERR(status)
 
-            for (jj=0; jj < ncp->nc_num_subfiles; jj++)
+            for (jj=0; jj < ncp->num_subfiles; jj++)
                 for (k=0; k < var_ndims; k++) {
                     status = ncmpii_put_att(ncp, i, key[jj][k], NC_INT,
                                             2, sf_range[jj][k], NC_INT);
@@ -436,7 +436,7 @@ int ncmpii_subfile_partition(NC *ncp, int *ncidp)
             }
 
             /* deallocate buffers */
-            for (jj=0; jj < ncp->nc_num_subfiles; jj++)
+            for (jj=0; jj < ncp->num_subfiles; jj++)
                 for (k=0; k<var_ndims; k++)
                     NCI_Free(key[jj][k]);
 
@@ -482,8 +482,8 @@ ncmpii_subfile_getput_vars(NC               *ncp,
     status = NC_start_count_stride_ck(ncp, varp, start, count, stride, rw_flag);
     if (status != NC_NOERR) return status;
 
-    MPI_Comm_rank(ncp->nciop->comm, &myrank);
-    MPI_Comm_size(ncp->nciop->comm, &nprocs);
+    MPI_Comm_rank(ncp->comm, &myrank);
+    MPI_Comm_size(ncp->comm, &nprocs);
 
 #ifdef SUBFILE_DEBUG
     for (i=0; i<ndims_org; i++)
@@ -546,9 +546,9 @@ ncmpii_subfile_getput_vars(NC               *ncp,
     }
 
     /* i: for each subfile */
-    for (i=0; i<ncp->nc_num_subfiles; i++) {
+    for (i=0; i<ncp->num_subfiles; i++) {
         int flag = 0; /* set to 1 if par_dim_id is partitioned, initially 0 */
-        double ratio = (double)nprocs/(double)ncp->nc_num_subfiles;
+        double ratio = (double)nprocs/(double)ncp->num_subfiles;
         int aproc=-1; /* I/O delegate proc in subfile group */
 
         if (delegate_scheme == BALANCED) {
@@ -668,7 +668,7 @@ ncmpii_subfile_getput_vars(NC               *ncp,
     } /* for each subfile, i */
 
 #ifdef SUBFILE_DEBUG
-    for (i=0; i<ncp->nc_num_subfiles; i++) {
+    for (i=0; i<ncp->num_subfiles; i++) {
         char str_st[100], str_st_org[100], str_ct[100], str_t1[10];
         sprintf(str_st, ">> rank(%d): subfile(%d): var(%s): start(", myrank, i, varp->name->cp);
         sprintf(str_ct, ">> rank(%d): subfile(%d): count(", myrank, i);
@@ -728,7 +728,7 @@ ncmpii_subfile_getput_vars(NC               *ncp,
     TAU_PHASE_START(t51);
 #endif
 
-    TRACE_COMM(MPI_Alltoall)(count_my_req_per_proc, 1, MPI_INT, count_others_req_per_proc, 1, MPI_INT, ncp->nciop->comm);
+    TRACE_COMM(MPI_Alltoall)(count_my_req_per_proc, 1, MPI_INT, count_others_req_per_proc, 1, MPI_INT, ncp->comm);
 
 #ifdef TAU_SSON
     TAU_PHASE_STOP(t51);
@@ -884,11 +884,11 @@ ncmpii_subfile_getput_vars(NC               *ncp,
 
     for (i=0; i<nprocs; i++)
         if (count_my_req_per_proc[i] != 0 && i != myrank)
-            TRACE_COMM(MPI_Irecv)(&count_others_req_per_proc[i], 1, MPI_INT, i, i+myrank, ncp->nciop->comm, &requests[j++]);
+            TRACE_COMM(MPI_Irecv)(&count_others_req_per_proc[i], 1, MPI_INT, i, i+myrank, ncp->comm, &requests[j++]);
 
     for (i=0; i<nprocs; i++)
         if (count_others_req_per_proc[i] != 0 && i != myrank)
-            TRACE_COMM(MPI_Isend)(&count_my_req_per_proc[i], 1, MPI_INT, i, i+myrank, ncp->nciop->comm, &requests[j++]);
+            TRACE_COMM(MPI_Isend)(&count_my_req_per_proc[i], 1, MPI_INT, i, i+myrank, ncp->comm, &requests[j++]);
 
     statuses = (MPI_Status *)NCI_Malloc((size_t)j*sizeof(MPI_Status));
     TRACE_COMM(MPI_Waitall)(j, requests, statuses);
@@ -916,12 +916,12 @@ ncmpii_subfile_getput_vars(NC               *ncp,
         if (count_others_req_per_proc[i] != 0 && i != myrank)
             /* MPI_Offset == MPI_LONG_LONG_INT */
             TRACE_COMM(MPI_Irecv)(others_req[i].start, 3*ndims_org, MPI_LONG_LONG_INT, i,
-                      i+myrank, ncp->nciop->comm, &requests[j++]);
+                      i+myrank, ncp->comm, &requests[j++]);
     }
     for (i=0; i<nprocs; i++) {
         if (count_my_req_per_proc[i] != 0 && i != myrank)
             TRACE_COMM(MPI_Isend)(my_req[i].start, 3 * ndims_org, MPI_LONG_LONG_INT, i,
-                      i+myrank, ncp->nciop->comm, &requests[j++]);
+                      i+myrank, ncp->comm, &requests[j++]);
     }
 
     statuses = (MPI_Status *)NCI_Malloc((size_t)j*sizeof(MPI_Status));
@@ -986,7 +986,7 @@ ncmpii_subfile_getput_vars(NC               *ncp,
             printf("rank(%d): recv from rank %d: buf_count_others[%d]=%d\n", myrank, i, i, buf_count_others[i]);
 #endif
             xbuf[i] = (void*)NCI_Calloc((size_t)buf_count_others[i], (size_t)el_size);
-            TRACE_COMM(MPI_Irecv)(xbuf[i], buf_count_others[i], (!buftype_is_contig?ptype:buftype), i, i+myrank, ncp->nciop->comm, &requests[j++]);
+            TRACE_COMM(MPI_Irecv)(xbuf[i], buf_count_others[i], (!buftype_is_contig?ptype:buftype), i, i+myrank, ncp->comm, &requests[j++]);
         }
     }
 
@@ -1019,7 +1019,7 @@ ncmpii_subfile_getput_vars(NC               *ncp,
             printf("rank(%d): send to rank %d: buf_offset[%d]=%d, buf_count_my[%d]=%d\n", myrank, i, i, buf_offset[i], i, buf_count_my[i]);
 #endif
 
-            TRACE_COMM(MPI_Isend)((char*)cbuf+buf_offset[i], buf_count_my[i], (!buftype_is_contig?ptype:buftype), i, i+myrank, ncp->nciop->comm, &requests[j++]);
+            TRACE_COMM(MPI_Isend)((char*)cbuf+buf_offset[i], buf_count_my[i], (!buftype_is_contig?ptype:buftype), i, i+myrank, ncp->comm, &requests[j++]);
         } /* end if() */
     } /* end for() */
 
@@ -1092,7 +1092,7 @@ ncmpii_subfile_getput_vars(NC               *ncp,
     printf("rank(%d): var(%s): after ncmpi_wait_all()\n", myrank, varp->name->cp);
 #endif
 
-    /* MPI_Barrier(ncp->nciop->comm); */
+    /* MPI_Barrier(ncp->comm); */
 
     /* free all allocated memories */
 

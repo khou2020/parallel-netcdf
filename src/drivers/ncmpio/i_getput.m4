@@ -291,7 +291,7 @@ ncmpii_igetput_varm(NC               *ncp,
         /* If log is enable */
         /*
         if (ncp->nclogp != NULL){
-            ncmpii_log_put_var(ncp->nclogp, varp, start, count, stride, cbuf, buftype, position);
+            ncmpii_log_put_var(ncp, varp, start, count, stride, cbuf, buftype, position);
         }*/
 
         /* Step 3: type-convert and byte-swap cbuf to xbuf, and xbuf will be
@@ -370,8 +370,8 @@ ncmpii_igetput_varm(NC               *ncp,
         /* Can not flush on iget because flush is collective
         if (ncp->nclogp != NULL){
             /* Flush the log file if flag is on 
-            if (ncp->nclogp->FlushOnRead){
-                err = ncmpii_log_flush(ncp->nclogp);    
+            if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_READ){
+                err = ncmpii_log_flush(ncp);    
                 if (status == NC_NOERR){
                     status = err;
                 }

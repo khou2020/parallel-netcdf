@@ -221,12 +221,12 @@ int ncmpii_log_create(NC* ncp) {
     NC_Log *nclogp;
     
     /* Get rank and number of processes */
-    ret = MPI_Comm_rank(ncp->nciop->comm, &rank);
+    ret = MPI_Comm_rank(ncp->comm, &rank);
     if (ret != MPI_SUCCESS) {
         ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(ret);
     }
-    ret = MPI_Comm_size(ncp->nciop->comm, &np);
+    ret = MPI_Comm_size(ncp->comm, &np);
     if (ret != MPI_SUCCESS) {
         ret = ncmpii_handle_error(ret, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(ret);
@@ -250,7 +250,7 @@ int ncmpii_log_create(NC* ncp) {
 
     /* Resolve absolute path */    
     memset(nclogp->Path, 0, sizeof(nclogp->Path));
-    abspath = realpath(ncp->nciop->path, nclogp->Path);
+    abspath = realpath(ncp->path, nclogp->Path);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
@@ -432,7 +432,7 @@ int log_flush(NC *ncp) {
     int rank;
     double tstart, tend, tread = 0, twait = 0, treplay = 0, tbegin, ttotal;
     
-    MPI_Comm_rank(ncp->nciop->comm, &rank);
+    MPI_Comm_rank(ncp->comm, &rank);
 
     tstart = MPI_Wtime();
 #endif
@@ -494,7 +494,7 @@ int log_flush(NC *ncp) {
              * Collective wait
              * Wait must be called first or previous data will be corrupted
              */
-            ret = ncmpii_wait(nclogp->Parent, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+            ret = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
             if (ret != NC_NOERR) {
                 return ret;
             }
@@ -602,12 +602,12 @@ int log_flush(NC *ncp) {
         /* Play event */
         
         /* Translate varid to varp */
-        ret = ncmpii_NC_lookupvar(nclogp->Parent, entryp->varid, &varp);
+        ret = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
         if (ret != NC_NOERR){
             return ret;
         }
         /* Replay event with non-blocking call */
-        ret = ncmpii_igetput_varm(nclogp->Parent, varp, start, count, stride, NULL, (void*)(data + entryp->data_off - dblow), -1, buftype, NULL, WRITE_REQ, 0, 0);
+        ret = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(data + entryp->data_off - dblow), -1, buftype, NULL, WRITE_REQ, 0, 0);
         if (ret != NC_NOERR) {
             return ret;
         }
@@ -627,7 +627,7 @@ int log_flush(NC *ncp) {
 #endif
 
     /* Collective wait */
-    ret = ncmpii_wait(nclogp->Parent, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+    ret = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
     if (ret != NC_NOERR) {
         return ret;
     }

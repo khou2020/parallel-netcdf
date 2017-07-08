@@ -417,7 +417,7 @@ err_check:
         /* If log is enable */
         if (ncp->nclogp != NULL){
             /* Record in log file */
-            err = ncmpii_log_put_var(ncp->nclogp, varp, start, count, stride, cbuf, ptype, bnelems * el_size);
+            err = ncmpii_log_put_var(ncp, varp, start, count, stride, cbuf, ptype, bnelems * el_size);
             /* Free the buffer */
             if (cbuf != lbuf){
                 NCI_Free(cbuf);
@@ -486,8 +486,8 @@ err_check:
         /* Replay if log is enabled */
         if (ncp->nclogp != NULL){
             /* Flush the log file if flag is on */
-            if (ncp->nclogp->FlushOnRead && io_method == COLL_IO){
-                err = ncmpii_log_flush(ncp->nclogp);    
+            if ((ncp->loghints & NC_LOG_HINT_FLUSH_ON_READ) && io_method == COLL_IO){
+                err = ncmpii_log_flush(ncp);    
                 if (status == NC_NOERR){
                     status = err;
                 }
@@ -507,9 +507,9 @@ err_check:
 
 mpi_io:
     if (io_method == COLL_IO)
-        fh = ncp->nciop->collective_fh;
+        fh = ncp->collective_fh;
     else
-        fh = ncp->nciop->independent_fh;
+        fh = ncp->independent_fh;
 
     /* MPI_File_set_view is collective */
     err = ncmpii_file_set_view(ncp, fh, &offset, filetype);
@@ -532,7 +532,7 @@ mpi_io:
                 }
             }
             else {
-                ncp->nciop->put_size += nbytes;
+                ncp->put_size += nbytes;
             }
         }
         else { /* io_method == INDEP_IO */
@@ -547,7 +547,7 @@ mpi_io:
                 }
             }
             else {
-                ncp->nciop->put_size += nbytes;
+                ncp->put_size += nbytes;
             }
         }
     }
@@ -564,7 +564,7 @@ mpi_io:
                 }
             }
             else {
-                ncp->nciop->get_size += nbytes;
+                ncp->get_size += nbytes;
             }
         }
         else { /* io_method == INDEP_IO */
@@ -579,7 +579,7 @@ mpi_io:
                 }
             }
             else {
-                ncp->nciop->get_size += nbytes;
+                ncp->get_size += nbytes;
             }
         }
     }
@@ -700,7 +700,7 @@ mpi_io:
         if (NC_doFsync(ncp)) { /* NC_SHARE is set */
             TRACE_IO(MPI_File_sync)(fh);
             if (io_method == COLL_IO)
-                TRACE_COMM(MPI_Barrier)(ncp->nciop->comm);
+                TRACE_COMM(MPI_Barrier)(ncp->comm);
         }
     }
 
