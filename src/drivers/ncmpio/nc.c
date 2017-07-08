@@ -502,7 +502,7 @@ ncmpii_close(void *ncdp)
     NC *ncp = (NC*)ncdp;
 
     if (ncp->nclogp != NULL){
-        err = ncmpii_log_close(ncp->nclogp);
+        err = ncmpii_log_close(ncp);
     }
 
     if (NC_indef(ncp)) { /* currently in define mode */

@@ -866,7 +866,20 @@ ncmpii__enddef(void       *ncdp,
 /* This is a collective subroutine. */
 int
 ncmpii_enddef(void *ncdp)
-{
+{   
+    int ret;
+    NC *ncp = (NC*)ncdp;
+
+    if (ncp->loghints & NC_LOG_HINT_LOG_ENABLE) {
+        /* Create log file if not created */
+        if (ncp->nclogp == NULL){
+            ret = ncmpii_log_create(ncp);
+            if (ret != NC_NOERR){
+                return ret;
+            }
+        }
+    }
+
     return ncmpii__enddef(ncdp, 0, 0, 0, 0);
 }
 

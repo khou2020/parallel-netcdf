@@ -505,19 +505,13 @@ ncmpii_open(MPI_Comm    comm,
     
     /* Create log structure if hint is set */
     ncp->nclogp = NULL;
-    if (ncp->nciop->hints.log_enable){
+    if (ncp->loghints & NC_LOG_HINT_LOG_ENABLE){
         /* Create log file if not created */
         if (ncp->nclogp == NULL){
-            ret = ncmpii_log_create(ncp->nciop->comm, ncp->nciop->path, ncp->nciop->hints.log_base, ncp, &(ncp->nclogp));
+            ret = ncmpii_log_create(ncp);
             if (ret != NC_NOERR){
                 return ret;
             }
-
-            ncp->nclogp->DeleteOnClose = ncp->nciop->hints.log_del_on_close;
-            ncp->nclogp->FlushOnWait = ncp->nciop->hints.log_flush_on_wait;
-            ncp->nclogp->FlushOnSync = ncp->nciop->hints.log_flush_on_sync;
-            ncp->nclogp->FlushOnRead = ncp->nciop->hints.log_flush_on_read;
-            ncp->nclogp->FlushBufferSize = ncp->nciop->hints.log_flush_buffer_size;
         }
     }
 
@@ -890,7 +884,7 @@ ncmpii_sync(void *ncdp)
 
     /* Flush the log if flushing flag is set */
     if (ncp->nclogp != NULL){
-        if (ncp->nclogp->FlushOnSync == NC_LOG_TRUE){
+        if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_SYNC){
             /* Prevent recursive flushing if wait is called by log_flush */
             if (ncp->nclogp->Flushing == NC_LOG_FALSE){
                 err = ncmpii_log_flush(ncp->nclogp);       

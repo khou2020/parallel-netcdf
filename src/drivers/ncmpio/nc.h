@@ -442,6 +442,10 @@ struct NC {
     struct NC    *old;      /* contains the previous NC during redef. */
 
     struct NC_Log         *nclogp;    /* Log io structure, if log is not used, this should be set to null */
+    
+    size_t logflushbuffersize; /* Buffer size used to flush the log */
+    int loghints;
+    char logbase[MPI_MAX_INFO_VAL];
 };
 
 #define NC_readonly(ncp) \
@@ -807,6 +811,12 @@ ncmpii_NC_check_vlens(NC *ncp);
 #define NC_LOG_FALSE 0x00
 #define NC_LOG_TRUE 0x01
 
+#define NC_LOG_HINT_LOG_ENABLE 0x01
+#define NC_LOG_HINT_DEL_ON_CLOSE 0x02
+#define NC_LOG_HINT_FLUSH_ON_WAIT 0x04
+#define NC_LOG_HINT_FLUSH_ON_SYNC 0x08
+#define NC_LOG_HINT_FLUSH_ON_READ 0x10
+
 /* PATH_MAX after padding to 4 byte allignment */
 #if PATH_MAX % 4 == 0
 #define NC_LOG_PATH_MAX PATH_MAX
@@ -882,7 +892,6 @@ typedef struct NC_Log {
     //size_t* MetaOffset;    /* metadata offset list */
     //size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
     //size_t MetaOffsetSize;    /* used space of metadata offset list */
-    size_t FlushBufferSize; /* Buffer size used to flush the log */
     int DeleteOnClose;    /* Delete log on close or not */
     struct NC* Parent; /* NC structure hosting this log structure */
     int isflushing;   /* If log is flushing */
@@ -893,7 +902,7 @@ typedef struct NC_Log {
 
 
 
-int ncmpii_log_create(NC *ncp, const char* bufferdir);
+int ncmpii_log_create(NC *ncp);
 int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);
 int ncmpii_log_close(NC *ncp);
 int ncmpii_log_flush(NC *ncp);

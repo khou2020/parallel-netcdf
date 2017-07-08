@@ -136,6 +136,47 @@ void set_pnetcdf_hints(NC *ncp, MPI_Info  info)
         if (errno != 0) ncp->chunk = 0;
         else if (ncp->chunk < 0) ncp->chunk = 0;
     }
+    
+    /* Log related hint */
+    ncp->loghints = NC_LOG_HINT_DEL_ON_CLOSE | NC_LOG_HINT_FLUSH_ON_READ;
+    MPI_Info_get(info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag && strcasecmp(value, "1") == 0){
+        ncp->loghints |= NC_LOG_HINT_LOG_ENABLE;
+    }
+    MPI_Info_get(info, "pnetcdf_log_del_on_close", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag && strcasecmp(value, "0") == 0){
+        ncp->loghints ^= NC_LOG_HINT_DEL_ON_CLOSE;
+    }
+    MPI_Info_get(info, "pnetcdf_log_flush_on_wait", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag && strcasecmp(value, "1") == 0){
+        ncp->loghints |= NC_LOG_HINT_FLUSH_ON_WAIT;
+    }
+    MPI_Info_get(info, "pnetcdf_log_flush_on_sync", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag && strcasecmp(value, "1") == 0){
+        ncp->loghints |= NC_LOG_HINT_FLUSH_ON_SYNC;
+    }
+    MPI_Info_get(info, "pnetcdf_log_flush_on_read", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag && strcasecmp(value, "0") == 0){
+        ncp->loghints ^= NC_LOG_HINT_FLUSH_ON_READ;
+    }
+    MPI_Info_get(info, "pnetcdf_log_flush_buffer_size", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag){
+        long int bsize = strtol(value, NULL, 0);
+        if (bsize < 0) {
+            bsize = 0;
+        }
+        ncp->logflushbuffersize = (size_t)bsize; /* Unit: byte */
+    }
+    else{
+        ncp->logflushbuffersize = 0; /* <= 0 means unlimited */
+    }
+    MPI_Info_get(info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag) {
+        strncpy(ncp->logbase, value, PATH_MAX);    
+    }
+    else {
+        strncpy(ncp->logbase, ".", PATH_MAX);    
+    }
 
 #ifdef ENABLE_SUBFILING
     MPI_Info_get(info, "pnetcdf_subfiling", MPI_MAX_INFO_VAL-1, value, &flag);

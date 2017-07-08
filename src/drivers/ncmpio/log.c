@@ -212,9 +212,9 @@ int IsBigEndian() {
  * IN    Parent:    NC structure that will host the log structure
  * OUT    nclogp:    Initialized log structure 
  */
-int ncmpii_log_create(NC* ncp, const char* bufferdir) {
-    int ret, rank, np, err, id;
-    char logbase[NC_LOG_PATH_MAX];
+int ncmpii_log_create(NC* ncp) {
+    int ret, rank, np, err;
+    char logbase[NC_LOG_PATH_MAX], hint[NC_LOG_PATH_MAX];
     char *abspath, *fname;
     size_t ioret;
     NC_Log_metadataheader *headerp;
@@ -255,7 +255,7 @@ int ncmpii_log_create(NC* ncp, const char* bufferdir) {
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
     }
-    abspath = realpath(bufferdir, logbase);
+    abspath = realpath(ncp->logbase, logbase);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
@@ -303,7 +303,10 @@ int ncmpii_log_create(NC* ncp, const char* bufferdir) {
     /* Misc */
     nclogp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
     nclogp->MaxSize = 0;    /* Max size of buffer ever passed to put_var function, not used */ 
+   
     
+
+
     /* Initialize metadata header */
     
     /* Allocate space for metadata header */
@@ -458,8 +461,8 @@ int log_flush(NC *ncp) {
      * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
      */
     dbsize = dsize;
-    if (dbsize > nclogp->FlushBufferSize){
-        dbsize = nclogp->FlushBufferSize;
+    if (dbsize > ncp->logflushbuffersize){
+        dbsize = ncp->logflushbuffersize;
     }
     if (dbsize < nclogp->MaxSize){
         dbsize = nclogp->MaxSize;
