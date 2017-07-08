@@ -1,25 +1,5 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-#ifndef WORDS_BIGENDIAN
-#define WORDS_BIGENDIAN 0
-#endif
-#else
-/* Define size as computed by sizeof. */
-#define SIZEOF_DOUBLE sizeof(double)
-#define SIZEOF_FLOAT sozepf(float)
-#define SIZEOF_INT sizeof(int)
-#define SIZEOF_LONG sizeof(long)
-#define SIZEOF_LONG_LONG sizeof(long long)
-#define SIZEOF_MPI_OFFSET sizeof(MPI_Offset)
-#define SIZEOF_SHORT sizeof(short)
-#define SIZEOF_SIGNED_CHAR sizeof(char)
-#define SIZEOF_SIZE_T sizeof(size_t)
-#define SIZEOF_UINT sizeof(unsigned int)
-#define SIZEOF_UNSIGNED_CHAR sizeof(unsigned char)
-#define SIZEOF_UNSIGNED_INT sizeof(unsigned int)
-#define SIZEOF_UNSIGNED_LONG_LONG sizeof(unsigned long long)
-#define SIZEOF_UNSIGNED_SHORT sizeof(unsigned short)
-#define WORDS_BIGENDIAN IsBigEndian()
 #endif
 #include <assert.h>
 #include "nc.h"
@@ -249,8 +229,8 @@ int ncmpii_log_create(NC* ncp) {
     //mkpath(bufferdir, 0744, 1); 
 
     /* Resolve absolute path */    
-    memset(nclogp->Path, 0, sizeof(nclogp->Path));
-    abspath = realpath(ncp->path, nclogp->Path);
+    memset(nclogp->filepath, 0, sizeof(nclogp->filepath));
+    abspath = realpath(ncp->path, nclogp->filepath);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
@@ -266,13 +246,13 @@ int ncmpii_log_create(NC* ncp) {
      * Absolute path should always contains one '/'
      * We return the string including '/' for convenience
      */
-    for (fname = nclogp->Path + strlen(nclogp->Path); fname > nclogp->Path; fname--){
+    for (fname = nclogp->filepath + strlen(nclogp->filepath); fname > nclogp->filepath; fname--){
         if (*fname == '/'){
             break;
         }
     }
     /* Something wrong if not found */
-    if (fname == nclogp->Path){
+    if (fname == nclogp->filepath){
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);  
     }
     
@@ -302,11 +282,7 @@ int ncmpii_log_create(NC* ncp) {
  
     /* Misc */
     nclogp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
-    nclogp->MaxSize = 0;    /* Max size of buffer ever passed to put_var function, not used */ 
-   
     
-
-
     /* Initialize metadata header */
     
     /* Allocate space for metadata header */
@@ -318,17 +294,16 @@ int ncmpii_log_create(NC* ncp) {
     memset(headerp->format, 0, sizeof(headerp->format)); /* Format */
     strncpy(headerp->format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(headerp->format));
     memset(headerp->basename, 0, sizeof(headerp->basename)); /* Path */
-    strncpy(headerp->basename, nclogp->Path, sizeof(headerp->basename));
+    strncpy(headerp->basename, nclogp->filepath, sizeof(headerp->basename));
     headerp->rank_id = rank;   /* Rank */
     headerp->num_ranks = np;   /* Number of processes */
     headerp->is_external = 0;    /* Without convertion before logging, data in native representation */
     /* Determine endianess */
-    if (WORDS_BIGENDIAN) {
-        headerp->big_endian = NC_LOG_TRUE;
-    }
-    else {
-        headerp->big_endian = NC_LOG_FALSE;
-    }
+#ifdef WORDS_BIGENDIAN 
+    headerp->big_endian = NC_LOG_TRUE;
+#else 
+    headerp->big_endian = NC_LOG_FALSE;
+#endif
     headerp->num_entries = 0;    /* The log is empty */
     headerp->max_ndims = 0;    /* Highest dimension among all variables, not used */
     headerp->entry_begin = nclogp->metadata.nused;  /* Location of the first entry */
@@ -461,11 +436,8 @@ int log_flush(NC *ncp) {
      * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
      */
     dbsize = dsize;
-    if (dbsize > ncp->logflushbuffersize){
+    if (ncp->logflushbuffersize > 0 && dbsize > ncp->logflushbuffersize){
         dbsize = ncp->logflushbuffersize;
-    }
-    if (dbsize < nclogp->MaxSize){
-        dbsize = nclogp->MaxSize;
     }
     /* Allocate buffer */
     data = (char*)NCI_Malloc(dbsize);
@@ -479,6 +451,11 @@ int log_flush(NC *ncp) {
     for (i = 0; i < headerp->num_entries; i++) {
         /* Treate the data at head as a metadata entry header */
         entryp = (NC_Log_metadataentry*)head;
+
+        /* Raise error if buffer not enough for single entry */
+        if (entryp->data_len > dbsize){
+            return NC_ENOMEM;
+        }
 
         /* 
          * Read from data log if data not in buffer 
@@ -688,7 +665,7 @@ int ncmpii_log_close(NC *ncp) {
         }
 
         /* Delete log files if delete flag is set */
-        if (nclogp->DeleteOnClose){
+        if (ncp->loghints & NC_LOG_HINT_DEL_ON_CLOSE){
             remove(nclogp->datalogpath);
             remove(nclogp->metalogpath);
         }
@@ -880,15 +857,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     else{
         entryp->api_kind = NC_LOG_API_KIND_VARS;
     }
-
-    /* Record the maximum size of data
-     * In a batched or 1 by 1 flushing approach, we need to know the size of data buffer needed
-     * This is not used for current implementation
-     */
-    if (entryp->data_len > nclogp->MaxSize) {
-        nclogp->MaxSize = entryp->data_len;
-    }
-
+    
     /* Calculate location of start, count, stride in metadata buffer */
     Start = (MPI_Offset*)(buffer + sizeof(NC_Log_metadataentry));
     Count = Start + dim;

@@ -894,30 +894,15 @@ typedef struct NC_Log_entarray {
 
 /* Log structure */
 typedef struct NC_Log {
-    char Path[NC_LOG_PATH_MAX];    /* path of the CDF file */
+    char filepath[NC_LOG_PATH_MAX];    /* path of the CDF file */
     char metalogpath[NC_LOG_PATH_MAX];    /* path of metadata log */    
     char datalogpath[NC_LOG_PATH_MAX];    /* path of data log */
     int metalog_fd;    /* file handle of metadata log */
     int datalog_fd;    /* file handle of data log */
-	MPI_Offset MaxSize;    /* max data size in byte among all log entries */ 
-    NC_Log_buffer metadata;
-    NC_Log_entarray metaentries;
-    //char* Metadata;    /* metadata buffer */
-    //size_t MetaBufferSize;    /* size of metadata buffer */
-    //size_t MetaSize;    /* used size of metadata buffer */
-    //NC_Log_metadataheader MetaHeader;    /* metadata header */
-    //size_t* MetaOffset;    /* metadata offset list */
-    //size_t MetaOffsetBufferSize; /* current capacity of metadata offset list */
-    //size_t MetaOffsetSize;    /* used space of metadata offset list */
-    int DeleteOnClose;    /* Delete log on close or not */
-    struct NC* Parent; /* NC structure hosting this log structure */
+    NC_Log_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
+    NC_Log_entarray metaentries;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
-    int FlushOnWait;   /* If log shoud be flushed on wait and wait_all */
-    int FlushOnSync;   /* If log should be flushed on Sync */
-    int FlushOnRead;    /* If log should be flushed on every get_var call */
 } NC_Log;
-
-
 
 int ncmpii_log_create(NC *ncp);
 int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);
