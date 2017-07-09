@@ -90,13 +90,13 @@ char* ncmpii_log_buffer_alloc(NC_Log_buffer *bp, size_t size) {
  * Initialize log entry array
  * IN   ep: array to be initialized
  */
-int ncmpii_log_entarray_init(NC_Log_entarray *ep){
-    ep->entries = NCI_Malloc(LOG_ARRAY_SIZE * sizeof(NC_Log_metadataentry*));
-    if (ep->entries == NULL){
+int ncmpii_log_sizearray_init(NC_Log_sizearray *sp){
+    sp->values = NCI_Malloc(LOG_ARRAY_SIZE * sizeof(NC_Log_metadataentry*));
+    if (sp->values == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
-    ep->nalloc = LOG_ARRAY_SIZE;
-    ep->nused = 0;
+    sp->nalloc = LOG_ARRAY_SIZE;
+    sp->nused = 0;
     return NC_NOERR;
 }
 
@@ -104,8 +104,8 @@ int ncmpii_log_entarray_init(NC_Log_entarray *ep){
  * Free the log entry array
  * IN   ep: array to be freed
  */
-void ncmpii_log_entarray_free(NC_Log_entarray *ep){
-    NCI_Free(ep->entries);
+void ncmpii_log_sizearray_free(NC_Log_sizearray *sp){
+    NCI_Free(sp->values);
 }
 
 /*
@@ -113,33 +113,33 @@ void ncmpii_log_entarray_free(NC_Log_entarray *ep){
  * IN    ep:    array structure
  * IN    ent:    entry to be added
  */
-int ncmpii_log_entarray_append(NC_Log_entarray *ep, NC_Log_metadataentry* ent) {
-    NC_Log_metadataentry** ret;
+int ncmpii_log_sizearray_append(NC_Log_sizearray *sp, size_t size) {
+    size_t *ret;
 
     /* Expand array if needed 
-     * ep->nused is the size currently in use
-     * ep->nalloc is the size of internal buffer
+     * sp->nused is the size currently in use
+     * sp->nalloc is the size of internal buffer
      * If the remaining size is less than the required size, we reallocate the buffer
      */
-    if (ep->nalloc < ep->nused + 1) {
+    if (sp->nalloc < sp->nused + 1) {
         /* 
-         * Must make sure realloc successed before increasing ep->nalloc
+         * Must make sure realloc successed before increasing sp->nalloc
          * (new size) = (old size) * (META_BUFFER_MULTIPLIER) 
          */
-        size_t newsize = ep->nalloc * SIZE_MULTIPLIER;
+        size_t newsize = sp->nalloc * SIZE_MULTIPLIER;
         /* ret is used to temporaryly hold the allocated buffer so we don't lose nclogp->metadata.buffer if allocation fails */
-        ret = (NC_Log_metadataentry**)NCI_Realloc(ep->entries, newsize * sizeof(NC_Log_metadataentry*));
+        ret = (size_t*)NCI_Realloc(sp->values, newsize * sizeof(size_t));
         /* If not enough memory */
         if (ret == NULL) {
             return NC_ENOMEM;
         }
         /* Point to the new buffer and update nalloc */
-        ep->entries = ret;
-        ep->nalloc = newsize;
+        sp->values = ret;
+        sp->nalloc = newsize;
     }
     
     /* Add entry to tail */
-    ep->entries[ep->nused++] = ent;
+    sp->values[sp->nused++] = size;
 
     return NC_NOERR;
 }
@@ -278,7 +278,7 @@ int ncmpii_log_create(NC* ncp) {
     }
        
     /* Initialize metadata entry array */
-    err = ncmpii_log_entarray_init(&nclogp->metaentries);
+    err = ncmpii_log_sizearray_init(&nclogp->entrydatasize);
     if (err != NC_NOERR){
         return err;
     }
@@ -381,16 +381,14 @@ int ncmpii_log_enddef(NC *ncp){
  * IN    nclogp:    log structure
  */
 int log_flush(NC *ncp) {
-    int i, err, fd;
-    size_t dsize, dbsize;
+    int i, j, err, fd;
+    size_t databatchsize, databuffersize, databufferused, databufferidx;
     ssize_t ioret;
-    struct stat metastat;
     NC_Log_metadataentry *entryp;
     NC_var *varp;
-    MPI_Offset dblow, dbup;
     MPI_Offset *start, *count, *stride;
     MPI_Datatype buftype;
-    char *data, *head, *tail;
+    char *databuffer;
     NC_Log_metadataheader* headerp;
     NC_Log *nclogp = ncp->nclogp;
 
@@ -408,17 +406,6 @@ int log_flush(NC *ncp) {
 
     /* Read datalog in to memory */
    
-    /* Get data log size 
-     * Since we don't delete log file after flush, the file size is not the size of data log
-     * Use lseek to find the current position of data log descriptor
-     * NOTE: For now, we assume descriptor always points to the end of the last record
-     */
-    ioret = lseek(nclogp->datalog_fd, 0, SEEK_CUR);
-    if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
-    }
-    dsize = ioret;
-    
     /* 
      * Prepare data buffer
      * We determine the data buffer size according to:
@@ -426,36 +413,140 @@ int log_flush(NC *ncp) {
      * 0 in hint means no limit
      * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
      */
-    dbsize = dsize;
-    if (ncp->logflushbuffersize > 0 && dbsize > ncp->logflushbuffersize){
-        dbsize = ncp->logflushbuffersize;
+    databuffersize = nclogp->datalogsize;
+    if (ncp->logflushbuffersize > 0 && databuffersize > ncp->logflushbuffersize){
+        databuffersize = ncp->logflushbuffersize;
     }
     /* Allocate buffer */
-    data = (char*)NCI_Malloc(dbsize);
-    /* Set lower and upper bound to 0 */
-    dblow = dbup = 0;
+    databuffer = (char*)NCI_Malloc(databuffersize);
+    if(databuffer == NULL){
+        DEBUG_RETURN_ERROR(NC_ENOMEM);
+    }
 
-    /* Iterate through meta log entries */
+    /* Seek to the start position of first data record */
+    ioret = lseek(nclogp->datalog_fd, 8, SEEK_SET);
+    if (ioret < 0){
+        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+    }
+    /* Initialize buffer status */
+    databufferidx = 8;
+    databufferused = 0;
+    databatchsize = 0;
+
+    /* 
+     * Iterate through meta log entries
+     * i is entries scaned for size
+     * j is entries replayed
+     */
     headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
-    head = nclogp->metadata.buffer + headerp->entry_begin;   /* Head points to the current metadata entry */
-    tail = head + sizeof(NC_Log_metadataentry); /* Tail points to the end of current metadata entry header, the locaation of start, count, and stride */
-    for (i = 0; i < headerp->num_entries; i++) {
-        /* Treate the data at head as a metadata entry header */
-        entryp = (NC_Log_metadataentry*)head;
-
-        /* Raise error if buffer not enough for single entry */
-        if (entryp->data_len > dbsize){
+    entryp = (NC_Log_metadataentry*)(nclogp->metadata.buffer + headerp->entry_begin);
+    for (i = j = 0; i < nclogp->entrydatasize.nused; i++){
+        
+        /* Return error if buffer not enough for single entry */
+        if (nclogp->entrydatasize.values[i] > databuffersize){
             return NC_ENOMEM;
         }
-
-        /* 
-         * Read from data log if data not in buffer 
-         * We don't need to check lower bound when data is logged monotonically
-         * We also wait for replayed entries to free memory
-         */
-        if (entryp->data_off + entryp->data_len >= dbup){
-            size_t rsize;
+        
+        /* Process current batch if data buffer can not accomodate next one */
+        if(databatchsize + nclogp->entrydatasize.values[i] >= databuffersize){
 #ifdef PNETCDF_DEBUG
+            tbegin = MPI_Wtime();
+#endif
+            /* 
+             * Read data to buffer
+             * We read only what needed by pending requests
+             */
+            ioret = read(nclogp->datalog_fd, databuffer, databatchsize); 
+            if (ioret < 0) {
+                ioret = ncmpii_handle_io_error("read");
+                if (ioret == NC_EFILE){
+                    ioret = NC_EREAD;
+                }
+                DEBUG_RETURN_ERROR(ioret);
+            }
+            if (ioret != databatchsize){
+                DEBUG_RETURN_ERROR(NC_EBADLOG);
+            }
+
+#ifdef PNETCDF_DEBUG
+            tend = MPI_Wtime();
+            tread += tend - tbegin;
+            tbegin = MPI_Wtime();
+#endif
+            for(; j < i; j++){
+                // entryp = (NC_Log_metadataentry*)head;
+                
+                /* start, count, stride */
+                start = (MPI_Offset*)(entryp + 1);
+                count = start + entryp->ndims;
+                stride = count + entryp->ndims;
+
+                /* Convert from log type to MPI type used by pnetcdf library
+                 * Log spec has different enum of types than MPI
+                 */
+                switch (entryp->itype) {
+                case NC_LOG_TYPE_TEXT:
+                    buftype = MPI_CHAR;
+                    break;
+                case NC_LOG_TYPE_SCHAR:
+                    buftype = MPI_SIGNED_CHAR;
+                    break;
+                case NC_LOG_TYPE_SHORT:
+                    buftype = MPI_SHORT;
+                    break;
+                case NC_LOG_TYPE_INT:
+                    buftype = MPI_INT;
+                    break;
+                case NC_LOG_TYPE_FLOAT:
+                    buftype = MPI_FLOAT;
+                    break;
+                case NC_LOG_TYPE_DOUBLE:
+                    buftype = MPI_DOUBLE;
+                    break;
+                case NC_LOG_TYPE_UCHAR:
+                    buftype = MPI_UNSIGNED_CHAR;
+                    break;
+                case NC_LOG_TYPE_USHORT:
+                    buftype = MPI_UNSIGNED_SHORT;
+                    break;
+                case NC_LOG_TYPE_UINT:
+                    buftype = MPI_UNSIGNED;
+                    break;
+                case NC_LOG_TYPE_LONGLONG:
+                    buftype = MPI_LONG_LONG_INT;
+                    break;
+                case NC_LOG_TYPE_ULONGLONG:
+                    buftype = MPI_UNSIGNED_LONG_LONG;
+                    break;
+                default:
+                    DEBUG_RETURN_ERROR(NC_EINVAL);
+                }
+                
+                /* Determine API_Kind */
+                if (entryp->api_kind == NC_LOG_API_KIND_VARA){
+                    stride = NULL;    
+                }
+
+                /* Play event */
+                
+                /* Translate varid to varp */
+                err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
+                if (err != NC_NOERR){
+                    return err;
+                }
+                /* Replay event with non-blocking call */
+                err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
+                if (err != NC_NOERR) {
+                    return err;
+                }
+                
+                /* Move to next position */
+                entryp = (NC_Log_metadataentry*)(((char*)entryp) + entryp->esize);
+            }
+
+#ifdef PNETCDF_DEBUG
+            tend = MPI_Wtime();
+            treplay += tend - tbegin;
             tbegin = MPI_Wtime();
 #endif
             /* 
@@ -470,140 +561,138 @@ int log_flush(NC *ncp) {
 #ifdef PNETCDF_DEBUG
             tend = MPI_Wtime();
             twait += tend - tbegin;
-            tbegin = MPI_Wtime();
 #endif
-            /* Update buffer lower bound */
-            dblow = entryp->data_off;
-            /* Seek to new lower bound */
-            ioret = lseek(nclogp->datalog_fd, dblow, SEEK_SET);
-            if (ioret < 0){
-                DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
-            }
-            /* 
-             * Read data to buffer
-             * We calculate the size to read based on data buffer size, and remaining of the data log
-             * In this case, we know there is an error if actual size read is not expected
-             */
-            if (dsize - dblow < dbsize){
-                rsize = dsize - dblow;   
-            }
-            else{
-                rsize = dbsize;
-            }
-            ioret = read(nclogp->datalog_fd, data, rsize); 
-            if (ioret < 0) {
-                ioret = ncmpii_handle_io_error("read");
-                if (ioret == NC_EFILE){
-                    ioret = NC_EREAD;
-                }
-                DEBUG_RETURN_ERROR(ioret);
-            }
-            if (ioret != rsize){
-                DEBUG_RETURN_ERROR(NC_EBADLOG);
-            }
-            /* Update buffer upper bound */
-            dbup = dblow + rsize;
-
-#ifdef PNETCDF_DEBUG
-            tend = MPI_Wtime();
-            tread += tend - tbegin;
-#endif
+            /* Update batch status */
+            databufferidx += databatchsize;
+            databatchsize = 0;
         }
-
+        
+        /* Record current entry size */
+        databatchsize += nclogp->entrydatasize.values[i];
+    }
+    
+    /* Process last batch if there are unflushed entries */
+    if(databatchsize > 0){
 #ifdef PNETCDF_DEBUG
         tbegin = MPI_Wtime();
 #endif
-        /* start, count, stride */
-        start = (MPI_Offset*)tail;
-        count = start + entryp->ndims;
-        stride = count + entryp->ndims;
-
-        /* Convert from log type to MPI type used by pnetcdf library
-         * Log spec has different enum of types than MPI
+        /* 
+         * Read data to buffer
+         * We read only what needed by pending requests
          */
-        switch (entryp->itype) {
-        case NC_LOG_TYPE_TEXT:
-            buftype = MPI_CHAR;
-            break;
-        case NC_LOG_TYPE_SCHAR:
-            buftype = MPI_SIGNED_CHAR;
-            break;
-        case NC_LOG_TYPE_SHORT:
-            buftype = MPI_SHORT;
-            break;
-        case NC_LOG_TYPE_INT:
-            buftype = MPI_INT;
-            break;
-        case NC_LOG_TYPE_FLOAT:
-            buftype = MPI_FLOAT;
-            break;
-        case NC_LOG_TYPE_DOUBLE:
-            buftype = MPI_DOUBLE;
-            break;
-        case NC_LOG_TYPE_UCHAR:
-            buftype = MPI_UNSIGNED_CHAR;
-            break;
-        case NC_LOG_TYPE_USHORT:
-            buftype = MPI_UNSIGNED_SHORT;
-            break;
-        case NC_LOG_TYPE_UINT:
-            buftype = MPI_UNSIGNED;
-            break;
-        case NC_LOG_TYPE_LONGLONG:
-            buftype = MPI_LONG_LONG_INT;
-            break;
-        case NC_LOG_TYPE_ULONGLONG:
-            buftype = MPI_UNSIGNED_LONG_LONG;
-            break;
-        default:
-            DEBUG_RETURN_ERROR(NC_EINVAL);
+        ioret = read(nclogp->datalog_fd, databuffer, databatchsize); 
+        if (ioret < 0) {
+            ioret = ncmpii_handle_io_error("read");
+            if (ioret == NC_EFILE){
+                ioret = NC_EREAD;
+            }
+            DEBUG_RETURN_ERROR(ioret);
         }
-        
-        /* Determine API_Kind */
-        if (entryp->api_kind == NC_LOG_API_KIND_VARA){
-            stride = NULL;    
+        if (ioret != databatchsize){
+            DEBUG_RETURN_ERROR(NC_EBADLOG);
         }
 
-        /* Play event */
-        
-        /* Translate varid to varp */
-        err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
-        if (err != NC_NOERR){
-            return err;
-        }
-        /* Replay event with non-blocking call */
-        err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(data + entryp->data_off - dblow), -1, buftype, NULL, WRITE_REQ, 0, 0);
-        if (err != NC_NOERR) {
-            return err;
-        }
+#ifdef PNETCDF_DEBUG
+        tend = MPI_Wtime();
+        tread += tend - tbegin;
+        tbegin = MPI_Wtime();
+#endif
+        for(; j < i; j++){
+            // entryp = (NC_Log_metadataentry*)head;
+            
+            /* start, count, stride */
+            start = (MPI_Offset*)(entryp + 1);
+            count = start + entryp->ndims;
+            stride = count + entryp->ndims;
 
-        /* Move to next record */
-        head += entryp->esize;
-        tail = head + sizeof(NC_Log_metadataentry);
+            /* Convert from log type to MPI type used by pnetcdf library
+             * Log spec has different enum of types than MPI
+             */
+            switch (entryp->itype) {
+            case NC_LOG_TYPE_TEXT:
+                buftype = MPI_CHAR;
+                break;
+            case NC_LOG_TYPE_SCHAR:
+                buftype = MPI_SIGNED_CHAR;
+                break;
+            case NC_LOG_TYPE_SHORT:
+                buftype = MPI_SHORT;
+                break;
+            case NC_LOG_TYPE_INT:
+                buftype = MPI_INT;
+                break;
+            case NC_LOG_TYPE_FLOAT:
+                buftype = MPI_FLOAT;
+                break;
+            case NC_LOG_TYPE_DOUBLE:
+                buftype = MPI_DOUBLE;
+                break;
+            case NC_LOG_TYPE_UCHAR:
+                buftype = MPI_UNSIGNED_CHAR;
+                break;
+            case NC_LOG_TYPE_USHORT:
+                buftype = MPI_UNSIGNED_SHORT;
+                break;
+            case NC_LOG_TYPE_UINT:
+                buftype = MPI_UNSIGNED;
+                break;
+            case NC_LOG_TYPE_LONGLONG:
+                buftype = MPI_LONG_LONG_INT;
+                break;
+            case NC_LOG_TYPE_ULONGLONG:
+                buftype = MPI_UNSIGNED_LONG_LONG;
+                break;
+            default:
+                DEBUG_RETURN_ERROR(NC_EINVAL);
+            }
+            
+            /* Determine API_Kind */
+            if (entryp->api_kind == NC_LOG_API_KIND_VARA){
+                stride = NULL;    
+            }
+
+            /* Play event */
+            
+            /* Translate varid to varp */
+            err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
+            if (err != NC_NOERR){
+                return err;
+            }
+            /* Replay event with non-blocking call */
+            err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
+            if (err != NC_NOERR) {
+                return err;
+            }
+            
+            /* Move to next position */
+            entryp = (NC_Log_metadataentry*)(((char*)entryp) + entryp->esize);
+        }
 
 #ifdef PNETCDF_DEBUG
         tend = MPI_Wtime();
         treplay += tend - tbegin;
+        tbegin = MPI_Wtime();
 #endif
-    }
+        /* 
+         * Collective wait
+         * Wait must be called first or previous data will be corrupted
+         */
+        err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+        if (err != NC_NOERR) {
+            return err;
+        }
 
 #ifdef PNETCDF_DEBUG
-    tbegin = MPI_Wtime();
+        tend = MPI_Wtime();
+        twait += tend - tbegin;
 #endif
-
-    /* Collective wait */
-    err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
-    if (err != NC_NOERR) {
-        return err;
+        /* Update batch status */
+        databufferidx += databatchsize;
+        databatchsize = 0;
     }
-
-#ifdef PNETCDF_DEBUG
-    tend = MPI_Wtime();
-    twait += tend - tbegin;
-#endif
 
     /* Free the data buffer */ 
-    NCI_Free(data);
+    NCI_Free(databuffer);
     
     /* Flusg complete. Turn off the flushing flag, enable logging on non-blocking call */
     nclogp->isflushing = 0;
@@ -613,8 +702,8 @@ int log_flush(NC *ncp) {
     ttotal = tend - tstart;
 
     if (rank == 0){
-        printf("Size of data log:       %lld\n", dsize);
-        printf("Size of data buffer:    %lld\n", dbsize);
+        printf("Size of data log:       %lld\n", databufferidx + databufferused);
+        printf("Size of data buffer:    %lld\n", databuffersize);
         printf("Size of metadata log:   %lld\n", nclogp->metadata.nused);
         printf("Number of log entries:  %lld\n", headerp->num_entries);
     
@@ -661,7 +750,7 @@ int ncmpii_log_close(NC *ncp) {
 
     /* Free meta data buffer and metadata offset list*/
     ncmpii_log_buffer_free(&nclogp->metadata);
-    ncmpii_log_entarray_free(&nclogp->metaentries);
+    ncmpii_log_sizearray_free(&nclogp->entrydatasize);
 
     /* Delete log structure */
     NCI_Free(nclogp);
@@ -802,8 +891,8 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
      * Note: EOF may not be the place for next entry after a flush
      * Note: metadata size will be updated after allocating metadata buffer space, seek must be done first 
      */
-    err = lseek(nclogp->metalog_fd, nclogp->metadata.nused, SEEK_SET);   
-    if (err < 0){
+    ioret = lseek(nclogp->metalog_fd, nclogp->metadata.nused, SEEK_SET);   
+    if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
 
@@ -896,6 +985,9 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     if (err != SIZEOF_MPI_OFFSET){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
+
+    /* Record data size */
+    ncmpii_log_sizearray_append(&nclogp->entrydatasize, entryp->data_len);
     
     return NC_NOERR;
 }
@@ -948,10 +1040,10 @@ int ncmpii_log_flush(NC* ncp) {
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
-    /* Reset buffer status */
+    /* Reset metadata buffer and entry array status */
     nclogp->metadata.nused = headerp->entry_begin;
-    nclogp->metaentries.nused = 0;
-        
+    nclogp->entrydatasize.nused = 0;
+
     /* Rewind data log file descriptors and reset the size */
     ioret = lseek(nclogp->datalog_fd, 8, SEEK_SET);
     if (ioret != 8){

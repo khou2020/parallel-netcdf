@@ -886,11 +886,11 @@ typedef struct NC_Log_buffer {
 } NC_Log_buffer;
 
 /* Vector structure */
-typedef struct NC_Log_entarray {
+typedef struct NC_Log_sizearray {
     size_t nalloc;
     size_t nused;
-    NC_Log_metadataentry** entries;
-} NC_Log_entarray;
+    size_t* values;
+} NC_Log_sizearray;
 
 /* Log structure */
 typedef struct NC_Log {
@@ -901,7 +901,7 @@ typedef struct NC_Log {
     int datalog_fd;    /* file handle of data log */
     size_t datalogsize;
     NC_Log_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
-    NC_Log_entarray metaentries;    /* Array of metadata entries */
+    NC_Log_sizearray entrydatasize;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
 } NC_Log;
 
