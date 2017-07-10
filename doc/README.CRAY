@@ -59,6 +59,21 @@ Note on running "make check" or "make ptest".
     #SBATCH -C haswell
     make ptest
 
+Note on running with log io buffering enabled.
+    Set hint pnetcdf_log=1 to enable log io buffering.
+    To run with the burst buffer, set hint pnetcdf_log_base={$DW_JOB_STRIPED} 
+
+    The sample batch script shown below run the same test above using burst buffer for log io buffering.
+    #!/bin/bash -l
+    #SBATCH -p debug
+    #SBATCH -N 4
+    #SBATCH -t 00:20:00
+    #SBATCH -L SCRATCH
+    #SBATCH -C haswell
+    #DW jobdw capacity=1GB access_mode=striped type=scratch pool=sm_pool
+    export PNETCDF_HINTS="pnetcdf_log_base={$DW_JOB_STRIPED}"
+    make ptest
+
 ===============================================================================
     Cray XC30
 ===============================================================================
