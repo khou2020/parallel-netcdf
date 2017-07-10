@@ -48,28 +48,24 @@ int main(int argc, char *argv[]) {
     NC_Log_metadataheader *Header;
     NC_Log_metadataentry *E;
 
-    if (argc < 3){
-        printf("Usage: ./ncmpilogdump <metadata log> <data log>\n");
+    if (argc < 2){
+        printf("Usage: ./ncmpilogdump <metadata log> [<data log>]\n");
         return 0;
     }
 
     /* Open metadata log and data log */
     fmeta = fdata = NULL;
     fmeta = fopen(argv[1], "rb+");
-    fdata = fopen(argv[2], "rb+");
-    if (fdata == NULL || fmeta == NULL) {
+    if (fmeta == NULL) {
         err = NC_EFILE;
         goto ERROR;
     }
-
+    
     /* Get file size */
     fd = fileno(fmeta);
     fstat(fd, &metastat);
-    fd = fileno(fdata);
-    fstat(fd, &datastat);
-
+   
     /* Allocate buffer */
-    Data = (char*)malloc(datastat.st_size);
     Meta = (char*)malloc(metastat.st_size);
 
     /* Read the metadata */
@@ -78,13 +74,32 @@ int main(int argc, char *argv[]) {
         err = NC_EBADLOG;
         goto ERROR;
     }
-    /* Read the data */
-    ret = fread(Data, datastat.st_size, 1, fdata);
-    if (ret != 1) {
-        err = NC_EBADLOG;
-        goto ERROR;
+ 
+    /* Open data log if path is given */
+    if (argc > 2){
+        fdata = fopen(argv[2], "rb+");
+        if (fdata == NULL) {
+            err = NC_EFILE;
+            goto ERROR;
+        }
+        
+        /* Get file size */
+        fd = fileno(fdata);
+        fstat(fd, &datastat);
+        
+        /* Allocate buffer */
+        Data = (char*)malloc(datastat.st_size);
+        /* Read the data */
+        ret = fread(Data, datastat.st_size, 1, fdata);
+        if (ret != 1) {
+            err = NC_EBADLOG;
+            goto ERROR;
+        }
     }
-
+    else{
+        Data = NULL;
+    }
+   
     /* Parse header */
     Header = (NC_Log_metadataheader*)Meta;
     
@@ -169,21 +184,23 @@ foreach(`vartype', (`text, uchar, schar, short, ushort, int, uint, float, double
             } 
             printf(" ], ");
         }
+        printf("%08x);\n", E->data_off);
         
         /* Corresponding content in data log */
-        printf("buf);\n");
-        for (i = 0; i < E->data_len; i+= 16) {
-            printf("%08x: ", E->data_off + i);
-            for(k = 0; k < 16 && (i + k) < E->data_len; k++){
-                printf("%02x", (int)(Data[E->data_off + i + k]));
-                if(k & 1){
-                    putchar(' ');
+        if (Data != NULL){
+            for (i = 0; i < E->data_len; i+= 16) {
+                printf("%08x: ", E->data_off + i);
+                for(k = 0; k < 16 && (i + k) < E->data_len; k++){
+                    printf("%02x", (int)(Data[E->data_off + i + k]));
+                    if(k & 1){
+                        putchar(' ');
+                    }
                 }
+                putchar('\n');
             }
-            putchar('\n');
+            printf("\n");
         }
-        printf("\n");
-        
+
         /* Jump to next location */
         offset += E->esize;
     }
