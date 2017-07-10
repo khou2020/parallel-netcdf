@@ -69,6 +69,28 @@ int main(int argc, char* argv[]) {
     
     /* Determine test ifle name */
        
+       
+
+    /* Initialize file info */
+    MPI_Info_create(&Info);
+    MPI_Info_set(Info, "pnetcdf_log", "1");
+    if (argc > 2){
+        MPI_Info_set(Info, "pnetcdf_log_base", argv[2]);   
+    }
+   
+    /* Create new netcdf file */
+    if (argc > 1){
+        ret = ncmpi_create(MPI_COMM_WORLD, argv[1], NC_CLOBBER, Info, &ncid);
+    }
+    else {
+        ret = ncmpi_create(MPI_COMM_WORLD, "test.nc", NC_CLOBBER, Info, &ncid);
+    }
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+    
     /* Resolve absolute path */
     if(argc > 1){
         tmp = realpath(argv[1], path);
@@ -77,7 +99,7 @@ int main(int argc, char* argv[]) {
         tmp = realpath("test.nc", path);
     }
     if (tmp == NULL){
-        printf("Error at line %d in %s: Can not resolve real path");
+        printf("Error at line %d in %s: Can not resolve file path\n", __LINE__, __FILE__);
         nerr++;
         goto ERROR;
     }
@@ -88,25 +110,10 @@ int main(int argc, char* argv[]) {
         tmp = realpath(".", logbase);
     }
     if (tmp == NULL){
-        printf("Error at line %d in %s: Can not resolve real path");
+        printf("Error at line %d in %s: Can not resolve log base path\n", __LINE__, __FILE__);
         nerr++;
         goto ERROR;
-    }    
-
-    /* Initialize file info */
-    MPI_Info_create(&Info);
-    MPI_Info_set(Info, "pnetcdf_log", "1");
-    if (argc > 2){
-        MPI_Info_set(Info, "pnetcdf_log_base", logbase);   
-    }
-   
-    /* Create new netcdf file */
-    ret = ncmpi_create(MPI_COMM_WORLD, path, NC_CLOBBER, Info, &ncid);
-    if (ret != NC_NOERR) {
-        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
-        nerr++;
-        goto ERROR;
-    }
+    }  
     
     /* 
      * Extract file anme 
