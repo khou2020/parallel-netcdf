@@ -7,11 +7,9 @@
  *********************************************************************/
 /* $Id: log_ctrl.c 3078 2017-07-01 22:46:50Z khou $ */
 
-
-
-
-
-
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -49,6 +47,7 @@ int main(int argc, char* argv[]) {
     char metalogpath[PATH_MAX];
     char datalogpath[PATH_MAX];
     char filename[PATH_MAX];
+    char absfilename[PATH_MAX];
     char abslogbase[PATH_MAX];
     char logbase[PATH_MAX];
     struct stat metastat, datastat;
@@ -94,7 +93,7 @@ int main(int argc, char* argv[]) {
      */
     fname = strrchr(filename, '/');
     if (fname == NULL){
-        /* We have relative path with only file name */
+        /* We have relative path with only the file name */
         fname = filename;
     }
     
@@ -177,10 +176,21 @@ int main(int argc, char* argv[]) {
         nerr++;
         goto ERROR;
     }
- 
+    
+    /* 
+     * Resolve absolute path
+     * We need absolute file name to calculate size of metadata header size
+     */ 
+    pathret = realpath(filename, absfilename);
+    if (pathret == NULL){
+        printf("Error at line %d in %s: Can not resolve file name\n", __LINE__, __FILE__);
+        nerr++;
+        goto ERROR;
+    } 
+
     /* Check log file size */
-    if (metastat.st_size != sizeof(NC_Log_metadataheader)){
-        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader), metastat.st_size);
+    if (metastat.st_size != sizeof(NC_Log_metadataheader) + strlen(absfilename)){
+        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename), metastat.st_size);
         nerr++;
         goto ERROR;
     }
@@ -211,11 +221,11 @@ int main(int argc, char* argv[]) {
         printf("Error at line %d in %s: fstat: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
-    }
+    } 
  
     /* Check log file size */
-    if (metastat.st_size != sizeof(NC_Log_metadataheader) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3){
-        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3, metastat.st_size);
+    if (metastat.st_size != sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3){
+        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3, metastat.st_size);
         nerr++;
         goto ERROR;
     }
@@ -237,6 +247,24 @@ int main(int argc, char* argv[]) {
         goto ERROR;
     }
    
+   /* Open log file, should fail*/
+    meta_fd = open(metalogpath, O_RDONLY);
+    if (meta_fd >= 0){
+        printf("Error at line %d in %s: metadata log not deleted");
+        nerr++;
+        goto ERROR;
+    }
+    data_fd = open(datalogpath, O_RDONLY);
+    if (meta_fd >= 0){
+        printf("Error at line %d in %s: data log not deleted");
+        nerr++;
+        goto ERROR;
+    }
+    
+    /* Close log file */
+    close(meta_fd);
+    close(data_fd);
+ 
 	/* Check if PnetCDF freed all internal malloc */
     MPI_Offset malloc_size, sum_size;
     ret = ncmpi_inq_malloc_size(&malloc_size);

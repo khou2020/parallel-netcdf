@@ -861,7 +861,8 @@ typedef struct NC_Log_metadataheader {
     MPI_Offset entry_begin;
     MPI_Offset max_ndims;
     MPI_Offset num_entries;
-    char basename[NC_LOG_PATH_MAX];
+    int basenamelen;
+    char basename[1];   /* The hack to keep basename inside the structure */
 } NC_Log_metadataheader;
 
 /* Metadata entry header 

@@ -1,5 +1,8 @@
 #!/bin/sh
 
+rm *.data
+rm *.meta
+
 set -e
 
 for i in $TESTPROGRAMS; do { \

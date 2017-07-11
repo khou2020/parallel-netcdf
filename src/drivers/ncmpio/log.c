@@ -196,10 +196,10 @@ int IsBigEndian() {
  */
 int ncmpii_log_create(NC* ncp) {
     int rank, np, err;
-    char logbase[NC_LOG_PATH_MAX], hint[NC_LOG_PATH_MAX];
+    char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX], hint[NC_LOG_PATH_MAX];
     char *abspath, *fname;
     DIR *logdir;
-    size_t ioret;
+    size_t ioret, headersize;
     NC_Log_metadataheader *headerp;
     NC_Log *nclogp;
     
@@ -238,7 +238,7 @@ int ncmpii_log_create(NC* ncp) {
 
     /* Resolve absolute path */    
     memset(nclogp->filepath, 0, sizeof(nclogp->filepath));
-    abspath = realpath(ncp->path, nclogp->filepath);
+    abspath = realpath(ncp->path, basename);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
@@ -254,7 +254,7 @@ int ncmpii_log_create(NC* ncp) {
      * Absolute path should always contains one '/', return error otherwise
      * We return the string including '/' for convenience
      */
-    fname = strrchr(nclogp->filepath,'/');
+    fname = strrchr(basename, '/');
     if (fname == NULL){
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);  
     }
@@ -287,13 +287,20 @@ int ncmpii_log_create(NC* ncp) {
     
     /* Initialize metadata header */
     
-    /* Allocate space for metadata header */
-    headerp = (NC_Log_metadataheader*)ncmpii_log_buffer_alloc(&nclogp->metadata, sizeof(NC_Log_metadataheader));
-   
+    /*
+     * Allocate space for metadata header
+     * Header consists of a fixed size info and variable size basename
+     */
+    headersize = sizeof(NC_Log_metadataheader) + strlen(basename);
+    if (headersize % 4 != 0){
+        headersize += 4 - (headersize % 4);
+    }
+    headerp = (NC_Log_metadataheader*)ncmpii_log_buffer_alloc(&nclogp->metadata, headersize);
+
     /* Fill up the metadata log header */
     memcpy(headerp->magic, NC_LOG_MAGIC, sizeof(headerp->magic));
     memcpy(headerp->format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(headerp->format));
-    strncpy(headerp->basename, nclogp->filepath, sizeof(headerp->basename));
+    strncpy(headerp->basename, nclogp->filepath, headersize - sizeof(NC_Log_metadataheader) + 1);
     headerp->rank_id = rank;   /* Rank */
     headerp->num_ranks = np;   /* Number of processes */
     headerp->is_external = 0;    /* Without convertion before logging, data in native representation */
@@ -306,6 +313,7 @@ int ncmpii_log_create(NC* ncp) {
     headerp->num_entries = 0;    /* The log is empty */
     headerp->max_ndims = 0;    /* Highest dimension among all variables, not used */
     headerp->entry_begin = nclogp->metadata.nused;  /* Location of the first entry */
+    headerp->basenamelen = strlen(basename);
 
     /* Create log files */
     
@@ -324,13 +332,13 @@ int ncmpii_log_create(NC* ncp) {
     /* Write metadata header to file
      * Write from the memory buffer to file
      */
-    ioret = write(nclogp->metalog_fd, headerp, sizeof(NC_Log_metadataheader));
+    ioret = write(nclogp->metalog_fd, headerp, headersize);
     if (ioret < 0){
         err = ncmpii_handle_io_error("write");
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
         DEBUG_RETURN_ERROR(err);
     }
-    if (ioret != sizeof(NC_Log_metadataheader)){
+    if (ioret != headersize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
