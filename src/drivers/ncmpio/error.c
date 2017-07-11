@@ -117,6 +117,8 @@ int ncmpii_handle_io_error(char *err_msg)       /* extra error message */
             return NC_EQUOTA;
         case ENOENT:
             return NC_ENOENT;
+        case EEXIST:
+            return NC_EEXIST;
     }
   
     /* other errors that currently have no corresponding PnetCDF error codes */

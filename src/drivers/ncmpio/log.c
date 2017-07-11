@@ -296,11 +296,8 @@ int ncmpii_log_create(NC* ncp) {
     headerp = (NC_Log_metadataheader*)ncmpii_log_buffer_alloc(&nclogp->metadata, sizeof(NC_Log_metadataheader));
    
     /* Fill up the metadata log header */
-    //memset(headerp->magic, 0, sizeof(headerp->magic)); /* Magic */
     memcpy(headerp->magic, NC_LOG_MAGIC, sizeof(headerp->magic));
-    //memset(headerp->format, 0, sizeof(headerp->format)); /* Format */
     memcpy(headerp->format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(headerp->format));
-    //memset(headerp->basename, 0, sizeof(headerp->basename)); /* Path */
     strncpy(headerp->basename, nclogp->filepath, sizeof(headerp->basename));
     headerp->rank_id = rank;   /* Rank */
     headerp->num_ranks = np;   /* Number of processes */
@@ -318,12 +315,12 @@ int ncmpii_log_create(NC* ncp) {
     /* Create log files */
     
     nclogp->datalog_fd = nclogp->metalog_fd = -1;
-    nclogp->metalog_fd = open(nclogp->metalogpath, O_RDWR | O_CREAT, 0744);
+    nclogp->metalog_fd = open(nclogp->metalogpath, O_RDWR | O_CREAT | O_EXCL, 0744);
     if (nclogp->metalog_fd < 0) {
         err = ncmpii_handle_io_error("open"); 
         DEBUG_RETURN_ERROR(err); 
     }
-    nclogp->datalog_fd = open(nclogp->datalogpath, O_RDWR | O_CREAT, 0744);
+    nclogp->datalog_fd = open(nclogp->datalogpath, O_RDWR | O_CREAT | O_EXCL, 0744);
     if (nclogp->datalog_fd < 0) {
         err = ncmpii_handle_io_error("open"); 
         DEBUG_RETURN_ERROR(err); 
