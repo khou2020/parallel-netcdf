@@ -45,10 +45,11 @@ int rank, np; /* Total process; Rank */
 int main(int argc, char* argv[]) {
     int ret, nerr = 0;
     int meta_fd, data_fd;
-    char *tmp;
+    char *pathret, *fname;
     char metalogpath[PATH_MAX];
     char datalogpath[PATH_MAX];
-    char path[PATH_MAX];
+    char filename[PATH_MAX];
+    char abslogbase[PATH_MAX];
     char logbase[PATH_MAX];
     struct stat metastat, datastat;
 	int ncid, varid, dimid, buf;    /* Netcdf file id and variable id */
@@ -59,57 +60,29 @@ int main(int argc, char* argv[]) {
     MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	
-    if (rank == 0) {
-        char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
-        sprintf(cmd_str, "*** TESTING C   %s for checking log io options functionality", basename(argv[0]));
-		printf("%-66s ------ ", cmd_str); fflush(stdout);
-		free(cmd_str);
-	}
     
-    /* Determine test ifle name */
-       
-       
-
-    /* Initialize file info */
-    MPI_Info_create(&Info);
-    MPI_Info_set(Info, "pnetcdf_log", "1");
-    if (argc > 2){
-        MPI_Info_set(Info, "pnetcdf_log_base", argv[2]);   
+    if (argc > 3) {
+        if (!rank) printf("Usage: %s [filename]\n", argv[0]);
+        MPI_Finalize();
+        return 1;
     }
-   
-    /* Create new netcdf file */
+
     if (argc > 1){
-        ret = ncmpi_create(MPI_COMM_WORLD, argv[1], NC_CLOBBER, Info, &ncid);
+        snprintf(filename, PATH_MAX, "%s", argv[1]);
     }
     else {
-        ret = ncmpi_create(MPI_COMM_WORLD, "test.nc", NC_CLOBBER, Info, &ncid);
-    }
-    if (ret != NC_NOERR) {
-        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
-        nerr++;
-        goto ERROR;
-    }
-    
-    /* Resolve absolute path */
-    if(argc > 1){
-        tmp = realpath(argv[1], path);
-    }
-    else{
-        tmp = realpath("test.nc", path);
-    }
-    if (tmp == NULL){
-        printf("Error at line %d in %s: Can not resolve file path\n", __LINE__, __FILE__);
-        nerr++;
-        goto ERROR;
-    }
+        strcpy(filename, "testfile.nc");
+	}
     if (argc > 2){
-        tmp = realpath(argv[2], logbase);
+        snprintf(logbase, PATH_MAX, "%s", argv[2]);
     }
-    else{
-        tmp = realpath(".", logbase);
-    }
-    if (tmp == NULL){
+    else {
+        strcpy(logbase, ".");
+    }    
+
+    /* Resolve absolute path */ 
+    pathret = realpath(logbase, abslogbase);
+    if (pathret == NULL){
         printf("Error at line %d in %s: Can not resolve log base path\n", __LINE__, __FILE__);
         nerr++;
         goto ERROR;
@@ -119,16 +92,38 @@ int main(int argc, char* argv[]) {
      * Extract file anme 
      * Search for first / charactor from the tail
      */
-    for (tmp = path + strlen(path); tmp > path; tmp--){
-        if (*tmp == '/'){
-            break;
-        }
+    fname = strrchr(filename, '/');
+    if (fname == NULL){
+        /* We have relative path with only file name */
+        fname = filename;
     }
- 
+    
     /* Determine log file name */
-    sprintf(metalogpath, "%s%s_%d_%d.meta", logbase, tmp, ncid, rank);
-    sprintf(datalogpath, "%s%s_%d_%d.data", logbase, tmp, ncid, rank);
- 
+    sprintf(metalogpath, "%s%s_%d_%d.meta", abslogbase, fname, ncid, rank);
+    sprintf(datalogpath, "%s%s_%d_%d.data", abslogbase, fname, ncid, rank);
+
+    if (rank == 0) {
+        char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
+        sprintf(cmd_str, "*** TESTING C   %s for checking log io options functionality", basename(argv[0]));
+		printf("%-66s ------ ", cmd_str); fflush(stdout);
+		free(cmd_str);
+	}
+    
+    /* Determine test file name */
+
+    /* Initialize file info */
+    MPI_Info_create(&Info);
+    MPI_Info_set(Info, "pnetcdf_log", "1");
+    MPI_Info_set(Info, "pnetcdf_log_base", abslogbase);   
+    
+    /* Create new netcdf file */
+    ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+     
     /* Define dimensions and variables */
     ret = ncmpi_def_dim(ncid, "X", np, &dimid);  // X
     if (ret != NC_NOERR) {
@@ -158,7 +153,6 @@ int main(int argc, char* argv[]) {
     /* Open log file */
     meta_fd = open(metalogpath, O_RDONLY);
     if (meta_fd < 0){
-        printf("%s\n%s\n%s\n", tmp, path,metalogpath);
         printf("Error at line %d in %s: open: %d\n", __LINE__, __FILE__, meta_fd);
         nerr++;
         goto ERROR;
@@ -195,11 +189,7 @@ int main(int argc, char* argv[]) {
         nerr++;
         goto ERROR;
     }
-
-    /* Close log file */
-    close(meta_fd);
-    close(data_fd);
-    
+        
     /* Write rank to variable */
     start = rank;
     ret = ncmpi_put_var1_int_all(ncid, varid, &start, &rank);
@@ -209,20 +199,6 @@ int main(int argc, char* argv[]) {
         goto ERROR;
     }
     
-    /* Open log file again */
-    meta_fd = open(metalogpath, O_RDONLY);
-    if (meta_fd < 0){
-        printf("Error at line %d in %s: open: %d\n", __LINE__, __FILE__, meta_fd);
-        nerr++;
-        goto ERROR;
-    }
-    data_fd = open(datalogpath, O_RDONLY);
-    if (meta_fd < 0){
-        printf("Error at line %d in %s: open: %d\n", __LINE__, __FILE__, data_fd);
-        nerr++;
-        goto ERROR;
-    }
-
     /* Querying file status */
     ret = fstat(meta_fd, &metastat);
     if (ret < 0){

@@ -251,16 +251,11 @@ int ncmpii_log_create(NC* ncp) {
 
     /* Extract file anme 
      * Search for first / charactor from the tail
-     * Absolute path should always contains one '/'
+     * Absolute path should always contains one '/', return error otherwise
      * We return the string including '/' for convenience
      */
-    for (fname = nclogp->filepath + strlen(nclogp->filepath); fname > nclogp->filepath; fname--){
-        if (*fname == '/'){
-            break;
-        }
-    }
-    /* Something wrong if not found */
-    if (fname == nclogp->filepath){
+    fname = strrchr(nclogp->filepath,'/');
+    if (fname == NULL){
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);  
     }
     
@@ -740,8 +735,8 @@ int ncmpii_log_close(NC *ncp) {
 
         /* Delete log files if delete flag is set */
         if (ncp->loghints & NC_LOG_HINT_DEL_ON_CLOSE){
-            remove(nclogp->datalogpath);
-            remove(nclogp->metalogpath);
+            unlink(nclogp->datalogpath);
+            unlink(nclogp->metalogpath);
         }
     }
 

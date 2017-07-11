@@ -26,29 +26,35 @@
 #define SIZE 1024
 
 int buffer[SIZE * SIZE];
-char tmp[32];
+char bsize[32];
 
 int main(int argc, char *argv[]){
     int i, ret = NC_NOERR, nerr = 0;
     int rank, np;
     int ncid, varid;
     int dimid[2];
-    char *fname;
+    char filename[PATH_MAX];
     MPI_Offset start[2], count[2];
     MPI_Info Info;
-
-    /* Determine ndims and test file name */
-    if (argc > 1){
-        fname = argv[1];
-    }
-    else{
-        fname = "test.nc";
-    }
-   
+      
     /* Initialize MPI */
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &np);
+    
+    if (argc > 2) {
+        if (!rank) printf("Usage: %s [filename]\n", argv[0]);
+        MPI_Finalize();
+        return 1;
+    }
+    
+    /* Determine test file name */
+    if (argc > 1){
+        sprintf(filename, argv[1]);
+    }
+    else{
+        sprintf(filename, "testfile.nc");
+    }
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
@@ -61,11 +67,11 @@ int main(int argc, char *argv[]){
 	MPI_Info_create(&Info);
     MPI_Info_set(Info, "pnetcdf_log", "1");
     /* Set defualt buffer size to 1/8 of the rows */
-    sprintf(tmp, "%d", SIZE * SIZE / 8 * sizeof(int));
-    MPI_Info_set(Info, "pnetcdf_log_flush_buffer_size", tmp);
+    sprintf(bsize, "%d", SIZE * SIZE / 8 * sizeof(int));
+    MPI_Info_set(Info, "pnetcdf_log_flush_buffer_size", bsize);
 
     /* Create new netcdf file */
-    ret = ncmpi_create(MPI_COMM_WORLD, fname, NC_CLOBBER, Info, &ncid);
+    ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
         nerr++;

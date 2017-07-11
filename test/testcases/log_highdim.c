@@ -58,7 +58,8 @@
 
 #define BSIZE 1024 * 1024
 
-char tmp[PATH_MAX];
+char filename[PATH_MAX];
+char dimname[8];
 
 int main(int argc, char *argv[]){
     int i, ret = NC_NOERR, nerr = 0;
@@ -69,13 +70,25 @@ int main(int argc, char *argv[]){
     MPI_Offset *start = NULL, *count = NULL, *stride = NULL;
     MPI_Info Info;
 
+       /* Initialize MPI */
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &np);
+    
+    if (argc > 3) {
+        if (!rank) printf("Usage: %s [filename]\n", argv[0]);
+        MPI_Finalize();
+        return 1;
+    }
+ 
     /* Determine ndims and test file name */
     if (argc > 1){
-        sprintf(tmp, "%s", argv[1]);
+        sprintf(filename, "%s", argv[1]);
     }
     else{
-        sprintf(tmp, "test.nc");
+        sprintf(filename, "testfile.nc");
     }
+
     if (argc > 2){
         ndims = atoi(argv[2]);
     }
@@ -83,10 +96,6 @@ int main(int argc, char *argv[]){
         ndims = DIM;
     }
 
-    /* Initialize MPI */
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &np);
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
@@ -136,7 +145,7 @@ int main(int argc, char *argv[]){
     MPI_Info_set(Info, "pnetcdf_log", "1");
 
     /* Create new netcdf file */
-    ret = ncmpi_create(MPI_COMM_WORLD, tmp, NC_CLOBBER, Info, &ncid);
+    ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
         nerr++;
@@ -145,13 +154,13 @@ int main(int argc, char *argv[]){
 
     /* Define dimensions */
     for(i = 0; i < ndims; i++){
-        sprintf(tmp, "D%d", i);
+        sprintf(dimname, "D%d", i);
         /* Submatrix of each process stack along the first dimension */
         if (i == 0){
-            ret = ncmpi_def_dim(ncid, tmp, count[i] * np, dimid + i);
+            ret = ncmpi_def_dim(ncid, dimname, count[i] * np, dimid + i);
         }
         else{
-            ret = ncmpi_def_dim(ncid, tmp, count[i], dimid + i);
+            ret = ncmpi_def_dim(ncid, dimname, count[i], dimid + i);
         }
         if (ret != NC_NOERR) {
             printf("Error at line %d in %s: ncmpi_enddef: %d\n", __LINE__, __FILE__, ret);

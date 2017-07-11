@@ -21,7 +21,7 @@ define(`TEST_HINT',dnl
      * Flush on wait: $2
      * Flush on wait: $3 
      */
-    nerr += test_hints(fname, "$1", "$2", "$3");
+    nerr += test_hints(filename, "$1", "$2", "$3");
 ')dnl
 
 define(`TEST_ENV',dnl
@@ -31,7 +31,7 @@ define(`TEST_ENV',dnl
      * Flush on wait: $2
      * Flush on wait: $3 
      */
-    nerr += test_env(fname, "$1", "$2", "$3");
+    nerr += test_env(filename, "$1", "$2", "$3");
 ')dnl
 
 #include <stdlib.h>
@@ -72,7 +72,7 @@ int rank, np; /* Total process; Rank */
  * 1 2 3 ...
  * 1 2 3 ...
  */
-int test_hints(const char* fname, char* flushonwait, char* flushonsync, char* flushonread) {
+int test_hints(const char* filename, char* flushonwait, char* flushonsync, char* flushonread) {
     int i, j, out, in = rank + 1;
     int ret, nerr = 0;
 	int ncid, varid;    /* Netcdf file id and variable id */
@@ -88,7 +88,7 @@ int test_hints(const char* fname, char* flushonwait, char* flushonsync, char* fl
     MPI_Info_set(Info, "pnetcdf_log_flush_on_read", flushonread);
 
     /* Create new netcdf file */
-    ret = ncmpi_create(MPI_COMM_WORLD, fname, NC_CLOBBER, Info, &ncid);
+    ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
         nerr++;
@@ -245,7 +245,7 @@ ERROR:
  * 1 2 3 ...
  * 1 2 3 ...
  */
-int test_env(const char* fname, char* flushonwait, char* flushonsync, char* flushonread) {
+int test_env(const char* filename, char* flushonwait, char* flushonsync, char* flushonread) {
     int ret, nerr = 0;
     char env[1024];
 
@@ -259,7 +259,7 @@ int test_env(const char* fname, char* flushonwait, char* flushonsync, char* flus
     }
     
     /* Run test, the hints should be overriten by the environment variable */
-    nerr += test_hints(fname, flushonwait, flushonsync, flushonread);
+    nerr += test_hints(filename, flushonwait, flushonsync, flushonread);
 
 ERROR:;
 
@@ -268,12 +268,20 @@ ERROR:;
 
 int main(int argc, char* argv[]) {
     int ret, nerr = 0;
-    const char* fname;
+    char filename[PATH_MAX];
     
     /* Initialize MPI */
     MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    if (argc > 2) {
+        if (!rank) printf("Usage: %s [filename]\n", argv[0]);
+        MPI_Finalize();
+        return 1;
+    }
+    if (argc == 2) snprintf(filename, PATH_MAX, "%s", argv[1]);
+    else           strcpy(filename, "testfile.nc");
 	
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
@@ -281,15 +289,7 @@ int main(int argc, char* argv[]) {
 		printf("%-66s ------ ", cmd_str); fflush(stdout);
 		free(cmd_str);
 	}
-    
-    /* Determine test ifle name */
-    if(argc > 1){
-        fname = argv[1];
-    }
-    else{
-        fname = "test.nc";
-    }
-    
+        
     /* Perform test with hints */
 
 foreach(`x', (`0, 1'), `foreach(`y', (`0, 1'), `foreach(`z', (`0, 1'), `TEST_HINT(x, y, z)')')')dnl
