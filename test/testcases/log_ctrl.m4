@@ -34,6 +34,17 @@ define(`TEST_ENV',dnl
     nerr += test_env(filename, "$1", "$2", "$3");
 ')dnl
 
+define(`CHECK_RET',dnl
+`dnl
+        for(i = 0; i < np; i++){
+            if (out[i] != i + 1){
+                printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, i, in, out[i]);
+                nerr++;
+                goto ERROR;
+            }
+        }
+')dnl
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -55,7 +66,7 @@ int rank, np; /* Total process; Rank */
 /* 
  * This function test if log io options work correctly
  * We set options via io hints
- * The test writes a 3 * np matrix M
+ * The test writes a 4 * np matrix M
  * Process i writes i + 1 to column i:
  * Processes writes to the column one cell at a time.
  * They call wait_all and sync after the first and second write respectly:
@@ -65,19 +76,24 @@ int rank, np; /* Total process; Rank */
  * put_var1 to row 1
  * sync
  * put_var1 to row 2
+ * begin_indep_data
+ * put_var1 to row 3
+ * end_indep_data
  * close
  *
  * final result should be:
  * 1 2 3 ...
  * 1 2 3 ...
  * 1 2 3 ...
+ * 1 2 3 ...
  */
 int test_hints(const char* filename, char* flushonwait, char* flushonsync, char* flushonread) {
-    int i, j, out, in = rank + 1;
+    int i, j, in = rank + 1;
+    int *out = NULL;
     int ret, nerr = 0;
 	int ncid, varid;    /* Netcdf file id and variable id */
 	int dimid[2];     /* IDs of dimension */
-	MPI_Offset start[2];
+	MPI_Offset start[2], count[2];
 	MPI_Info Info;
     
     /* Initialize file info */
@@ -86,6 +102,9 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
     MPI_Info_set(Info, "pnetcdf_log_flush_on_wait", flushonwait);
     MPI_Info_set(Info, "pnetcdf_log_flush_on_sync", flushonsync);
     MPI_Info_set(Info, "pnetcdf_log_flush_on_read", flushonread);
+
+    /* Allocate buffer */
+    out = (int*)malloc(sizeof(int) * np);
 
     /* Create new netcdf file */
     ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
@@ -96,21 +115,21 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
     }
     
     /* Define dimensions and variables */
-    ret = ncmpi_def_dim(ncid, "X", 3, dimid);  // X
+    ret = ncmpi_def_dim(ncid, "X", 4, dimid);  // X
     if (ret != NC_NOERR) {
-        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
+        printf("Error at line %d in %s: ncmpi_def_dim: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
     ret = ncmpi_def_dim(ncid, "Y", np, dimid + 1);	// Y
     if (ret != NC_NOERR) {
-        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
+        printf("Error at line %d in %s: ncmpi_def_dim: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
     ret = ncmpi_def_var(ncid, "V", NC_INT, 2, dimid, &varid);
     if (ret != NC_NOERR) {
-        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
+        printf("Error at line %d in %s: ncmpi_def_var: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
@@ -118,7 +137,7 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
     /* Switch to data mode */
     ret = ncmpi_enddef(ncid);
     if (ret != NC_NOERR) {
-        printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
+        printf("Error at line %d in %s: ncmpi_enddef: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
@@ -130,6 +149,8 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
      */
     start[0] = 0;
     start[1] = rank;
+    count[0] = 1;
+    count[1] = np;
     ret = ncmpi_put_var1_int_all(ncid, varid, start, &in);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_put_var1_int_all: %d\n", __LINE__, __FILE__, ret);
@@ -142,16 +163,15 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
         nerr++;
         goto ERROR;
     }
-    ret = ncmpi_get_var1_int_all(ncid, varid, start, &out);
+    memset(out, 0, sizeof(int) * np);
+    ret = ncmpi_get_vara_int_all(ncid, varid, start, count, out);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_get_var1_int_all: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
-    if (atoi(flushonwait) && in != out){
-        printf("Error at line %d in %s: expecting out = %d but got %d\n", __LINE__, __FILE__, in, out);
-        nerr++;
-        goto ERROR;
+    if (atoi(flushonwait)){
+CHECK_RET
     }
 
     /* Test flush on sync
@@ -172,16 +192,15 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
         nerr++;
         goto ERROR;
     }
-    ret = ncmpi_get_var1_int_all(ncid, varid, start, &out);
+    memset(out, 0, sizeof(int) * np);
+    ret = ncmpi_get_vara_int_all(ncid, varid, start, count, out);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_get_var1_int_all: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
-    if (atoi(flushonsync) && in != out){
-        printf("Error at line %d in %s: expecting out = %d but got %d\n", __LINE__, __FILE__, in, out);
-        nerr++;
-        goto ERROR;
+    if (atoi(flushonsync)){
+CHECK_RET
     }
    
     /* Test flush on read
@@ -196,18 +215,57 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
         nerr++;
         goto ERROR;
     }
-    ret = ncmpi_get_var1_int_all(ncid, varid, start, &out);
+    memset(out, 0, sizeof(int) * np);
+    ret = ncmpi_get_vara_int_all(ncid, varid, start, count, out);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_get_var1_int_all: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
-    if (atoi(flushonread) && in != out){
-        printf("Error at line %d in %s: expecting out = %d but got %d\n", __LINE__, __FILE__, in, out);
+    if (atoi(flushonread)){
+CHECK_RET
+    }
+    
+    /* Test flush on read in independent mode
+     * We write a row if ranks, and then read it back
+     * If flush on read is on, we expect to see the written value
+     * Since fill mode is disalbed when log io is on, we can read anything if the data hasn't be flushed
+     */
+    ret = ncmpi_begin_indep_data(ncid);
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_begin_indep_data: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
-      
+    
+    start[0] = 3;
+    ret = ncmpi_put_var1_int(ncid, varid, start, &in);
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_put_var1_int: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+    memset(out, 0, sizeof(int) * np);
+    ret = ncmpi_get_vara_int(ncid, varid, start, count, out);
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_get_var1_int: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+    /* Value from other processes may not relfect, only check value from itself */
+    if (atoi(flushonread) && out[rank] != in){
+        printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, rank, in, out[rank]);
+        nerr++;
+        goto ERROR;
+    }
+    
+    ret = ncmpi_end_indep_data(ncid);
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_end_indep_data: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+ 
     /* Close file */
     ret = ncmpi_close(ncid);
     if (ret != NC_NOERR) {
@@ -218,6 +276,10 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
 
 ERROR:
     
+    if (out != NULL){
+        free(out);
+    }
+
     if (nerr > 0) {
         printf("Error on setting:\nFlush on wait: %s\nFlush on sync: %s\n Flush on read: %s\n", flushonwait, flushonsync, flushonread);
     }

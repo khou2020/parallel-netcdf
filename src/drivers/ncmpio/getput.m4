@@ -486,7 +486,7 @@ err_check:
         /* Replay if log is enabled */
         if (ncp->nclogp != NULL){
             /* Flush the log file if flag is on */
-            if ((ncp->loghints & NC_LOG_HINT_FLUSH_ON_READ) && io_method == COLL_IO){
+            if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_READ ){
                 err = ncmpii_log_flush(ncp);    
                 if (status == NC_NOERR){
                     status = err;

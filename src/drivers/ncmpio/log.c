@@ -598,12 +598,19 @@ int log_flush(NC *ncp) {
             tbegin = MPI_Wtime();
 #endif
             /* 
-             * Collective wait
              * Wait must be called first or previous data will be corrupted
              */
-            err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
-            if (err != NC_NOERR) {
-                return err;
+            if (NC_indep(ncp)) {
+                err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
+                if (err != NC_NOERR) {
+                    return err;
+                }
+            }
+            else{
+                err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+                if (err != NC_NOERR) {
+                    return err;
+                }
             }
 
 #ifdef PNETCDF_DEBUG
@@ -722,12 +729,19 @@ int log_flush(NC *ncp) {
         tbegin = MPI_Wtime();
 #endif
         /* 
-         * Collective wait
          * Wait must be called first or previous data will be corrupted
          */
-        err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
-        if (err != NC_NOERR) {
-            return err;
+        if (NC_indep(ncp)) {
+            err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
+            if (err != NC_NOERR) {
+                return err;
+            }
+        }
+        else{
+            err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+            if (err != NC_NOERR) {
+                return err;
+            }
         }
 
 #ifdef PNETCDF_DEBUG
