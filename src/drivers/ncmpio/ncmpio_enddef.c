@@ -876,6 +876,13 @@ ncmpii_enddef(void *ncdp)
                 return ret;
             }
         }
+        else{
+            /* Update log status if we return from a redef */
+            ret = ncmpii_log_enddef(ncp);
+            if (ret != NC_NOERR){
+                return ret;
+            }
+        }
     }
 
     return ncmpii__enddef(ncdp, 0, 0, 0, 0);

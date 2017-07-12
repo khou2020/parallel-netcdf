@@ -195,7 +195,7 @@ int IsBigEndian() {
  * OUT    nclogp:    Initialized log structure 
  */
 int ncmpii_log_create(NC* ncp) {
-    int rank, np, err;
+    int i, rank, np, err;
     char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX], hint[NC_LOG_PATH_MAX];
     char *abspath, *fname;
     DIR *logdir;
@@ -311,7 +311,13 @@ int ncmpii_log_create(NC* ncp) {
     headerp->big_endian = NC_LOG_FALSE;
 #endif
     headerp->num_entries = 0;    /* The log is empty */
-    headerp->max_ndims = 0;    /* Highest dimension among all variables, not used */
+    /* Highest dimension among all variables */
+    headerp->max_ndims = 0;    
+    for(i = 0; i < ncp->vars.ndefined; i++){
+        if (ncp->vars.value[i]->ndims > headerp->max_ndims){
+            headerp->max_ndims = ncp->vars.value[i]->ndims; 
+        }
+    }
     headerp->entry_begin = nclogp->metadata.nused;  /* Location of the first entry */
     headerp->basenamelen = strlen(basename);
 
@@ -372,6 +378,48 @@ ERROR:;
  * IN    nclogp:    log structure
  */
 int ncmpii_log_enddef(NC *ncp){   
+    int i, maxdims, err;
+    ssize_t ioret;
+    NC_Log *nclogp = ncp->nclogp;
+    NC_Log_metadataheader *headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
+
+    /* Highest dimension among all variables */
+    maxdims = 0;    
+    for(i = 0; i < ncp->vars.ndefined; i++){
+        if (ncp->vars.value[i]->ndims > headerp->max_ndims){
+            maxdims = ncp->vars.value[i]->ndims; 
+        }
+    }
+
+    /* Update the header in max dim increased */
+    if (maxdims > headerp->max_ndims){
+        headerp->max_ndims = maxdims;
+
+        /* Seek to the location of maxndims 
+         * Note: location need to be updated when struct change
+         */
+        ioret = lseek(nclogp->metalog_fd, sizeof(NC_Log_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries) - sizeof(headerp->max_ndims), SEEK_SET);
+        if (ioret < 0){
+            DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+        }
+        /* Overwrite num_entries
+         * This marks the completion of the record
+         */
+        ioret = write(nclogp->metalog_fd, &headerp->max_ndims, SIZEOF_MPI_OFFSET);
+        if (ioret < 0){
+            err = ncmpii_handle_io_error("write");
+            if (err == NC_EFILE){
+                err = NC_EWRITE;
+            }
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != SIZEOF_MPI_OFFSET){
+            err = ncmpii_handle_io_error("write");
+            
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
+    }
+
     return NC_NOERR;
 }
 
@@ -759,29 +807,6 @@ int ncmpii_log_close(NC *ncp) {
 }
 
 /*
- * Retrieve variable id given NC_var and NC
- * IN    ncp:    NC structure
- * IN    varp:    NC_var structure
- *
- * This function is not used since NC_var contains varid
- */
-int get_varid(NC *ncp, NC_var *varp){
-    int i;
-    NC_vararray ncap = ncp->vars;
-    
-    /* Search through the variable list for the same address 
-     * As varp may not reside in the buffer continuously, a linear search is required
-     */
-    for(i = 0; i < ncap.ndefined; i++){
-        if (ncap.value[i] == varp){
-            return i;
-        }
-    }
-
-    return -1;
-}
-
-/*
  * Prepare a single log entry to be write to log
  * Used by ncmpii_getput_varm
  * IN    nclogp:    log structure to log this entry
@@ -885,7 +910,6 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     /* Record offset 
      * Note: metadata will be updated after allocating metadata buffer space, seek must be done first 
      */
-    //AppendMetaOffset(nclogp, nclogp->metadata.nused);
     
     /* Seek to the head of metadata
      * Note: EOF may not be the place for next entry after a flush
@@ -944,15 +968,15 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
         memcpy(Stride, stride, dim * SIZEOF_MPI_OFFSET);
     }
     /* Write meta data log */
-    err = write(nclogp->metalog_fd, buffer, esize);
-    if (err < 0){
+    ioret = write(nclogp->metalog_fd, buffer, esize);
+    if (ioret < 0){
         err = ncmpii_handle_io_error("write");
         if (err == NC_EFILE){
             err = NC_EWRITE;
         }
         DEBUG_RETURN_ERROR(err);
     }
-    if (err != esize){
+    if (ioret != esize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
@@ -967,22 +991,22 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
-    err = lseek(nclogp->metalog_fd, sizeof(NC_Log_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->num_entries), SEEK_SET);
-    if (err < 0){
+    ioret = lseek(nclogp->metalog_fd, sizeof(NC_Log_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries), SEEK_SET);
+    if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
     /* Overwrite num_entries
      * This marks the completion of the record
      */
-    err = write(nclogp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
-    if (err < 0){
+    ioret = write(nclogp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
+    if (ioret < 0){
         err = ncmpii_handle_io_error("write");
         if (err == NC_EFILE){
             err = NC_EWRITE;
         }
         DEBUG_RETURN_ERROR(err);
     }
-    if (err != SIZEOF_MPI_OFFSET){
+    if (ioret != SIZEOF_MPI_OFFSET){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
@@ -1021,7 +1045,7 @@ int ncmpii_log_flush(NC* ncp) {
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
-    ioret = lseek(nclogp->metalog_fd, sizeof(NC_Log_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->num_entries), SEEK_SET);
+    ioret = lseek(nclogp->metalog_fd, sizeof(NC_Log_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries), SEEK_SET);
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
