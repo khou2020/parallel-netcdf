@@ -526,7 +526,7 @@ int log_flush(NC *ncp) {
             tbegin = MPI_Wtime();
 #endif
             for(; j < i; j++){
-                // entryp = (NC_Log_metadataentry*)head;
+                //entryp = (NC_Log_metadataentry*)head;
                 
                 /* start, count, stride */
                 start = (MPI_Offset*)(entryp + 1);
@@ -657,7 +657,7 @@ int log_flush(NC *ncp) {
         tbegin = MPI_Wtime();
 #endif
         for(; j < i; j++){
-            // entryp = (NC_Log_metadataentry*)head;
+            //entryp = (NC_Log_metadataentry*)head;
             
             /* start, count, stride */
             start = (MPI_Offset*)(entryp + 1);
@@ -860,14 +860,14 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
      * Log spec has different enum of types than MPI
      */
     switch (buftype) {
-    case MPI_CHAR:    /* put_*_char */
+    case MPI_CHAR:    /* put_*_text */
+        itype = NC_LOG_TYPE_TEXT;
+        break;
+    case MPI_SIGNED_CHAR:    /* put_*_schar */
         itype = NC_LOG_TYPE_SCHAR;
         break;
     case MPI_UNSIGNED_CHAR:    /* put_*_uchar */
         itype = NC_LOG_TYPE_UCHAR;
-        break;
-    case MPI_BYTE: /* Not corresponding to any api, not used */
-        itype = NC_LOG_TYPE_TEXT;
         break;
     case MPI_UNSIGNED_SHORT: /* put_*_ushort */
         itype = NC_LOG_TYPE_USHORT;
