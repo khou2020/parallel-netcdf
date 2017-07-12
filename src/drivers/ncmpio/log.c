@@ -17,6 +17,7 @@
 #include <string.h>
 #include <pnc_debug.h>
 #include <common.h>
+#include <pnetcdf.h>
 
 #define LOG_BUFFER_SIZE 1024 /* Size of initial metadata buffer */
 #define LOG_ARRAY_SIZE 32 /* Size of initial metadata offset list */    
@@ -195,7 +196,7 @@ int IsBigEndian() {
  * OUT    nclogp:    Initialized log structure 
  */
 int ncmpii_log_create(NC* ncp) {
-    int i, rank, np, err;
+    int i, rank, np, err, flag;
     char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX], hint[NC_LOG_PATH_MAX];
     char *abspath, *fname;
     DIR *logdir;
@@ -322,14 +323,17 @@ int ncmpii_log_create(NC* ncp) {
     headerp->basenamelen = strlen(basename);
 
     /* Create log files */
-    
+    flag = O_RDWR | O_CREAT;
+    if (!(ncp->loghints & NC_LOG_HINT_LOG_OVERWRITE)) {
+        flag |= O_EXCL;
+    }
     nclogp->datalog_fd = nclogp->metalog_fd = -1;
-    nclogp->metalog_fd = open(nclogp->metalogpath, O_RDWR | O_CREAT | O_EXCL, 0744);
+    nclogp->metalog_fd = open(nclogp->metalogpath, flag, 0744);
     if (nclogp->metalog_fd < 0) {
         err = ncmpii_handle_io_error("open"); 
         DEBUG_RETURN_ERROR(err); 
     }
-    nclogp->datalog_fd = open(nclogp->datalogpath, O_RDWR | O_CREAT | O_EXCL, 0744);
+    nclogp->datalog_fd = open(nclogp->datalogpath, flag, 0744);
     if (nclogp->datalog_fd < 0) {
         err = ncmpii_handle_io_error("open"); 
         DEBUG_RETURN_ERROR(err); 

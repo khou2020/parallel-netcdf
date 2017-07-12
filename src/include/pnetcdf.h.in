@@ -160,6 +160,14 @@ typedef int nc_type;
 #define NC_CLASSIC_MODEL 0x0100 /**< Enforce classic model on netCDF-4. Mode flag for nc_create(). */
 #define NC_64BIT_OFFSET  0x0200  /**< Use large (64-bit) file offsets. Mode flag for nc_create(). */
 
+/* Log hint flags */
+#define NC_LOG_HINT_LOG_ENABLE 0x01
+#define NC_LOG_HINT_DEL_ON_CLOSE 0x02
+#define NC_LOG_HINT_FLUSH_ON_WAIT 0x04
+#define NC_LOG_HINT_FLUSH_ON_SYNC 0x08
+#define NC_LOG_HINT_FLUSH_ON_READ 0x10
+#define NC_LOG_HINT_LOG_OVERWRITE 0x16
+
 /** \deprecated The following flag currently is ignored, but use in
  * nc_open() or nc_create() may someday support use of advisory
  * locking to prevent multiple writers from clobbering a file

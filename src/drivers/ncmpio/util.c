@@ -39,6 +39,20 @@ int ncmpii_sanity_check(NC                *ncp,
 {
     /* all errors detected here are fatal, must return immediately */
     int i, firstDim, err;
+    
+    /* Replay if log is enabled */
+    if (rw_flag == READ_REQ){
+        if (ncp->nclogp != NULL){
+            /* Flush the log file if flag is on */
+            if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_READ ){
+                err = ncmpii_log_flush(ncp);    
+                if (err != NC_NOERR){
+                    DEBUG_ASSIGN_ERROR(err, NC_EPERM)
+                    goto fn_exit;
+                }
+            }
+        }
+    }
 
     /* check file write permission if this is write request */
     if (rw_flag == WRITE_REQ && NC_readonly(ncp)) {
@@ -336,6 +350,10 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
     MPI_Info_get(info, "pnetcdf_log_flush_on_sync", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "1") == 0){
         ncp->loghints |= NC_LOG_HINT_FLUSH_ON_SYNC;
+    }
+    MPI_Info_get(info, "pnetcdf_log_overwrite", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag && strcasecmp(value, "1") == 0){
+        ncp->loghints |= NC_LOG_HINT_LOG_OVERWRITE;
     }
     MPI_Info_get(info, "pnetcdf_log_flush_on_read", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "0") == 0){

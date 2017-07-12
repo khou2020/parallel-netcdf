@@ -828,12 +828,6 @@ ncmpiio_close(NC *ncp, int doUnlink);
 #define NC_LOG_FALSE 0x00
 #define NC_LOG_TRUE 0x01
 
-#define NC_LOG_HINT_LOG_ENABLE 0x01
-#define NC_LOG_HINT_DEL_ON_CLOSE 0x02
-#define NC_LOG_HINT_FLUSH_ON_WAIT 0x04
-#define NC_LOG_HINT_FLUSH_ON_SYNC 0x08
-#define NC_LOG_HINT_FLUSH_ON_READ 0x10
-
 /* PATH_MAX after padding to 4 byte allignment */
 #if PATH_MAX % 4 == 0
 #define NC_LOG_PATH_MAX PATH_MAX
