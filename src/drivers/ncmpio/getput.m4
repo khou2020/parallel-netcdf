@@ -419,11 +419,8 @@ err_check:
             /* Record in log file */
             err = ncmpii_log_put_var(ncp, varp, start, count, stride, cbuf, ptype, bnelems * el_size);
             /* Free the buffer */
-            if (cbuf != lbuf){
+            if (cbuf != buf){
                 NCI_Free(cbuf);
-            }
-            if (lbuf != buf){
-                NCI_Free(lbuf);
             }
             return err;
         }

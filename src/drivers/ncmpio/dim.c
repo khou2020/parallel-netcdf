@@ -570,6 +570,19 @@ ncmpii_inq_dim(void       *ncdp,
 {
     NC *ncp=(NC*)ncdp;
     NC_dim *dimp=NULL;
+        
+    /* Flush the log in order to reflect the size of record dimension */
+    if (ncp->nclogp != NULL){
+        /* Flush the log file if flag is on */
+        if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_READ ){
+            int err;
+            err = ncmpii_log_flush(ncp);    
+            if (err != NC_NOERR){
+                return err;
+            }
+        }
+    }
+
 
     dimp = ncmpii_elem_NC_dimarray(&ncp->dims, dimid);
     if (dimp == NULL) DEBUG_RETURN_ERROR(NC_EBADDIM)
