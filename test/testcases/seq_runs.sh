@@ -1,7 +1,7 @@
 #!/bin/sh
 
-rm *.data
-rm *.meta
+rm -f *.data
+rm -f *.meta
 
 set -e
 
@@ -20,9 +20,20 @@ diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
 
 ./put_all_kinds ${TESTOUTDIR}/blocking
 ./iput_all_kinds ${TESTOUTDIR}/nonblocking
+
 export PNETCDF_HINTS="pnetcdf_log=1"
+
+for i in $TESTPROGRAMS; do { 
+        echo $i
+        # The only 2 testcase not supported by log is test_erange and erange_fill
+        if [ $i ~= "test_erange" ] || [ $i ~= "erange_fill" ]; then
+            $TESTSEQRUN ./$i $TESTOUTDIR/testfile.nc ;
+        fi
+} ; done
+
 ./put_all_kinds ${TESTOUTDIR}/blocking_log
 ./iput_all_kinds ${TESTOUTDIR}/nonblocking_log
+
 unset PNETCDF_HINTS
 
 for i in blocking nonblocking ; do { \
