@@ -39,7 +39,8 @@ H_SRCS = ncmpio_dispatch.h \
          rnd.h \
          ncmpidtype.h \
          macro.h \
-         subfile.h
+         subfile.h \
+		 log.h
 
 C_SRCS = ncmpio_dispatch.c \
          ncmpio_create.c \
@@ -62,7 +63,9 @@ C_SRCS = ncmpio_dispatch.c \
          fill.c \
          util.c \
          hash_func.c \
-		 log.c
+		 log.c \
+		 log_mem.c \
+		 log_flush.c 
 
 $(M4_SRCS:.m4=.c): Makefile
 

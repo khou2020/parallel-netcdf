@@ -245,12 +245,9 @@ ncmpii_sync(void *ncdp)
     /* Flush the log if flushing flag is set */
     if (ncp->nclogp != NULL){
         if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_SYNC){
-            /* Prevent recursive flushing if wait is called by log_flush */
-            if (ncp->nclogp->isflushing == NC_LOG_FALSE){
-                err = ncmpii_log_flush(ncp);       
-                if (status == NC_NOERR){
-                    status = err;                      
-                }
+            err = ncmpii_log_flush(ncp);       
+            if (status == NC_NOERR){
+                status = err;                      
             }
         }
     }

@@ -13,12 +13,6 @@
 
 #include <stddef.h>     /* size_t */
 #include <sys/types.h>  /* off_t */
-
-/* TODO: Switch to unix io
- * Std file io for logging
- */
-#include <stdio.h>
-#include <stdlib.h>
 #include <linux/limits.h>
 
 #include <dispatch.h>
@@ -453,10 +447,11 @@ struct NC {
     char         *path;     /* file name */
     struct NC    *old;      /* contains the previous NC during redef. */
 
-    struct NC_Log         *nclogp;    /* Log io structure, if log is not used, this should be set to null */
+    void *nclogp;    /* Log io structure, if log is not used, this should be set to null */
     
     size_t logflushbuffersize; /* Buffer size used to flush the log */
     int loghints;
+    int logflushing;
     char logbase[PATH_MAX];
 };
 
@@ -799,106 +794,6 @@ ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info);
 extern int
 ncmpiio_close(NC *ncp, int doUnlink);
 
-#define NC_LOG_TYPE_TEXT 1
-#define NC_LOG_TYPE_SCHAR 2
-#define NC_LOG_TYPE_UCHAR 3
-#define NC_LOG_TYPE_SHORT 4
-#define NC_LOG_TYPE_USHORT 5
-#define NC_LOG_TYPE_INT 6
-#define NC_LOG_TYPE_UINT 7
-#define NC_LOG_TYPE_FLOAT 8
-#define NC_LOG_TYPE_DOUBLE 9
-#define NC_LOG_TYPE_LONGLONG 10
-#define NC_LOG_TYPE_ULONGLONG 11
-#define NC_LOG_TYPE_NATIVE 12
-
-#define NC_LOG_API_KIND_VAR 1
-#define NC_LOG_API_KIND_VAR1 2
-#define NC_LOG_API_KIND_VARA 3
-#define NC_LOG_API_KIND_VARS 4
-
-#define NC_LOG_MAGIC_SIZE 8
-#define NC_LOG_MAGIC "PnetCDF0"
-
-#define NC_LOG_FORMAT_SIZE 8
-#define NC_LOG_FORMAT_CDF_MAGIC "CDF0\0\0\0\0"
-#define NC_LOG_FORMAT_HDF5_MAGIC "\211HDF\r\n\032\n"
-#define NC_LOG_FORMAT_BP_MAGIC "BP\0\0\0\0\0\0"
-
-#define NC_LOG_FALSE 0x00
-#define NC_LOG_TRUE 0x01
-
-/* PATH_MAX after padding to 4 byte allignment */
-#if PATH_MAX % 4 == 0
-#define NC_LOG_PATH_MAX PATH_MAX
-#elif PATH_MAX % 4 == 1
-#define NC_LOG_PATH_MAX PATH_MAX + 3
-#elif PATH_MAX % 4 == 2
-#define NC_LOG_PATH_MAX PATH_MAX + 2
-#elif PATH_MAX % 4 == 3
-#define NC_LOG_PATH_MAX PATH_MAX + 1
-#endif
-
-// #define SIZEOF_METADATAHEADER (NC_LOG_MAGIC_SIZE + NC_LOG_FORMAT_SIZE + 2 * SIZEOF_INT + 5 * SIZEOF_MPI_OFFSET + NC_LOG_PATH_MAX)
-
-/* Metadata header
- * Variable named according to the spec
- * ToDo: Replace int with 4 byte integer variable if int is not 4 byte
- */
-typedef struct NC_Log_metadataheader {
-    char magic[NC_LOG_MAGIC_SIZE];
-    char format[NC_LOG_MAGIC_SIZE];
-    int big_endian;
-    int is_external;
-    MPI_Offset num_ranks;
-    MPI_Offset rank_id;
-    MPI_Offset entry_begin;
-    MPI_Offset max_ndims;
-    MPI_Offset num_entries;
-    int basenamelen;
-    char basename[1];   /* The hack to keep basename inside the structure */
-} NC_Log_metadataheader;
-
-/* Metadata entry header 
- * Variable named according to the spec
- * ToDo: Replace int with 4 byte integer variable if int is not 4 byte
- */
-typedef struct NC_Log_metadataentry {
-    MPI_Offset esize;
-    int api_kind;
-    int itype;
-    int varid;
-    int ndims;
-    MPI_Offset data_off;
-    MPI_Offset data_len;
-} NC_Log_metadataentry;
-
-/* Buffer structure */
-typedef struct NC_Log_buffer {
-    size_t nalloc;
-    size_t nused;
-    void* buffer;
-} NC_Log_buffer;
-
-/* Vector structure */
-typedef struct NC_Log_sizearray {
-    size_t nalloc;
-    size_t nused;
-    size_t* values;
-} NC_Log_sizearray;
-
-/* Log structure */
-typedef struct NC_Log {
-    char filepath[NC_LOG_PATH_MAX];    /* path of the CDF file */
-    char metalogpath[NC_LOG_PATH_MAX];    /* path of metadata log */    
-    char datalogpath[NC_LOG_PATH_MAX];    /* path of data log */
-    int metalog_fd;    /* file handle of metadata log */
-    int datalog_fd;    /* file handle of data log */
-    size_t datalogsize;
-    NC_Log_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
-    NC_Log_sizearray entrydatasize;    /* Array of metadata entries */
-    int isflushing;   /* If log is flushing */
-} NC_Log;
 
 int ncmpii_log_create(NC *ncp);
 int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);

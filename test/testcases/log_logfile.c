@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <linux/limits.h>
 #include <../../src/drivers/ncmpio/nc.h>
+#include <../../src/drivers/ncmpio/log.h>
 
 #define MAXPROCESSES 1024
 #define WIDTH 6

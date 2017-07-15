@@ -163,6 +163,7 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
         nerr++;
         goto ERROR;
     }
+    start[1] = 0;
     memset(out, 0, sizeof(int) * np);
     ret = ncmpi_get_vara_int_all(ncid, varid, start, count, out);
     if (ret != NC_NOERR) {
@@ -180,6 +181,7 @@ CHECK_RET
      * Since fill mode is disalbed when log io is on, we can read anything if the data hasn't be flushed
      */
     start[0] = 1;
+    start[1] = rank;
     ret = ncmpi_put_var1_int_all(ncid, varid, start, &in);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_put_var1_int_all: %d\n", __LINE__, __FILE__, ret);
@@ -192,6 +194,7 @@ CHECK_RET
         nerr++;
         goto ERROR;
     }
+    start[1] = 0;
     memset(out, 0, sizeof(int) * np);
     ret = ncmpi_get_vara_int_all(ncid, varid, start, count, out);
     if (ret != NC_NOERR) {
@@ -209,12 +212,14 @@ CHECK_RET
      * Since fill mode is disalbed when log io is on, we can read anything if the data hasn't be flushed
      */
     start[0] = 2;
+    start[1] = rank;
     ret = ncmpi_put_var1_int_all(ncid, varid, start, &in);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_put_var1_int_all: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
+    start[1] = 0;
     memset(out, 0, sizeof(int) * np);
     ret = ncmpi_get_vara_int_all(ncid, varid, start, count, out);
     if (ret != NC_NOERR) {
@@ -239,12 +244,14 @@ CHECK_RET
     }
     
     start[0] = 3;
+    start[1] = rank;
     ret = ncmpi_put_var1_int(ncid, varid, start, &in);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_put_var1_int: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
+    start[1] = 0;
     memset(out, 0, sizeof(int) * np);
     ret = ncmpi_get_vara_int(ncid, varid, start, count, out);
     if (ret != NC_NOERR) {

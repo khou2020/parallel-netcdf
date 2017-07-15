@@ -151,7 +151,7 @@ ncmpii_igetput_varm(NC               *ncp,
 
     /*if (ncp->nclogp != NULL && rw_flag == WRITE_REQ){
         // Disable logging when the log is flushing via this api 
-        if (!ncp->nclogp->isflushing){
+        if (!ncp->logflushing){
             err = ncmpii_getput_varm(ncp, varp, start, count, stride, imap, buf, bufcount, buftype, rw_flag, INDEP_IO);
             if (err != NC_NOERR){
                 *reqid = NC_REQ_NULL;
@@ -291,7 +291,7 @@ ncmpii_igetput_varm(NC               *ncp,
         /* If log is enable */
         if (ncp->nclogp != NULL && rw_flag == WRITE_REQ){
             // Disable logging when the log is flushing via this api 
-            if (!ncp->nclogp->isflushing){
+            if (!ncp->logflushing){
                 /* Record in log file */
                 err = ncmpii_log_put_var(ncp, varp, start, count, stride, cbuf, ptype, bnelems * el_size);
                 if (err != NC_NOERR){
