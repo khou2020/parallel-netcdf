@@ -66,8 +66,8 @@ int main(int argc, char *argv[]){
     /* Initialize file info */
 	MPI_Info_create(&Info);
     MPI_Info_set(Info, "pnetcdf_log", "1");
-    /* Set defualt buffer size to 1/8 of the rows */
-    sprintf(bsize, "%d", SIZE * SIZE / 8 * sizeof(int));
+    /* Set defualt buffer size to 1/16 of the rows */
+    sprintf(bsize, "%d", SIZE * SIZE / 16 * sizeof(int));
     MPI_Info_set(Info, "pnetcdf_log_flush_buffer_size", bsize);
 
     /* Create new netcdf file */
@@ -113,10 +113,10 @@ int main(int argc, char *argv[]){
         buffer[i] = rank + 1;
     }
  
-    /* Write first 1/16 of the rows */
+    /* Write first 1/8 of the rows */
     start[0] = SIZE * rank;
     start[1] = 0;
-    count[0] = SIZE / 16;
+    count[0] = SIZE / 8;
     count[1] = SIZE; 
     ret = ncmpi_put_vara_int_all(ncid, varid, start, count, buffer);
     if (ret != NC_NOERR) {
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]){
     }
     
     /* Write remaining rows */
-    start[0] = SIZE * rank + SIZE / 16;
+    start[0] = SIZE * rank + SIZE / 8;
     start[1] = 0;
     count[0] = 1;
     count[1] = SIZE;

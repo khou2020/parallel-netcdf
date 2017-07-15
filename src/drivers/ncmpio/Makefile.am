@@ -31,7 +31,8 @@ M4_SRCS   = getput.m4 \
             varn.m4 \
             i_varn.m4 \
             attr.m4 \
-            convert_swap.m4
+            convert_swap.m4 \
+			log_flush.m4
 
 H_SRCS = ncmpio_dispatch.h \
          fbits.h \
