@@ -1,6 +1,9 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <dirent.h>
 #include <assert.h>
@@ -9,8 +12,6 @@
 #include <common.h>
 #include <pnetcdf.h>
 #include <log.h>
-#include <errno.h>
-#include <stdio.h>
 
 #define LOG_BUFFER_SIZE 1024 /* Size of initial metadata buffer */
 #define LOG_ARRAY_SIZE 32 /* Size of initial metadata offset list */    

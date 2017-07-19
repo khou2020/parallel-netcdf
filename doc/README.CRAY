@@ -71,7 +71,7 @@ Note on running with log io buffering enabled.
     #SBATCH -L SCRATCH
     #SBATCH -C haswell
     #DW jobdw capacity=1GB access_mode=striped type=scratch pool=sm_pool
-    export PNETCDF_HINTS="pnetcdf_log_base={$DW_JOB_STRIPED}"
+    export PNETCDF_HINTS="pnetcdf_log_base=${DW_JOB_STRIPED}"
     make ptest
 
 ===============================================================================
