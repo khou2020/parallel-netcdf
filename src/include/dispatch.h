@@ -105,6 +105,7 @@ typedef struct PNC PNC;
 /* subroutine prototypes */
 
 extern PNC_Dispatch* ncmpio_inq_dispatcher(void);
+extern PNC_Dispatch* nclogio_inq_dispatcher(void);
 
 extern int PNC_check_id(int ncid, PNC **pncp);
 

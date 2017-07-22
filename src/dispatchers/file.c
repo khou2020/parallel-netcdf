@@ -216,7 +216,7 @@ ncmpi_create(MPI_Comm    comm,
     /* TODO: Use cmode to tell the file format which is later used to select
      * the right dispatcher. For now, we have only one dispatcher, ncmpio.
      */
-    dispatcher = ncmpio_inq_dispatcher();
+    dispatcher = nclogio_inq_dispatcher();
 
 #if 0 /* refer to netCDF library's USE_REFCOUNT */
     /* check whether this path is already opened */
