@@ -12,45 +12,6 @@
 #include <dispatch.h>
 #include "log.h"
 
-int nclogio_create(MPI_Comm comm, const char *path, int cmode, int ncid, 
-                    MPI_Info info, void **ncdp) {
-    int ret;
-    NC_Log *nclogp = (NC_Log*)malloc(sizeof(NC_Log));
-    nclogp->ncmpio_dispatcher = ncmpio_inq_dispatcher();
-
-    ret = nclogp->ncmpio_dispatcher->create(comm, path, cmode, 
-                    ncid, info, &nclogp->ncp);
-    if (ret != NC_NOERR){
-        return ret;
-    }
-
-    *ncdp = nclogp;
-    
-    return NC_NOERR;
-}
-
-int nclogio_open(MPI_Comm comm, const char *path, int omode, int ncid, 
-                    MPI_Info info, void **ncdp) {
-    int ret;
-    NC_Log *nclogp = (NC_Log*)malloc(sizeof(NC_Log));
-    nclogp->ncmpio_dispatcher = ncmpio_inq_dispatcher();
-    
-    ret = nclogp->ncmpio_dispatcher->open(comm, path, omode, ncid, 
-                    info, &nclogp->ncp);
-    if (ret != NC_NOERR){
-        return ret;
-    }
-
-    *ncdp = nclogp;
-    
-    return NC_NOERR;
-}
-
-int nclogio_close(void *ncdp) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->close(nclogp->ncp);
-}
-
 int nclogio_enddef(void *ncdp) {
     NC_Log *nclogp = (NC_Log*)ncdp;   
     return nclogp->ncmpio_dispatcher->enddef(nclogp->ncp);
@@ -66,11 +27,6 @@ int nclogio__enddef(void *ncdp, MPI_Offset h_minfree, MPI_Offset v_align,
 int nclogio_redef(void *ncdp) {
     NC_Log *nclogp = (NC_Log*)ncdp;   
     return nclogp->ncmpio_dispatcher->redef(nclogp->ncp);
-}
-
-int nclogio_sync(void *ncdp) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->sync(nclogp->ncp);
 }
 
 int nclogio_abort(void *ncdp) {
@@ -250,33 +206,12 @@ int nclogio_get_var(void *ncdp, int varid, const MPI_Offset *start,
                     io_method);
 }
 
-int nclogio_put_var(void *ncdp, int varid, const MPI_Offset *start, 
-                    const MPI_Offset *count, const MPI_Offset *stride, 
-                    const MPI_Offset *imap, const void *buf, 
-                    MPI_Offset bufcount, MPI_Datatype buftype, 
-                    api_kind api, nc_type itype, int io_method) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->put_var(nclogp->ncp, varid, 
-                    start, count, stride, imap, buf, bufcount, buftype, api, 
-                    itype, io_method);
-}
-
 int nclogio_get_varn(void *ncdp, int varid, int num, 
                     MPI_Offset* const *starts, MPI_Offset* const *counts, 
                     void *buf, MPI_Offset bufcount, MPI_Datatype buftype, 
                     nc_type itype, int io_method) {
     NC_Log *nclogp = (NC_Log*)ncdp;   
     return nclogp->ncmpio_dispatcher->get_varn(nclogp->ncp, varid, 
-                    num, starts, counts, buf, bufcount, buftype, itype, 
-                    io_method);
-}
-
-int nclogio_put_varn(void *ncdp, int varid, int num, 
-                    MPI_Offset* const *starts, MPI_Offset* const *counts, 
-                    const void *buf, MPI_Offset bufcount, 
-                    MPI_Datatype buftype, nc_type itype, int io_method) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->put_varn(nclogp->ncp, varid, 
                     num, starts, counts, buf, bufcount, buftype, itype, 
                     io_method);
 }
@@ -307,52 +242,12 @@ int nclogio_iget_var(void *ncdp, int varid, const MPI_Offset *start,
                     itype);
 }
 
-int nclogio_iput_var(void *ncdp, int varid, const MPI_Offset *start, 
-                    const MPI_Offset *count, const MPI_Offset *stride, 
-                    const MPI_Offset *imap, const void *buf, 
-                    MPI_Offset bufcount, MPI_Datatype buftype, int *req, 
-                    api_kind api, nc_type itype) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->iput_var(nclogp->ncp, varid, 
-                    start, count, stride, imap, buf, bufcount, buftype, req, 
-                    api, itype);
-}
-
-int nclogio_bput_var(void *ncdp, int varid, const MPI_Offset *start, 
-                    const MPI_Offset *count, const MPI_Offset *stride, 
-                    const MPI_Offset *imap, const void *buf, 
-                    MPI_Offset bufcount, MPI_Datatype buftype, int *req, 
-                    api_kind api, nc_type itype) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->bput_var(nclogp->ncp, varid, 
-                    start, count, stride, imap, buf, bufcount, buftype, req, 
-                    api, itype);
-}
-
 int nclogio_iget_varn(void *ncdp, int varid, int num, 
                     MPI_Offset* const *starts, MPI_Offset* const *counts, 
                     void *buf, MPI_Offset bufcount, MPI_Datatype buftype, 
                     int *reqid, nc_type itype) {
     NC_Log *nclogp = (NC_Log*)ncdp;   
     return nclogp->ncmpio_dispatcher->iget_varn(nclogp->ncp, varid, 
-                    num, starts, counts, buf, bufcount, buftype, reqid, itype);
-}
-
-int nclogio_iput_varn(void *ncdp, int varid, int num, 
-                    MPI_Offset* const *starts, MPI_Offset* const *counts, 
-                    const void *buf, MPI_Offset bufcount, 
-                    MPI_Datatype buftype, int *reqid, nc_type itype) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->iput_varn(nclogp->ncp, varid, 
-                    num, starts, counts, buf, bufcount, buftype, reqid, itype);
-}
-
-int nclogio_bput_varn(void *ncdp, int varid, int num, 
-                    MPI_Offset* const *starts, MPI_Offset* const *counts, 
-                    const void *buf, MPI_Offset bufcount, 
-                    MPI_Datatype buftype, int *reqid, nc_type itype) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->bput_varn(nclogp->ncp, varid, 
                     num, starts, counts, buf, bufcount, buftype, reqid, itype);
 }
 
