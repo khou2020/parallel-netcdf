@@ -38,7 +38,7 @@
  */
 int nclogio_create(MPI_Comm comm, const char *path, int cmode, int ncid, 
                         MPI_Info info, void **ncdp) {
-    int err;
+    int err, status = NC_NOERR;
     NC_Log *nclogp;
 
     /* Allocate the structure */
@@ -49,17 +49,24 @@ int nclogio_create(MPI_Comm comm, const char *path, int cmode, int ncid,
     /* Create netcdf file with ncmpio driver */
     err = nclogp->ncmpio_dispatcher->create(comm, path, cmode, 
                     ncid, info, &nclogp->ncp);
-    if (err != NC_NOERR){
-        return err;
+    if (status == NC_NOERR){
+        status = err;
     }
- 
-    /* Mark the log to be initialized */
-    nclogp->metalog_fd = -1;
+    /* Initialize the log */
+    err = log_init(nclogp, comm, path, info);
+    if (status == NC_NOERR){
+        status = err;
+    }
         
     /* Return to caller */
     *ncdp = nclogp;
 
-    return NC_NOERR;
+ERROR:;
+    if (status != NC_NOERR){
+        free(nclogp);
+    }
+
+    return status;
 }
 
 /*
@@ -73,7 +80,7 @@ int nclogio_create(MPI_Comm comm, const char *path, int cmode, int ncid,
  */
 int nclogio_open(MPI_Comm comm, const char *path, int omode, int ncid, 
                     MPI_Info info, void **ncdp) {
-    int err;
+    int err, status = NC_NOERR;
     NC_Log *nclogp;
     
     /* Allocate the structure */
@@ -84,20 +91,31 @@ int nclogio_open(MPI_Comm comm, const char *path, int omode, int ncid,
     /* Create netcdf file with ncmpio driver */
     err = nclogp->ncmpio_dispatcher->open(comm, path, omode, ncid, 
                     info, &nclogp->ncp);
-    if (err != NC_NOERR){
-        return err;
+    if (status == NC_NOERR){
+        status = err;
     }
 
     /* Initialize the log */
     err = log_init(nclogp, comm, path, info);
-    if (err != NC_NOERR){
-        return err;
+    if (status == NC_NOERR){
+        status = err;
     }
     
+    /* Create log file */
+    err = log_create(nclogp);
+    if (status == NC_NOERR){
+        status = err;
+    }
+ 
     /* Return to caller */
     *ncdp = nclogp;
     
-    return NC_NOERR;
+ERROR:;
+    if (status != NC_NOERR){
+        free(nclogp);
+    }
+
+    return status;
 }
 
 /*
@@ -111,7 +129,7 @@ int nclogio_open(MPI_Comm comm, const char *path, int omode, int ncid,
  */
 int log_init(NC_Log *nclogp, MPI_Comm comm, const char *path, 
                 MPI_Info info) {
-    int i, rank, np, err, flag, hintflag;
+    int i, err, flag, hintflag;
     char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX];
     char hint[MPI_MAX_INFO_VAL];
     char *abspath, *fname;
@@ -121,12 +139,12 @@ int log_init(NC_Log *nclogp, MPI_Comm comm, const char *path,
     NC* ncp = (NC*)nclogp->ncp;
 
     /* Get rank and number of processes */
-    err = MPI_Comm_rank(comm, &rank);
+    err = MPI_Comm_rank(comm, &nclogp->rank);
     if (err != MPI_SUCCESS) {
         err = nclogio_handle_error(err, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(err);
     }
-    err = MPI_Comm_size(comm, &np);
+    err = MPI_Comm_size(comm, &nclogp->np);
     if (err != MPI_SUCCESS) {
         err = nclogio_handle_error(err, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(err);
@@ -140,7 +158,12 @@ int log_init(NC_Log *nclogp, MPI_Comm comm, const char *path,
      */
 
     /* Get log base dir from hint */
-    MPI_Info_get(info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, hint, &hintflag);
+    if (info != MPI_INFO_NULL) {
+        MPI_Info_get(info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, hint, &hintflag);
+    }
+    else{
+        hintflag = 0;
+    }
     if (!hintflag) {
         strncpy(hint, ".", 2);
     }
@@ -187,9 +210,38 @@ int log_init(NC_Log *nclogp, MPI_Comm comm, const char *path,
      * We need to create them before we can search for usable id
      * As log file name hasn't been determined, we need to use a dummy one here
      */
-    sprintf(nclogp->metalogpath, "%s%s_%d_%d.meta", logbase, fname, ncp->ncid, rank);
-    sprintf(nclogp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncp->ncid, rank);
-     
+    sprintf(nclogp->metalogpath, "%s%s_%d_%d.meta", logbase, fname, ncp->ncid, nclogp->rank);
+    sprintf(nclogp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncp->ncid, nclogp->rank);
+    
+    /* Set log file descriptor to NULL */
+    nclogp->datalog_fd = -1;
+    nclogp->metalog_fd = -1;
+    
+    /* Misc */
+    nclogp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
+ 
+    return NC_NOERR;
+}
+
+/*
+ * Initialize a new log structure
+ * IN    comm:    communicator passed to ncmpi_open
+ * IN    path:    path of the CDF file
+ * IN    cmode:   cmode of the CDF file
+ * IN    ncid:    ncid of the CDF file
+ * IN    info:    path of the CDF file
+ * OUT   ncdp:    Initialized log structure 
+ */
+int log_create(NC_Log *nclogp) {
+    int i, err, flag, hintflag;
+    char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX];
+    char hint[MPI_MAX_INFO_VAL];
+    char *abspath, *fname;
+    DIR *logdir;
+    size_t ioret, headersize;
+    NC_Log_metadataheader *headerp;
+    NC* ncp = (NC*)nclogp->ncp;
+         
     /* Initialize metadata buffer */
     err = nclogio_log_buffer_init(&nclogp->metadata);
     if (err != NC_NOERR){
@@ -201,14 +253,7 @@ int log_init(NC_Log *nclogp, MPI_Comm comm, const char *path,
     if (err != NC_NOERR){
         return err;
     }
-
-    /* Set log file descriptor to NULL */
-    nclogp->datalog_fd = -1;
-    nclogp->metalog_fd = -1;
- 
-    /* Misc */
-    nclogp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
-    
+       
     /* Initialize metadata header */
     
     /*
@@ -225,8 +270,8 @@ int log_init(NC_Log *nclogp, MPI_Comm comm, const char *path,
     memcpy(headerp->magic, NC_LOG_MAGIC, sizeof(headerp->magic));
     memcpy(headerp->format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(headerp->format));
     strncpy(headerp->basename, nclogp->filepath, headersize - sizeof(NC_Log_metadataheader) + 1);
-    headerp->rank_id = rank;   /* Rank */
-    headerp->num_ranks = np;   /* Number of processes */
+    headerp->rank_id = nclogp->rank;   /* Rank */
+    headerp->num_ranks = nclogp->np;   /* Number of processes */
     headerp->is_external = 0;    /* Without convertion before logging, data in native representation */
     /* Determine endianess */
 #ifdef WORDS_BIGENDIAN 

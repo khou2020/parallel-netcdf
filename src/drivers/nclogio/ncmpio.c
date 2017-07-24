@@ -12,17 +12,6 @@
 #include <dispatch.h>
 #include "log.h"
 
-int nclogio_enddef(void *ncdp) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->enddef(nclogp->ncp);
-}
-
-int nclogio__enddef(void *ncdp, MPI_Offset h_minfree, MPI_Offset v_align, 
-                MPI_Offset v_minfree, MPI_Offset r_align) {
-    NC_Log *nclogp = (NC_Log*)ncdp;   
-    return nclogp->ncmpio_dispatcher->_enddef(nclogp->ncp, h_minfree, 
-                v_align, v_minfree, r_align);
-}
 
 int nclogio_redef(void *ncdp) {
     NC_Log *nclogp = (NC_Log*)ncdp;   

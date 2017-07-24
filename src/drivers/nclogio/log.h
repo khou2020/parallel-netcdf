@@ -103,6 +103,7 @@ typedef struct NC_Log_sizearray {
 
 /* Log structure */
 typedef struct NC_Log {
+    int rank, np;
     char filepath[PATH_MAX];    /* path of the CDF file */
     char metalogpath[PATH_MAX];    /* path of metadata log */    
     char datalogpath[PATH_MAX];    /* path of data log */

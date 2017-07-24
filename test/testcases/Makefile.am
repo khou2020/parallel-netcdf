@@ -2,7 +2,7 @@
 # Copyright (C) 2003, Northwestern University and Argonne National Laboratory
 # See COPYRIGHT notice in top-level directory.
 #
-# $Id$
+# $Id: Makefile.am 3118 2017-06-18 20:13:06Z wkliao $
 #
 # @configure_input@
 
@@ -62,12 +62,22 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                scalar \
                null_args \
                tst_dimsizes \
-               redef1
+               redef1 \
+			   log_highdim \
+			   log_bsize \
+			   log_logfile
 
-M4_SRCS  = put_all_kinds.m4
+M4_SRCS  = put_all_kinds.m4 \
+		   iput_all_kinds.m4 \
+		   log_ctrl.m4
 
-TESTPROGRAMS += put_all_kinds
-BUILT_SOURCES = put_all_kinds.c
+TESTPROGRAMS += put_all_kinds \
+				iput_all_kinds \
+				log_ctrl
+
+BUILT_SOURCES = put_all_kinds.c \
+				iput_all_kinds.c \
+				log_ctrl.c
 
 if ENABLE_ERANGE_FILL
    M4_SRCS += erange_fill.m4
