@@ -335,7 +335,7 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
     }
     
     /* Log related hint */
-    ncp->loghints = NC_LOG_HINT_DEL_ON_CLOSE | NC_LOG_HINT_FLUSH_ON_READ;
+    ncp->loghints = NC_LOG_HINT_DEL_ON_CLOSE | NC_LOG_HINT_FLUSH_ON_READ | NC_LOG_HINT_FLUSH_ON_SYNC;
     MPI_Info_get(info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "1") == 0){
         ncp->loghints |= NC_LOG_HINT_LOG_ENABLE;
@@ -349,8 +349,8 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
         ncp->loghints |= NC_LOG_HINT_FLUSH_ON_WAIT;
     }
     MPI_Info_get(info, "pnetcdf_log_flush_on_sync", MPI_MAX_INFO_VAL - 1, value, &flag);
-    if (flag && strcasecmp(value, "1") == 0){
-        ncp->loghints |= NC_LOG_HINT_FLUSH_ON_SYNC;
+    if (flag && strcasecmp(value, "0") == 0){
+        ncp->loghints ^= NC_LOG_HINT_FLUSH_ON_SYNC;
     }
     MPI_Info_get(info, "pnetcdf_log_overwrite", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "1") == 0){

@@ -676,6 +676,9 @@
          nocorner_t(2) = nocorner_t(3) - nocorner_t(2)
       endif
 
+      err = nfmpi_sync(ncid)
+      if (err .NE. NF_NOERR) call check(err, "nfmpi_sync")
+
       err = nfmpi_inq_put_size(ncid, put_size)
       if (err .NE. NF_NOERR) &
           call check(err, "(sp) nfmpi_inq_put_size: ")
