@@ -32,8 +32,6 @@
 #define SINGLEPROCRANK 2
 #define SINGLEPROCnp 5
 
-int rank, np; /* Total process; Rank */
-
 /* 
  * This function test if log file can be successfully created
  * It create a 1-D variable of size np and check if corresponding log file is created
@@ -44,6 +42,7 @@ int rank, np; /* Total process; Rank */
 int main(int argc, char* argv[]) {
     int ret, nerr = 0;
     int meta_fd, data_fd;
+    int np, rank;
     char *pathret, *fname;
     char metalogpath[PATH_MAX];
     char datalogpath[PATH_MAX];
@@ -51,11 +50,13 @@ int main(int argc, char* argv[]) {
     char absfilename[PATH_MAX];
     char abslogbase[PATH_MAX];
     char logbase[PATH_MAX];
-    struct stat metastat, datastat;
-	int ncid, varid, dimid, buf;    /* Netcdf file id and variable id */
+    //struct stat metastat, datastat;
+	size_t metasize, datasize;
+    int ncid, varid, dimid, buf;    /* Netcdf file id and variable id */
     MPI_Offset start;
     MPI_Info Info;
- 
+    NC_Log_file log;
+
     /* Initialize MPI */
     MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &np);
@@ -99,8 +100,14 @@ int main(int argc, char* argv[]) {
     }
     
     /* Determine log file name */
-    sprintf(metalogpath, "%s%s_%d_%d.meta", abslogbase, fname, ncid, rank);
-    sprintf(datalogpath, "%s%s_%d_%d.data", abslogbase, fname, ncid, rank);
+    if (fname == filename){
+        sprintf(metalogpath, "%s/%s_%d_%d.meta", abslogbase, fname, ncid, rank);
+        sprintf(datalogpath, "%s/%s_%d_%d.data", abslogbase, fname, ncid, rank);
+    }
+    else {
+        sprintf(metalogpath, "%s%s_%d_%d.meta", abslogbase, fname, ncid, rank);
+        sprintf(datalogpath, "%s%s_%d_%d.data", abslogbase, fname, ncid, rank);
+    }
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
@@ -149,35 +156,7 @@ int main(int argc, char* argv[]) {
         nerr++;
         goto ERROR;
     }
-    
-    /* Open log file */
-    meta_fd = open(metalogpath, O_RDONLY);
-    if (meta_fd < 0){
-        printf("Error at line %d in %s: open: %d\n", __LINE__, __FILE__, meta_fd);
-        nerr++;
-        goto ERROR;
-    }
-    data_fd = open(datalogpath, O_RDONLY);
-    if (meta_fd < 0){
-        printf("Error at line %d in %s: open: %d\n", __LINE__, __FILE__, data_fd);
-        nerr++;
-        goto ERROR;
-    }
-
-    /* Querying file status */
-    ret = fstat(meta_fd, &metastat);
-    if (ret < 0){
-        printf("Error at line %d in %s: fstat: %d\n", __LINE__, __FILE__, ret);
-        nerr++;
-        goto ERROR;
-    }
-    ret = fstat(data_fd, &datastat);
-    if (ret < 0){
-        printf("Error at line %d in %s: fstat: %d\n", __LINE__, __FILE__, ret);
-        nerr++;
-        goto ERROR;
-    }
-    
+        
     /* 
      * Resolve absolute path
      * We need absolute file name to calculate size of metadata header size
@@ -188,19 +167,46 @@ int main(int argc, char* argv[]) {
         nerr++;
         goto ERROR;
     } 
-
-    /* Check log file size */
-    if (metastat.st_size != sizeof(NC_Log_metadataheader) + strlen(absfilename)){
-        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename), metastat.st_size);
+    
+    /* Check log file status */
+    ret = ncmpi_inq_logfile(ncid, filename, logbase, rank, &log, &metasize, &datasize);
+    if (ret != NC_NOERR){
+        printf("Error at line %d in %s: ncmpi_inq_logfile: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
-    if (datastat.st_size != 8){
-        printf("Error at line %d in %s: expecting data log size = %d but got %d\n", __LINE__, __FILE__, 8, datastat.st_size);
+    if (metasize != sizeof(NC_Log_metadataheader) + strlen(absfilename)){
+        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename), metasize);
         nerr++;
         goto ERROR;
     }
-        
+    if (datasize != 8){
+        printf("Error at line %d in %s: expecting data log size = %d but got %d\n", __LINE__, __FILE__, 8, datasize);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.header->num_entries != 0){
+        printf("Error at line %d in %s: expecting num_entries = %d but got %d\n", __LINE__, __FILE__, 1, log.header->num_entries);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.header->num_ranks != np){
+        printf("Error at line %d in %s: expecting np = %d but got %d\n", __LINE__, __FILE__, np, log.header->num_ranks);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.header->max_ndims != 1){
+        printf("Error at line %d in %s: expecting max_ndims = %d but got %d\n", __LINE__, __FILE__, 1, log.header->max_ndims);
+        nerr++;
+        goto ERROR;
+    }
+    ret = ncmpi_free_logfile(&log);
+    if (ret != NC_NOERR){
+        printf("Error at line %d in %s: ncmpi_free_logfile: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+ 
     /* Write rank to variable */
     start = rank;
     ret = ncmpi_put_var1_int_all(ncid, varid, &start, &rank);
@@ -210,35 +216,84 @@ int main(int argc, char* argv[]) {
         goto ERROR;
     }
     
-    /* Querying file status */
-    ret = fstat(meta_fd, &metastat);
-    if (ret < 0){
-        printf("Error at line %d in %s: fstat: %d\n", __LINE__, __FILE__, ret);
+    /* Check log file status */
+    ret = ncmpi_inq_logfile(ncid, filename, logbase, rank, &log, &metasize, &datasize);
+    if (ret != NC_NOERR){
+        printf("Error at line %d in %s: ncmpi_inq_logfile: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
-    ret = fstat(data_fd, &datastat);
-    if (ret < 0){
-        printf("Error at line %d in %s: fstat: %d\n", __LINE__, __FILE__, ret);
-        nerr++;
-        goto ERROR;
-    } 
- 
-    /* Check log file size */
-    if (metastat.st_size != sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3){
-        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3, metastat.st_size);
+    if (metasize != sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3){
+        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3, metasize);
         nerr++;
         goto ERROR;
     }
-    if (datastat.st_size != 8 + sizeof(int)){
-        printf("Error at line %d in %s: expecting data log size = %d but got %d\n", __LINE__, __FILE__, 8 + sizeof(int), datastat.st_size);
+    if (datasize != 8 + sizeof(int)){
+        printf("Error at line %d in %s: expecting data log size = %d but got %d\n", __LINE__, __FILE__, 8 + sizeof(int), datasize);
         nerr++;
         goto ERROR;
     }
-    
-    /* Close log file */
-    close(meta_fd);
-    close(data_fd);
+    if (log.header->num_entries != 1){
+        printf("Error at line %d in %s: expecting num_entries = %d but got %d\n", __LINE__, __FILE__, 1, log.header->num_entries);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.header->num_ranks != np){
+        printf("Error at line %d in %s: expecting np = %d but got %d\n", __LINE__, __FILE__, np, log.header->num_ranks);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.header->max_ndims != 1){
+        printf("Error at line %d in %s: expecting max_ndims = %d but got %d\n", __LINE__, __FILE__, 1, log.header->max_ndims);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].header->api_kind != NC_LOG_API_KIND_VARA){
+        printf("Error at line %d in %s: expecting api_kind = %d but got %d\n", __LINE__, __FILE__, NC_LOG_API_KIND_VARA, log.entries[0].header->api_kind);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].header->itype != NC_LOG_TYPE_INT){
+        printf("Error at line %d in %s: expecting itype = %d but got %d\n", __LINE__, __FILE__, NC_LOG_TYPE_INT, log.entries[0].header->itype);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].header->varid != varid){
+        printf("Error at line %d in %s: expecting varid = %d but got %d\n", __LINE__, __FILE__, varid, log.entries[0].header->varid);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].header->ndims != 1){
+        printf("Error at line %d in %s: expecting ndims = %d but got %d\n", __LINE__, __FILE__, 1, log.entries[0].header->ndims);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].header->data_off != 8){
+        printf("Error at line %d in %s: expecting data_off = %d but got %d\n", __LINE__, __FILE__, 8, log.entries[0].header->data_off);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].header->data_len != sizeof(int)){
+        printf("Error at line %d in %s: expecting data_len = %d but got %d\n", __LINE__, __FILE__, sizeof(int), log.entries[0].header->data_len);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].start[0] != rank){
+        printf("Error at line %d in %s: expecting start = %d but got %d\n", __LINE__, __FILE__, rank, log.entries[0].start[0]);
+        nerr++;
+        goto ERROR;
+    }
+    if (log.entries[0].count[0] != 1){
+        printf("Error at line %d in %s: expecting count = %d but got %d\n", __LINE__, __FILE__, 1, log.entries[0].count[0]);
+        nerr++;
+        goto ERROR;
+    }
+    ret = ncmpi_free_logfile(&log);
+    if (ret != NC_NOERR){
+        printf("Error at line %d in %s: ncmpi_free_logfile: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
 
     /* Close file */
     ret = ncmpi_close(ncid);
@@ -248,25 +303,15 @@ int main(int argc, char* argv[]) {
         goto ERROR;
     }
    
-   /* Open log file, should fail*/
-    meta_fd = open(metalogpath, O_RDONLY);
-    if (meta_fd >= 0){
-        printf("Error at line %d in %s: metadata log not deleted");
+    /* Check log file, should fail*/
+    ret = ncmpi_inq_logfile(ncid, filename, logbase, rank, &log, &metasize, &datasize);
+    if (ret != NC_EBAD_FILE){
+        printf("Error at line %d in %s: ncmpi_inq_logfile: %d\n", __LINE__, __FILE__, ret);
         nerr++;
         goto ERROR;
     }
-    data_fd = open(datalogpath, O_RDONLY);
-    if (meta_fd >= 0){
-        printf("Error at line %d in %s: data log not deleted");
-        nerr++;
-        goto ERROR;
-    }
-    
-    /* Close log file */
-    close(meta_fd);
-    close(data_fd);
- 
-	/* Check if PnetCDF freed all internal malloc */
+	
+    /* Check if PnetCDF freed all internal malloc */
     MPI_Offset malloc_size, sum_size;
     ret = ncmpi_inq_malloc_size(&malloc_size);
     if (ret == NC_NOERR) {

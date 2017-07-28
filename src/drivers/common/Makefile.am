@@ -21,7 +21,8 @@ noinst_LTLIBRARIES = libcommon.la
 H_SRCS = utf8proc_data.h
 
 C_SRCS = utf8proc.c \
-         mem_alloc.c
+         mem_alloc.c \
+		 logfile.c
 
 libcommon_la_SOURCES = $(C_SRCS) $(H_SRCS)
 

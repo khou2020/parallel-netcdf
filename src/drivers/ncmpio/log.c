@@ -72,7 +72,6 @@ int ncmpii_log_create(NC* ncp) {
     closedir(logdir);
 
     /* Resolve absolute path */    
-    memset(nclogp->filepath, 0, sizeof(nclogp->filepath));
     abspath = realpath(ncp->path, basename);
     if (abspath == NULL){
         /* Can not resolve absolute path */
@@ -135,7 +134,7 @@ int ncmpii_log_create(NC* ncp) {
     /* Fill up the metadata log header */
     memcpy(headerp->magic, NC_LOG_MAGIC, sizeof(headerp->magic));
     memcpy(headerp->format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(headerp->format));
-    strncpy(headerp->basename, nclogp->filepath, headersize - sizeof(NC_Log_metadataheader) + 1);
+    strncpy((char*)headerp->basename, basename, headersize - sizeof(NC_Log_metadataheader) + 1);
     headerp->rank_id = rank;   /* Rank */
     headerp->num_ranks = np;   /* Number of processes */
     headerp->is_external = 0;    /* Without convertion before logging, data in native representation */
@@ -489,7 +488,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
-    ioret = lseek(nclogp->metalog_fd, sizeof(NC_Log_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries), SEEK_SET);
+    ioret = lseek(nclogp->metalog_fd, 56, SEEK_SET);
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
@@ -546,7 +545,7 @@ int ncmpii_log_flush(NC* ncp) {
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
-    ioret = lseek(nclogp->metalog_fd, sizeof(NC_Log_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries), SEEK_SET);
+    ioret = lseek(nclogp->metalog_fd, 56, SEEK_SET);
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }

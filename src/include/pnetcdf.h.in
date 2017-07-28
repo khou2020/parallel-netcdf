@@ -11,6 +11,7 @@
 #define _PNETCDF_H
 
 #include <mpi.h>
+#include <stdlib.h> /* size_t */
 
 #define PNETCDF_VERSION       "@PNETCDF_VERSION@"
 #define PNETCDF_VERSION_MAJOR @PNETCDF_VERSION_MAJOR@
@@ -825,6 +826,7 @@ ncmpi_inq_var_fill(int ncid, int varid, int *no_fill, void *fill_value);
 
 extern int
 ncmpi_inq_path(int ncid, int *pathlen, char *path);
+
 
 /* End Inquiry Functions */
 
@@ -4465,6 +4467,56 @@ ncmpi_mget_varm_ulonglong_all(int ncid, int num, int *varids,
                MPI_Offset* const *starts, MPI_Offset* const *counts,
                MPI_Offset* const *strides, MPI_Offset* const *imaps,
                unsigned long long *bufs[]);
+
+/* Log related */
+
+typedef struct NC_Log_entryheader {
+    MPI_Offset esize;
+    int api_kind;
+    int itype;
+    int varid;
+    int ndims;
+    MPI_Offset data_off;
+    MPI_Offset data_len;
+} NC_Log_entryheader;
+
+typedef struct NC_Log_header {
+    char magic[8];
+    char format[8];
+    int big_endian;
+    int is_external;
+    MPI_Offset num_ranks;
+    MPI_Offset rank_id;
+    MPI_Offset entry_begin;
+    MPI_Offset max_ndims;
+    MPI_Offset num_entries;
+    int basenamelen;
+    char basename[1];   
+} NC_Log_header;
+
+typedef struct NC_Log_entry {
+    NC_Log_entryheader *header;
+    MPI_Offset *start;
+    MPI_Offset *count;
+    MPI_Offset *stride;
+} NC_Log_entry;
+
+typedef struct NC_Log_file {
+    NC_Log_header *header;
+    char *buffer;
+    NC_Log_entry *entries;
+} NC_Log_file;
+
+extern int 
+ncmpi_inq_logfile_path(int ncid, char *path, char *logbase, int rank, 
+                char *metapath, char *datapath, char *abs_path);
+
+extern int 
+ncmpi_inq_logfile(int ncid, char *path, char* logbase, int rank, 
+            NC_Log_file *metalog, size_t *metasize, size_t *datasize);
+extern int 
+ncmpi_free_logfile(NC_Log_file *metalog);
+
 
 /* End Skip Prototypes for Fortran binding */
 

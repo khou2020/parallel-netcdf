@@ -47,7 +47,7 @@
  */
 typedef struct NC_Log_metadataheader {
     char magic[NC_LOG_MAGIC_SIZE];
-    char format[NC_LOG_MAGIC_SIZE];
+    char format[NC_LOG_FORMAT_SIZE];
     int big_endian;
     int is_external;
     MPI_Offset num_ranks;
@@ -89,7 +89,6 @@ typedef struct NC_Log_sizearray {
 
 /* Log structure */
 typedef struct NC_Log {
-    char filepath[PATH_MAX];    /* path of the CDF file */
     char metalogpath[PATH_MAX];    /* path of metadata log */    
     char datalogpath[PATH_MAX];    /* path of data log */
     int metalog_fd;    /* file handle of metadata log */
