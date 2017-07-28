@@ -88,8 +88,8 @@ define(`PREPAREPARAM',dnl
 
                 /* Translate varid to varp */
                 err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
-                if (err != NC_NOERR){
-                    return err;
+                if (status == NC_NOERR) {
+                    status = err;
                 }
 
 ')dnl
@@ -126,8 +126,8 @@ define(`FLUSHBATCH',dnl
                 
                 /* Replay event with non-blocking call */
                 err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
-                if (err != NC_NOERR) {
-                    return err;
+                if (status == NC_NOERR) {
+                    status = err;
                 }
                 
                 /* Move to next position */
@@ -144,14 +144,14 @@ define(`FLUSHBATCH',dnl
              */
             if (NC_indep(ncp)) {
                 err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
-                if (err != NC_NOERR) {
-                    return err;
+                if (status == NC_NOERR) {
+                    status = err;
                 }
             }
             else{
                 err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
-                if (err != NC_NOERR) {
-                    return err;
+                if (status == NC_NOERR) {
+                    status = err;
                 }
             }
 
@@ -270,7 +270,7 @@ int split_iput(NC *ncp, NC_var *varp, MPI_Offset *start, MPI_Offset *count, MPI_
  * IN    nclogp:    log structure
  */
 int log_flush(NC *ncp) {
-    int i, j, err, fd;
+    int i, j, err, fd, status = NC_NOERR;
     size_t databufferused, databuffersize, databufferidx;
     ssize_t ioret;
     NC_Log_metadataentry *entryp;
@@ -345,10 +345,10 @@ FLUSHBATCH
                        
             /* Replay event in parts */
             err = split_iput(ncp, varp, start, count, stride, buftype, entryp->data_off, entryp->data_len, databuffersize, databuffer);
-            if (err != NC_NOERR) {
-                return err;
+            if (status == NC_NOERR) {
+                status = err;
             }
-            
+                       
             /* Update batch status */
             databufferidx += entryp->data_len;
             databufferused = 0;
@@ -395,7 +395,7 @@ FLUSHBATCH
     }
 #endif
     
-    return NC_NOERR;
+    return status;
 }
 
 

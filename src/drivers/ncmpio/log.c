@@ -348,6 +348,9 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     case MPI_UNSIGNED_CHAR:    /* put_*_uchar */
         itype = NC_LOG_TYPE_UCHAR;
         break;
+    case MPI_SHORT: /* put_*_ushort */
+        itype = NC_LOG_TYPE_SHORT;
+        break;
     case MPI_UNSIGNED_SHORT: /* put_*_ushort */
         itype = NC_LOG_TYPE_USHORT;
         break;
