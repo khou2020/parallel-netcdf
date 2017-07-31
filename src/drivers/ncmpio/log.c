@@ -207,6 +207,14 @@ ERROR:;
         NCI_Free(nclogp);
     }
     
+    if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
+        err = ncmpii_log_check_header(ncp, 0);
+        if (err != NC_NOERR){
+            printf("Log check header fail\n");
+            return err;
+        }
+    }
+ 
     return NC_NOERR;
 }
 
@@ -512,7 +520,20 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
 
     /* Record data size */
     ncmpii_log_sizearray_append(&nclogp->entrydatasize, entryp->data_len);
-    
+   
+    if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
+        if (stride == NULL){
+            err = ncmpii_log_check_put(ncp, varid, NC_LOG_API_KIND_VARA, itype, PackedSize, start, count, stride, headerp->num_entries);
+        }
+        else{
+            err = ncmpii_log_check_put(ncp, varid, NC_LOG_API_KIND_VARS, itype, PackedSize, start, count, stride, headerp->num_entries);
+        }
+        if (err != NC_NOERR){
+            printf("Log check put fail\n");
+            return err;
+        }
+    }
+
     return NC_NOERR;
 }
 
@@ -577,6 +598,14 @@ int ncmpii_log_flush(NC* ncp) {
         DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
     }
     nclogp->datalogsize = 8;
+    
+    if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
+        err = ncmpii_log_check_header(ncp, 0);
+        if (err != NC_NOERR){
+            printf("Log check header fail\n");
+            return err;
+        }
+    }
 
     return NC_NOERR;
 }

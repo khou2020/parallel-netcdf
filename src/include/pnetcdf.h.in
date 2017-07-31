@@ -167,7 +167,8 @@ typedef int nc_type;
 #define NC_LOG_HINT_FLUSH_ON_WAIT 0x04
 #define NC_LOG_HINT_FLUSH_ON_SYNC 0x08
 #define NC_LOG_HINT_FLUSH_ON_READ 0x10
-#define NC_LOG_HINT_LOG_OVERWRITE 0x16
+#define NC_LOG_HINT_LOG_OVERWRITE 0x20
+#define NC_LOG_HINT_LOG_CHECK 0x40
 
 /** \deprecated The following flag currently is ignored, but use in
  * nc_open() or nc_create() may someday support use of advisory
@@ -608,6 +609,7 @@ by the desired type. */
 #define NC_EWRONGBASE		    (-302) /**< Base name not match */
 #define NC_ENODATALOG           (-303) /**< Data log does not exist */
 #define NC_ELOGNOTINIT           (-304) /**< Log file hasn't initialized */
+#define NC_ELOGCHECK           (-305) /**< Log file check fail */
 
 #define NC_EMULTIDEFINE_FIRST		NC_EMULTIDEFINE
 #define NC_EMULTIDEFINE_LAST		NC_EMULTIDEFINE_CMODE

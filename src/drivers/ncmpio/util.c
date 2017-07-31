@@ -356,6 +356,10 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
     if (flag && strcasecmp(value, "1") == 0){
         ncp->loghints |= NC_LOG_HINT_LOG_OVERWRITE;
     }
+    MPI_Info_get(info, "pnetcdf_log_check", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag && strcasecmp(value, "1") == 0){
+        ncp->loghints |= NC_LOG_HINT_LOG_CHECK;
+    }
     MPI_Info_get(info, "pnetcdf_log_flush_on_read", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "0") == 0){
         ncp->loghints ^= NC_LOG_HINT_FLUSH_ON_READ;

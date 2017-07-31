@@ -1158,6 +1158,9 @@ ncmpii_inq_misc(void       *ncdp,
             if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_WAIT) {
                 MPI_Info_set(*info_used, "pnetcdf_log_flush_on_wait", "1");
             }
+            if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
+                MPI_Info_set(*info_used, "pnetcdf_log_check", "1");
+            }
         }
 
 #ifdef ENABLE_SUBFILING

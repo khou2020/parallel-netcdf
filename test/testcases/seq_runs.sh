@@ -21,7 +21,7 @@ diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
 ./put_all_kinds ${TESTOUTDIR}/blocking
 ./iput_all_kinds ${TESTOUTDIR}/nonblocking
 
-export PNETCDF_HINTS="pnetcdf_log=1"
+export PNETCDF_HINTS="pnetcdf_log=1;pnetcdf_log_check=1"
 
 for i in $TESTPROGRAMS; do { 
         echo $i
