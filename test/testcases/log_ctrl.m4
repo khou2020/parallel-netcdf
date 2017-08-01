@@ -21,7 +21,7 @@ define(`TEST_HINT',dnl
      * Flush on wait: $2
      * Flush on wait: $3 
      */
-    nerr += test_hints(filename, "$1", "$2", "$3");
+    nerr += test_hints(filename, "$1", "$2", "$3", 1);
 ')dnl
 
 define(`TEST_ENV',dnl
@@ -87,7 +87,7 @@ int rank, np; /* Total process; Rank */
  * 1 2 3 ...
  * 1 2 3 ...
  */
-int test_hints(const char* filename, char* flushonwait, char* flushonsync, char* flushonread) {
+int test_hints(const char* filename, char* flushonwait, char* flushonsync, char* flushonread, int sethint) {
     int i, j, in = rank + 1;
     int *out = NULL;
     int ret, nerr = 0;
@@ -98,16 +98,18 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
     
     /* Initialize file info */
     MPI_Info_create(&Info);
-    MPI_Info_set(Info, "pnetcdf_log", "1");
-    MPI_Info_set(Info, "pnetcdf_log_flush_on_wait", flushonwait);
-    MPI_Info_set(Info, "pnetcdf_log_flush_on_sync", flushonsync);
-    MPI_Info_set(Info, "pnetcdf_log_flush_on_read", flushonread);
-
+    MPI_Info_set(Info, "pnetcdf_log", "enable");
+    if (sethint){
+        MPI_Info_set(Info, "pnetcdf_log_flush_on_wait", flushonwait);
+        MPI_Info_set(Info, "pnetcdf_log_flush_on_sync", flushonsync);
+        MPI_Info_set(Info, "pnetcdf_log_flush_on_read", flushonread);
+    }
+    
     /* Allocate buffer */
     out = (int*)malloc(sizeof(int) * np);
 
     /* Create new netcdf file */
-    ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
+    ret = ncmpi_create(MPI_COMM_WORLD, filename, 0, Info, &ncid);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
         nerr++;
@@ -171,7 +173,7 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
         nerr++;
         goto ERROR;
     }
-    if (atoi(flushonwait)){
+    if (strcmp(flushonwait, "enable") == 0){
 CHECK_RET
     }
 
@@ -202,7 +204,7 @@ CHECK_RET
         nerr++;
         goto ERROR;
     }
-    if (atoi(flushonsync)){
+    if (strcmp(flushonsync, "enable") == 0){
 CHECK_RET
     }
    
@@ -227,7 +229,7 @@ CHECK_RET
         nerr++;
         goto ERROR;
     }
-    if (atoi(flushonread)){
+    if (strcmp(flushonread, "enable") == 0){
 CHECK_RET
     }
     
@@ -260,7 +262,7 @@ CHECK_RET
         goto ERROR;
     }
     /* Value from other processes may not relfect, only check value from itself */
-    if (atoi(flushonread) && out[rank] != in){
+    if ((strcmp(flushonread, "enable") == 0) && out[rank] != in){
         printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, rank, in, out[rank]);
         nerr++;
         goto ERROR;
@@ -319,7 +321,7 @@ int test_env(const char* filename, char* flushonwait, char* flushonsync, char* f
     char env[1024];
 
     /* Set environment variable */
-    sprintf(env, "pnetcdf_log=1;pnetcdf_log_flush_on_wait=%s;pnetcdf_log_flush_on_sync=%s;pnetcdf_log_flush_on_read=%s", flushonwait, flushonsync, flushonread);
+    sprintf(env, "pnetcdf_log=enable;pnetcdf_log_flush_on_wait=%s;pnetcdf_log_flush_on_sync=%s;pnetcdf_log_flush_on_read=%s", flushonwait, flushonsync, flushonread);
     ret = setenv("PNETCDF_HINTS", env, 1);
     if (ret != 0) {
         printf("Error at line %d in %s: setenv: %d\n", __LINE__, __FILE__, ret);
@@ -328,7 +330,7 @@ int test_env(const char* filename, char* flushonwait, char* flushonsync, char* f
     }
     
     /* Run test, the hints should be overriten by the environment variable */
-    nerr += test_hints(filename, flushonwait, flushonsync, flushonread);
+    nerr += test_hints(filename, flushonwait, flushonsync, flushonread, 0);
 
 ERROR:;
 
@@ -361,11 +363,11 @@ int main(int argc, char* argv[]) {
         
     /* Perform test with hints */
 
-foreach(`x', (`0, 1'), `foreach(`y', (`0, 1'), `foreach(`z', (`0, 1'), `TEST_HINT(x, y, z)')')')dnl
+foreach(`x', (`enable, disable'), `foreach(`y', (`enable, disable'), `foreach(`z', (`enable, disable'), `TEST_HINT(x, y, z)')')')dnl
 
     /* Perform test with environment variable */
  
-foreach(`x', (`0, 1'), `foreach(`y', (`0, 1'), `foreach(`z', (`0, 1'), `TEST_ENV(x, y, z)')')')dnl
+foreach(`x', (`enable, disable'), `foreach(`y', (`enable, disable'), `foreach(`z', (`enable, disable'), `TEST_ENV(x, y, z)')')')dnl
  
 	/* check if PnetCDF freed all internal malloc */
     MPI_Offset malloc_size, sum_size;
