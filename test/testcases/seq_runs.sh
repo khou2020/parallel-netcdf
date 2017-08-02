@@ -24,11 +24,7 @@ diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
 export PNETCDF_HINTS="pnetcdf_bb=enable;pnetcdf_bb_check=enable"
 
 for i in $TESTPROGRAMS; do { 
-        echo $i
-        # The only 2 testcase not supported by log is test_erange and erange_fill
-        if [ $i ~= "test_erange" ] || [ $i ~= "erange_fill" ]; then
-            $TESTSEQRUN ./$i $TESTOUTDIR/testfile.nc ;
-        fi
+        $TESTSEQRUN ./$i $TESTOUTDIR/testfile.nc ;
 } ; done
 
 ./put_all_kinds ${TESTOUTDIR}/blocking_log

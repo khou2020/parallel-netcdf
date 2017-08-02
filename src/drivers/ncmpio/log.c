@@ -548,7 +548,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
  * IN    nclogp:    log structure
  */
 int ncmpii_log_flush(NC* ncp) {
-    int err;
+    int err, status = NC_NOERR;
     size_t ioret;
     NC_Log *nclogp = ncp->nclogp;
     NC_Log_metadataheader *headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
@@ -560,9 +560,12 @@ int ncmpii_log_flush(NC* ncp) {
     
     /* Replay log file */
     ncp->logflushing = 1;
-    if ((err = log_flush(ncp)) != NC_NOERR) {
+    err = log_flush(ncp);
+    if (err != NC_NOERR) {
         ncp->logflushing = 0;
-        return err;
+        if (status == NC_NOERR){
+            DEBUG_ASSIGN_ERROR(status, err);
+        }
     }
     ncp->logflushing = 0;
     
@@ -575,7 +578,10 @@ int ncmpii_log_flush(NC* ncp) {
      */
     ioret = lseek(nclogp->metalog_fd, 56, SEEK_SET);
     if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+        err = ncmpii_handle_io_error("lseek");
+        if (status == NC_NOERR){
+            DEBUG_ASSIGN_ERROR(status, err);
+        }
     }
     /* Overwrite num_entries
      * This marks the completion of flush
@@ -586,10 +592,14 @@ int ncmpii_log_flush(NC* ncp) {
         if (err == NC_EFILE){
             err = NC_EWRITE;
         }
-        DEBUG_RETURN_ERROR(err);
+        if (status == NC_NOERR){
+            DEBUG_ASSIGN_ERROR(status, err);
+        }
     }
     if (ioret != SIZEOF_MPI_OFFSET){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
+        if (status == NC_NOERR){
+            DEBUG_ASSIGN_ERROR(status, err);
+        }
     }
 
     /* Reset metadata buffer and entry array status */
@@ -599,7 +609,10 @@ int ncmpii_log_flush(NC* ncp) {
     /* Rewind data log file descriptors and reset the size */
     ioret = lseek(nclogp->datalog_fd, 8, SEEK_SET);
     if (ioret != 8){
-        DEBUG_RETURN_ERROR(ncmpii_handle_io_error("lseek"));
+        err = ncmpii_handle_io_error("lseek");
+        if (status == NC_NOERR){
+            DEBUG_ASSIGN_ERROR(status, err);
+        }
     }
     nclogp->datalogsize = 8;
    
@@ -607,12 +620,16 @@ int ncmpii_log_flush(NC* ncp) {
     if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
         err = ncmpii_log_check_header(ncp, 0);
         if (err != NC_NOERR){
+            printf("*********************************************************\n");
             printf("Log check header fail\n");
-            return err;
+            printf("*********************************************************\n");
+            if (status == NC_NOERR){
+                DEBUG_ASSIGN_ERROR(status, err);
+            }
         }
     }
 #endif
 
-    return NC_NOERR;
+    return status;
 }
 
