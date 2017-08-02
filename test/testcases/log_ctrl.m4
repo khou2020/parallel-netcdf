@@ -98,11 +98,11 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
     
     /* Initialize file info */
     MPI_Info_create(&Info);
-    MPI_Info_set(Info, "pnetcdf_log", "enable");
+    MPI_Info_set(Info, "pnetcdf_bb", "enable");
     if (sethint){
-        MPI_Info_set(Info, "pnetcdf_log_flush_on_wait", flushonwait);
-        MPI_Info_set(Info, "pnetcdf_log_flush_on_sync", flushonsync);
-        MPI_Info_set(Info, "pnetcdf_log_flush_on_read", flushonread);
+        MPI_Info_set(Info, "pnetcdf_bb_flush_on_wait", flushonwait);
+        MPI_Info_set(Info, "pnetcdf_bb_flush_on_sync", flushonsync);
+        MPI_Info_set(Info, "pnetcdf_bb_flush_on_read", flushonread);
     }
     
     /* Allocate buffer */
@@ -321,7 +321,7 @@ int test_env(const char* filename, char* flushonwait, char* flushonsync, char* f
     char env[1024];
 
     /* Set environment variable */
-    sprintf(env, "pnetcdf_log=enable;pnetcdf_log_flush_on_wait=%s;pnetcdf_log_flush_on_sync=%s;pnetcdf_log_flush_on_read=%s", flushonwait, flushonsync, flushonread);
+    sprintf(env, "pnetcdf_bb=enable;pnetcdf_bb_flush_on_wait=%s;pnetcdf_bb_flush_on_sync=%s;pnetcdf_bb_flush_on_read=%s", flushonwait, flushonsync, flushonread);
     ret = setenv("PNETCDF_HINTS", env, 1);
     if (ret != 0) {
         printf("Error at line %d in %s: setenv: %d\n", __LINE__, __FILE__, ret);

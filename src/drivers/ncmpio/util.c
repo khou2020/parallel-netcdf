@@ -336,35 +336,35 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
     
     /* Log related hint */
     ncp->loghints = NC_LOG_HINT_DEL_ON_CLOSE | NC_LOG_HINT_FLUSH_ON_READ | NC_LOG_HINT_FLUSH_ON_SYNC;
-    MPI_Info_get(info, "pnetcdf_log", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "enable") == 0){
         ncp->loghints |= NC_LOG_HINT_LOG_ENABLE;
     }
-    MPI_Info_get(info, "pnetcdf_log_del_on_close", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_del_on_close", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "disable") == 0){
         ncp->loghints ^= NC_LOG_HINT_DEL_ON_CLOSE;
     }
-    MPI_Info_get(info, "pnetcdf_log_flush_on_wait", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_flush_on_wait", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "enable") == 0){
         ncp->loghints |= NC_LOG_HINT_FLUSH_ON_WAIT;
     }
-    MPI_Info_get(info, "pnetcdf_log_flush_on_sync", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_flush_on_sync", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "disable") == 0){
         ncp->loghints ^= NC_LOG_HINT_FLUSH_ON_SYNC;
     }
-    MPI_Info_get(info, "pnetcdf_log_overwrite", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_overwrite", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "enable") == 0){
         ncp->loghints |= NC_LOG_HINT_LOG_OVERWRITE;
     }
-    MPI_Info_get(info, "pnetcdf_log_check", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_check", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "enable") == 0){
         ncp->loghints |= NC_LOG_HINT_LOG_CHECK;
     }
-    MPI_Info_get(info, "pnetcdf_log_flush_on_read", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_flush_on_read", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag && strcasecmp(value, "disable") == 0){
         ncp->loghints ^= NC_LOG_HINT_FLUSH_ON_READ;
     }
-    MPI_Info_get(info, "pnetcdf_log_flush_buffer_size", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_flush_buffer_size", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag){
         long int bsize = strtol(value, NULL, 0);
         if (bsize < 0) {
@@ -375,7 +375,7 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
     else{
         ncp->logflushbuffersize = 0; // <= 0 means unlimited 
     }
-    MPI_Info_get(info, "pnetcdf_log_base", MPI_MAX_INFO_VAL - 1, value, &flag);
+    MPI_Info_get(info, "pnetcdf_bb_dirname", MPI_MAX_INFO_VAL - 1, value, &flag);
     if (flag) {
         strncpy(ncp->logbase, value, PATH_MAX);    
     }

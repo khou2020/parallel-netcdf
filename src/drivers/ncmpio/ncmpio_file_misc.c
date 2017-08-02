@@ -343,22 +343,22 @@ ncmpii_inq_misc(void       *ncdp,
         
         /* Log relatived info */
         if (ncp->loghints & NC_LOG_HINT_LOG_ENABLE) {
-            MPI_Info_set(*info_used, "pnetcdf_log_base", ncp->logbase);
+            MPI_Info_set(*info_used, "pnetcdf_bb_dirname", ncp->logbase);
             sprintf(value, "%llu", ncp->logflushbuffersize);
-            MPI_Info_set(*info_used, "pnetcdf_log_flush_buffer_size", value);
-            MPI_Info_set(*info_used, "pnetcdf_log", "1");
+            MPI_Info_set(*info_used, "pnetcdf_bb_flush_buffer_size", value);
+            MPI_Info_set(*info_used, "pnetcdf_bb", "enable");
             
             if (ncp->loghints & NC_LOG_HINT_LOG_OVERWRITE) {
-                MPI_Info_set(*info_used, "pnetcdf_log_overwrite", "1");
+                MPI_Info_set(*info_used, "pnetcdf_bb_overwrite", "enable");
             }
             if (!(ncp->loghints & NC_LOG_HINT_DEL_ON_CLOSE)) {
-                MPI_Info_set(*info_used, "pnetcdf_log_del_on_close", "0");
+                MPI_Info_set(*info_used, "pnetcdf_bb_del_on_close", "enable");
             }
             if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_WAIT) {
-                MPI_Info_set(*info_used, "pnetcdf_log_flush_on_wait", "1");
+                MPI_Info_set(*info_used, "pnetcdf_bb_flush_on_wait", "enable");
             }
             if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
-                MPI_Info_set(*info_used, "pnetcdf_log_check", "1");
+                MPI_Info_set(*info_used, "pnetcdf_bb_check", "enable");
             }
         }
 

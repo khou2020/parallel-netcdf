@@ -120,8 +120,8 @@ int main(int argc, char* argv[]) {
 
     /* Initialize file info */
     MPI_Info_create(&Info);
-    MPI_Info_set(Info, "pnetcdf_log", "1");
-    MPI_Info_set(Info, "pnetcdf_log_base", abslogbase);   
+    MPI_Info_set(Info, "pnetcdf_bb", "enable");
+    MPI_Info_set(Info, "pnetcdf_bb_dirname", abslogbase);   
     
     /* Create new netcdf file */
     ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
