@@ -91,6 +91,8 @@ typedef struct NC_Log_sizearray {
 typedef struct NC_Log {
     char metalogpath[PATH_MAX];    /* path of metadata log */    
     char datalogpath[PATH_MAX];    /* path of data log */
+    int rank;
+    int np;
     int metalog_fd;    /* file handle of metadata log */
     int datalog_fd;    /* file handle of data log */
     size_t datalogsize;

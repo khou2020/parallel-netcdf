@@ -131,7 +131,9 @@ int ncmpii_log_create(NC* ncp) {
 
     /* Misc */
     nclogp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
-    
+    nclogp->rank = rank;
+    nclogp->np = np;
+
     /* Initialize metadata header */
     
     /*
@@ -357,15 +359,17 @@ int ncmpii_log_close(NC *ncp) {
     MPI_Reduce(&nclogp->total_meta, &total_meta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncp->comm);
     MPI_Reduce(&nclogp->total_data, &total_data, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncp->comm);
     
-    printf("Data writen to variable: %llu\n", total_data);
-    printf("Metadata generated: %llu\n", total_meta);
-    printf("Time in log: %lf\n", total_time);
-    printf("Time recording entries: %lf\n", log_total_time);
-    printf("Time flushing: %lf\n", flush_total_time);
-    printf("Time writing to BB: %lf\n", log_write_time);
-    printf("Time reading from BB: %lf\n", flush_read_time);
-    printf("Time replaying: %lf\n", flush_replay_time);
-    
+    if (nclogp->rank == 0){ 
+        printf("Data writen to variable: %llu\n", total_data);
+        printf("Metadata generated: %llu\n", total_meta);
+        printf("Time in log: %lf\n", total_time);
+        printf("Time recording entries: %lf\n", log_total_time);
+        printf("Time flushing: %lf\n", flush_total_time);
+        printf("Time writing to BB: %lf\n", log_write_time);
+        printf("Time reading from BB: %lf\n", flush_read_time);
+        printf("Time replaying: %lf\n", flush_replay_time);
+    }
+
     /* Delete log structure */
     NCI_Free(nclogp);
 
