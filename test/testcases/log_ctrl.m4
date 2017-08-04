@@ -36,6 +36,7 @@ define(`TEST_ENV',dnl
 
 define(`CHECK_RET',dnl
 `dnl
+    if ((strcmp($1, "enable") == 0) || (strcmp(flushonread, "enable") == 0)){
         for(i = 0; i < np; i++){
             if (out[i] != i + 1){
                 printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, i, in, out[i]);
@@ -43,6 +44,16 @@ define(`CHECK_RET',dnl
                 goto ERROR;
             }
         }
+    }
+    else{
+        for(i = 0; i < np; i++){
+            if (out[i] != -1){
+                printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, i, -1, out[i]);
+                nerr++;
+                goto ERROR;
+            }
+        }
+    }
 ')dnl
 
 #include <stdlib.h>
@@ -135,7 +146,22 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
         nerr++;
         goto ERROR;
     }
-     
+    
+    /* Set fill mode */
+    ret = ncmpi_set_fill(ncid, NC_FILL, &i);
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_set_fill: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+    i = -1;
+    ret = ncmpi_def_var_fill(ncid, varid, 0, &i);
+    if (ret != NC_NOERR) {
+        printf("Error at line %d in %s: ncmpi_def_var_fill: %d\n", __LINE__, __FILE__, ret);
+        nerr++;
+        goto ERROR;
+    }
+
     /* Switch to data mode */
     ret = ncmpi_enddef(ncid);
     if (ret != NC_NOERR) {
@@ -173,9 +199,7 @@ int test_hints(const char* filename, char* flushonwait, char* flushonsync, char*
         nerr++;
         goto ERROR;
     }
-    if (strcmp(flushonwait, "enable") == 0){
-CHECK_RET
-    }
+CHECK_RET(flushonwait)
 
     /* Test flush on sync
      * We write a row if ranks, call sync, and then read it back
@@ -204,9 +228,7 @@ CHECK_RET
         nerr++;
         goto ERROR;
     }
-    if (strcmp(flushonsync, "enable") == 0){
-CHECK_RET
-    }
+CHECK_RET(flushonsync)
    
     /* Test flush on read
      * We write a row if ranks, and then read it back
@@ -229,9 +251,7 @@ CHECK_RET
         nerr++;
         goto ERROR;
     }
-    if (strcmp(flushonread, "enable") == 0){
-CHECK_RET
-    }
+CHECK_RET(flushonread)
     
     /* Test flush on read in independent mode
      * We write a row if ranks, and then read it back
@@ -262,10 +282,19 @@ CHECK_RET
         goto ERROR;
     }
     /* Value from other processes may not relfect, only check value from itself */
-    if ((strcmp(flushonread, "enable") == 0) && out[rank] != in){
-        printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, rank, in, out[rank]);
-        nerr++;
-        goto ERROR;
+    if (strcmp(flushonread, "enable") == 0) {
+        if (out[rank] != in){
+            printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, rank, in, out[rank]);
+            nerr++;
+            goto ERROR;
+        }
+    }
+    else{
+        if (out[rank] != -1){
+            printf("Error at line %d in %s: expecting out[%d] = %d but got %d\n", __LINE__, __FILE__, rank, in, out[rank]);
+            nerr++;
+            goto ERROR;
+        }
     }
     
     ret = ncmpi_end_indep_data(ncid);

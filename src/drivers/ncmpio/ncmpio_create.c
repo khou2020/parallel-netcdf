@@ -245,6 +245,9 @@ ncmpii_create(MPI_Comm     comm,
 
     /* initialize unlimited_id as no unlimited dimension yet defined */
     ncp->dims.unlimited_id = -1;
+    
+    /* mark log as not initialized */
+    ncp->nclogp = NULL;
 
 #ifndef SEARCH_NAME_LINEARLY
     for (i=0; i<HASH_TABLE_SIZE; i++) {

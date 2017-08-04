@@ -382,9 +382,9 @@ int ncmpii_log_close(NC *ncp) {
  * IN    stride: stride in put_var* call
  * IN    bur:    buffer of data to write
  * IN    buftype:    buftype as in ncmpii_getput_varm, MPI_PACKED indicate a flexible api
- * IN    PackedSize:    Size of buf in byte, only valid when buftype is MPI_PACKED
+ * IN    packedsize:    Size of buf in byte, only valid when buftype is MPI_PACKED
  */
-int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize){
+int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int packedsize){
     int err, varid, dim;
     int itype;    /* Type used in log file */
     char *buffer;
@@ -469,7 +469,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     entryp->itype = itype; /* Variable type */
     entryp->varid = varid;  /* Variable id */
     entryp->ndims = dim;  /* Number of dimensions of the variable*/
-	entryp->data_len = PackedSize; /* The size of data in bytes. The size that will be write to data log */
+	entryp->data_len = packedsize; /* The size of data in bytes. The size that will be write to data log */
     entryp->data_off = dataoff;
     
     /* Determine the api kind of original call
@@ -505,7 +505,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
      * Write data log
      * We only increase datalogsize by amount actually write
      */
-    ioret = write(nclogp->datalog_fd, buf, PackedSize);
+    ioret = write(nclogp->datalog_fd, buf, packedsize);
     if (ioret < 0){
         err = ncmpii_handle_io_error("write");
         if (err == NC_EFILE){
@@ -514,7 +514,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
         DEBUG_RETURN_ERROR(err);
     }
     nclogp->datalogsize += ioret;
-    if (ioret != PackedSize){
+    if (ioret != packedsize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
        
@@ -579,16 +579,16 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     nclogp->log_write_time += t3 - t2;
     nclogp->total_time += nclogp->log_total_time;
  
-    nclogp->total_data += PackedSize;
+    nclogp->total_data += packedsize;
     nclogp->total_meta += esize;
 
 #ifdef PNETCDF_DEBUG
     if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
         if (stride == NULL){
-            err = ncmpii_log_check_put(ncp, varid, NC_LOG_API_KIND_VARA, itype, PackedSize, start, count, stride, headerp->num_entries);
+            err = ncmpii_log_check_put(ncp, varid, NC_LOG_API_KIND_VARA, itype, packedsize, start, count, stride, headerp->num_entries);
         }
         else{
-            err = ncmpii_log_check_put(ncp, varid, NC_LOG_API_KIND_VARS, itype, PackedSize, start, count, stride, headerp->num_entries);
+            err = ncmpii_log_check_put(ncp, varid, NC_LOG_API_KIND_VARS, itype, packedsize, start, count, stride, headerp->num_entries);
         }
         if (err != NC_NOERR){
             printf("******************************************************\n");
@@ -698,5 +698,11 @@ int ncmpii_log_flush(NC* ncp) {
     nclogp->total_time += t2 - t1;
 
     return status;
+}
+
+int ncmpii_log_inq_put_size(NC *ncp, MPI_Offset *putsize){
+    NC_Log *nclogp = ncp->nclogp;
+    *putsize = (MPI_Offset)nclogp->total_data;
+    return NC_NOERR;
 }
 

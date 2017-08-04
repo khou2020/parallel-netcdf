@@ -236,8 +236,17 @@ ncmpii_open(MPI_Comm     comm,
         nameT->num++;
     }
 #endif
-
+    
     *ncpp = (void*)ncp;
+
+    /* Create log structure if hint is set */
+    ncp->nclogp = NULL;
+    if (ncp->loghints & NC_LOG_HINT_LOG_ENABLE){
+        err = ncmpii_log_create(ncp);
+        if (err != NC_NOERR){
+            return err;
+        }
+    }
 
     return NC_NOERR;
 }

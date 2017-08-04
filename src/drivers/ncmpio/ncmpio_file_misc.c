@@ -313,6 +313,16 @@ ncmpii_inq_misc(void       *ncdp,
     }
 
     /* the amount of writes, in bytes, committed to file system so far */
+    /*
+    if (put_size != NULL){
+        if (ncp->nclogp != NULL){
+            ncmpii_log_inq_put_size(ncp, put_size);
+        }
+        else{
+            *put_size = ncp->put_size;
+        }
+    }
+    */
     if (put_size != NULL) *put_size = ncp->put_size;
 
     /* the amount of reads, in bytes, obtained from file system so far */

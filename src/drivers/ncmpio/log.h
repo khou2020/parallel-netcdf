@@ -98,7 +98,7 @@ typedef struct NC_Log {
     NC_Log_sizearray entrydatasize;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
     unsigned long long total_data;
-    size_t total_meta;
+    unsigned long long total_meta;
     double flush_read_time;
     double flush_replay_time;
     double flush_total_time;
