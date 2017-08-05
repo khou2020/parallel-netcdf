@@ -801,5 +801,6 @@ int ncmpii_log_close(NC *ncp);
 int ncmpii_log_flush(NC *ncp);
 int ncmpii_log_enddef(NC *ncp);
 int ncmpii_log_inq_put_size(NC *ncp, MPI_Offset *putsize);
+int ncmpii_log_inq_put_size(NC *ncp, MPI_Offset *putsize);
 
 #endif /* _NC_H */

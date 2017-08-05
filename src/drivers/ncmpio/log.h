@@ -95,12 +95,14 @@ typedef struct NC_Log {
     int np;
     int metalog_fd;    /* file handle of metadata log */
     int datalog_fd;    /* file handle of data log */
+    int recdimid;
     size_t datalogsize;
     NC_Log_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
     NC_Log_sizearray entrydatasize;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
     unsigned long long total_data;
     unsigned long long total_meta;
+    MPI_Offset numrecs;
     double flush_read_time;
     double flush_replay_time;
     double flush_total_time;

@@ -131,8 +131,18 @@ int ncmpii_log_create(NC* ncp) {
 
     /* Misc */
     nclogp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
+    nclogp->numrecs = 0;
     nclogp->rank = rank;
     nclogp->np = np;
+
+    /* Find unlimited dimension */
+    nclogp->recdimid = -1;
+    for(i = 0; i < ncp->dims.ndefined; i++) {
+        if (ncp->dims.value[i]->size == NC_UNLIMITED){
+            nclogp->recdimid = i;
+            break;
+        }
+    }
 
     /* Initialize metadata header */
     
@@ -393,7 +403,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     int itype;    /* Type used in log file */
     char *buffer;
     double t1, t2, t3, t4; 
-    MPI_Offset esize, dataoff;
+    MPI_Offset esize, dataoff, recsize;
     MPI_Offset *Start, *Count, *Stride;
     ssize_t ioret;
     NC_Log_metadataentry *entryp;
@@ -406,10 +416,23 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     if (nclogp->metalog_fd < 0){
         DEBUG_RETURN_ERROR(NC_ELOGNOTINIT);        
     }
-
+    
     /* Get variable id and dimension */
     dim = varp->ndims;
     varid = varp->varid;
+    
+    /* Update numrecs */
+    if (dim > 0 && varp->dimids[0] == nclogp->recdimid) {
+        if (stride == NULL) {
+            recsize = start[0] + count[0];
+        }
+        else {
+            recsize = start[0] + (count[0] - 1) * stride[0] + 1;
+        }
+        if (recsize > nclogp->numrecs) {
+            nclogp->numrecs = recsize;
+        }
+    }
 
     /* Convert to log types 
      * Log spec has different enum of types than MPI
@@ -709,4 +732,11 @@ int ncmpii_log_inq_put_size(NC *ncp, MPI_Offset *putsize){
     *putsize = (MPI_Offset)nclogp->total_data;
     return NC_NOERR;
 }
+
+int ncmpii_log_inq_num_recs(NC *ncp, MPI_Offset *numrecs){
+    NC_Log *nclogp = ncp->nclogp;
+    *numrecs = nclogp->numrecs;
+    return NC_NOERR;
+}
+
 
