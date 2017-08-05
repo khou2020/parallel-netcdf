@@ -258,7 +258,7 @@ ERROR:;
  * IN    nclogp:    log structure
  */
 int ncmpii_log_enddef(NC *ncp){   
-    int i, maxdims, err;
+    int i, maxdims, err, recdimid;
     ssize_t ioret;
     double t1, t2; 
     NC_Log *nclogp = ncp->nclogp;
@@ -266,6 +266,19 @@ int ncmpii_log_enddef(NC *ncp){
     
     t2 = MPI_Wtime();
     
+    /* Find unlimited dimension */
+    recdimid = -1;
+    for(i = 0; i < ncp->dims.ndefined; i++) {
+        if (ncp->dims.value[i]->size == NC_UNLIMITED){
+            recdimid = i;
+            break;
+        }
+    }
+    if (nclogp->recdimid != recdimid){
+        nclogp->recdimid = recdimid;
+        nclogp->numrecs = 0;
+    }
+ 
     /* Highest dimension among all variables */
     maxdims = 0;    
     for(i = 0; i < ncp->vars.ndefined; i++){
@@ -637,8 +650,10 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
  */
 int ncmpii_log_flush(NC* ncp) {
     int err, status = NC_NOERR;
+    int numput;
     double t1, t2; 
     size_t ioret;
+    NC_req *putlist;
     NC_Log *nclogp = ncp->nclogp;
     NC_Log_metadataheader *headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
     
@@ -649,8 +664,14 @@ int ncmpii_log_flush(NC* ncp) {
         return NC_NOERR;
     }
     
-    /* Replay log file */
+    /* Turn non-blocking put into flush mode */
     ncp->logflushing = 1;
+    numput = ncp->numPutReqs;
+    putlist = ncp->put_list;
+    ncp->numPutReqs = 0;
+    ncp->put_list = NULL;
+
+    /* Replay log file */
     err = log_flush(ncp);
     if (err != NC_NOERR) {
         ncp->logflushing = 0;
@@ -658,8 +679,13 @@ int ncmpii_log_flush(NC* ncp) {
             DEBUG_ASSIGN_ERROR(status, err);
         }
     }
+
+    /* Turn non-blocking put back to normal mode */
     ncp->logflushing = 0;
-    
+    NCI_Free(ncp->put_list);
+    ncp->numPutReqs = numput;
+    ncp->put_list = putlist;
+ 
     /* Reset log status */
     
     /* Set num_entries to 0 */

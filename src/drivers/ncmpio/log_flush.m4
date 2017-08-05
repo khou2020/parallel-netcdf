@@ -289,9 +289,6 @@ int log_flush(NC *ncp) {
 
     t1 = MPI_Wtime();
 
-    /* Turn on the flushing flag so non-blocking call won't be logged */
-    nclogp->isflushing = 1;
-
     /* Read datalog in to memory */
    
     /* 
