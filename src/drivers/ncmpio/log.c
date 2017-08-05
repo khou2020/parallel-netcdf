@@ -388,7 +388,7 @@ int ncmpii_log_close(NC *ncp) {
  * IN    buftype:    buftype as in ncmpii_getput_varm, MPI_PACKED indicate a flexible api
  * IN    packedsize:    Size of buf in byte, only valid when buftype is MPI_PACKED
  */
-int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int packedsize){
+int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset packedsize){
     int err, varid, dim;
     int itype;    /* Type used in log file */
     char *buffer;

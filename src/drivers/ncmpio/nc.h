@@ -796,7 +796,7 @@ ncmpiio_close(NC *ncp, int doUnlink);
 
 
 int ncmpii_log_create(NC *ncp);
-int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, int PackedSize);
+int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset packedsize);
 int ncmpii_log_close(NC *ncp);
 int ncmpii_log_flush(NC *ncp);
 int ncmpii_log_enddef(NC *ncp);
