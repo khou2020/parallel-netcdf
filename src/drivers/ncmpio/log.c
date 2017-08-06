@@ -373,24 +373,27 @@ int ncmpii_log_close(NC *ncp) {
     t2 = MPI_Wtime();
     nclogp->total_time += t2 - t1;
     
-    MPI_Reduce(&nclogp->total_time, &total_time, 1, MPI_DOUBLE, MPI_SUM, 0, ncp->comm);
-    MPI_Reduce(&nclogp->flush_read_time, &flush_read_time, 1, MPI_DOUBLE, MPI_SUM, 0, ncp->comm);
-    MPI_Reduce(&nclogp->flush_replay_time, &flush_replay_time, 1, MPI_DOUBLE, MPI_SUM, 0, ncp->comm);
-    MPI_Reduce(&nclogp->flush_total_time, &flush_total_time, 1, MPI_DOUBLE, MPI_SUM, 0, ncp->comm);
-    MPI_Reduce(&nclogp->log_write_time, &log_write_time, 1, MPI_DOUBLE, MPI_SUM, 0, ncp->comm);
-    MPI_Reduce(&nclogp->log_total_time, &log_total_time, 1, MPI_DOUBLE, MPI_SUM, 0, ncp->comm);
+    MPI_Reduce(&nclogp->total_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
+    MPI_Reduce(&nclogp->flush_read_time, &flush_read_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
+    MPI_Reduce(&nclogp->flush_replay_time, &flush_replay_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
+    MPI_Reduce(&nclogp->flush_total_time, &flush_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
+    MPI_Reduce(&nclogp->log_write_time, &log_write_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
+    MPI_Reduce(&nclogp->log_total_time, &log_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
     MPI_Reduce(&nclogp->total_meta, &total_meta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncp->comm);
     MPI_Reduce(&nclogp->total_data, &total_data, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncp->comm);
     
     if (nclogp->rank == 0){ 
+        printf("============================================================");
+        printf("File: %s\n", ncp->path);
         printf("Data writen to variable: %llu\n", total_data);
         printf("Metadata generated: %llu\n", total_meta);
         printf("Time in log: %lf\n", total_time);
-        printf("Time recording entries: %lf\n", log_total_time);
-        printf("Time flushing: %lf\n", flush_total_time);
-        printf("Time writing to BB: %lf\n", log_write_time);
-        printf("Time reading from BB: %lf\n", flush_read_time);
-        printf("Time replaying: %lf\n", flush_replay_time);
+        printf("\tTime recording entries: %lf\n", log_total_time);
+        printf("\t\tTime writing to BB: %lf\n", log_write_time);
+        printf("\tTime flushing: %lf\n", flush_total_time);
+        printf("\t\tTime reading from BB: %lf\n", flush_read_time);
+        printf("\t\tTime replaying: %lf\n", flush_replay_time);
+        printf("============================================================");
     }
 
     /* Delete log structure */
@@ -617,7 +620,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     t4 = MPI_Wtime();
     nclogp->log_total_time += t4 - t1;
     nclogp->log_write_time += t3 - t2;
-    nclogp->total_time += nclogp->log_total_time;
+    nclogp->total_time += t4 - t1;
  
     nclogp->total_data += packedsize;
     nclogp->total_meta += esize;
