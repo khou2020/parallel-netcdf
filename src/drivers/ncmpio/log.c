@@ -264,7 +264,7 @@ int ncmpii_log_enddef(NC *ncp){
     NC_Log *nclogp = ncp->nclogp;
     NC_Log_metadataheader *headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
     
-    t2 = MPI_Wtime();
+    t1 = MPI_Wtime();
     
     /* Find unlimited dimension */
     recdimid = -1;
@@ -745,6 +745,12 @@ int ncmpii_log_flush(NC* ncp) {
             }
         }
     }
+
+    /*
+    if (nclogp->total_data != ncp->put_size){
+        printf("Warning: putsize mismatch after flush. log: %llu, nc: %llu\n", nclogp->total_data, ncp->put_size);
+    }
+    */
 #endif
 
     t2 = MPI_Wtime();
@@ -755,7 +761,7 @@ int ncmpii_log_flush(NC* ncp) {
 
 int ncmpii_log_inq_put_size(NC *ncp, MPI_Offset *putsize){
     NC_Log *nclogp = ncp->nclogp;
-    *putsize = (MPI_Offset)nclogp->total_data;
+    *putsize = ncp->put_size + (MPI_Offset)nclogp->datalogsize - 8;
     return NC_NOERR;
 }
 
