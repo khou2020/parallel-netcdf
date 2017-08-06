@@ -375,7 +375,7 @@ FLUSHBATCH
     nclogp->isflushing = 0;
 
     t2 = MPI_Wtime();
-    nclogp->flush_total_time = t2 - t1;
+    nclogp->flush_total_time += t2 - t1;
     
     return status;
 }
