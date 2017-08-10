@@ -481,8 +481,9 @@ err_check:
     }
     else { /* rw_flag == READ_REQ */
         /* Replay if log is enabled */
+        /*
         if (ncp->nclogp != NULL){
-            /* Flush the log file if flag is on */
+            // Flush the log file if flag is on 
             if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_READ ){
                 err = ncmpii_log_flush(ncp);    
                 if (status == NC_NOERR){
@@ -490,6 +491,7 @@ err_check:
                 }
             }
         }
+        */
 
         /* allocate xbuf for reading */
         if (buftype_is_contig && imaptype == MPI_DATATYPE_NULL && !need_convert)
