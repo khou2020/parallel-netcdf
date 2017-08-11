@@ -387,6 +387,7 @@ int ncmpii_log_close(NC *ncp) {
         printf("File: %s\n", ncp->path);
         printf("Data writen to variable: %llu\n", total_data);
         printf("Metadata generated: %llu\n", total_meta);
+        printf("Flush buffer size: %llu\n", ncp->logflushbuffersize);
         printf("Time in log: %lf\n", total_time);
         printf("\tTime recording entries: %lf\n", log_total_time);
         printf("\t\tTime writing to BB: %lf\n", log_write_time);
