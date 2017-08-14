@@ -383,7 +383,7 @@ int ncmpii_log_close(NC *ncp) {
     MPI_Reduce(&nclogp->total_data, &total_data, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncp->comm);
     
     if (nclogp->rank == 0){ 
-        printf("============================================================");
+        printf("==========================================================\n");
         printf("File: %s\n", ncp->path);
         printf("Data writen to variable: %llu\n", total_data);
         printf("Metadata generated: %llu\n", total_meta);
@@ -394,7 +394,7 @@ int ncmpii_log_close(NC *ncp) {
         printf("\tTime flushing: %lf\n", flush_total_time);
         printf("\t\tTime reading from BB: %lf\n", flush_read_time);
         printf("\t\tTime replaying: %lf\n", flush_replay_time);
-        printf("============================================================");
+        printf("==========================================================\n");
     }
 
     /* Delete log structure */
