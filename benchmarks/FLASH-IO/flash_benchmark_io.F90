@@ -90,7 +90,8 @@
       empty(:) = 0
 
       ! use nonblocking APIs
-      use_nonblocking_io = .TRUE.
+      ! use_nonblocking_io = .TRUE.
+      use_nonblocking_io = .FALSE.
 
 ! initialize the unknowns with the index of the variable
       do i = 1, nvar
@@ -124,6 +125,35 @@
  999  call MPI_Finalize(ierr)
 
       end program flash_benchmark_io
+
+! ---------------------------------------------------------------------------
+! print mpi info
+! ---------------------------------------------------------------------------
+      subroutine print_info(info_used)
+          use pnetcdf
+          
+          implicit none
+          include "mpif.h"
+
+          integer info_used
+
+          ! local variables
+          character*(MPI_MAX_INFO_VAL) key, value
+          integer nkeys, i, err
+          logical flag
+
+          call MPI_Info_get_nkeys(info_used, nkeys, err)
+          print *, 'MPI File Info: nkeys =', nkeys
+          do i=0, nkeys-1
+              call MPI_Info_get_nthkey(info_used, i, key, err)
+              call MPI_Info_get(info_used, key, MPI_MAX_INFO_VAL, value, flag, err)
+ 123          format('MPI File Info: [',I2,'] key = ',A25, ', value =',A)
+              print 123, i, key, value
+          enddo
+          print *
+
+          return
+      end ! subroutine print_info
 
 
 ! ---------------------------------------------------------------------------
@@ -204,6 +234,8 @@
        corner_io = bw
 
       if (verbose .AND. MyPE .EQ. MasterPE) then
+          
+          call print_info(info_used)
 
           striping_factor = 0
           striping_unit   = 0
