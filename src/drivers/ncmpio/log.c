@@ -67,12 +67,14 @@ int ncmpii_log_create(NC* ncp) {
      * Make sure bufferdir exists 
      * NOTE: Assume upper layer already check for directory along netcdf file path
      */
+    /*
     logdir = opendir(ncp->logbase);
     if (logdir == NULL) {
-        /* Log base does not exist or not accessible */
+        /* Log base does not exist or not accessible 
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
     }
     closedir(logdir);
+    */
 
     /* Resolve absolute path */    
     abspath = realpath(ncp->path, basename);
