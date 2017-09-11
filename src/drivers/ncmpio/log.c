@@ -26,7 +26,6 @@ char *real_path(char* path, char* abs_path){
     char cwd[NC_LOG_PATH_MAX];
 
     getwd(cwd);
-    strcpy(abs, path);
     if (path[0] == '/'){
         strcpy(abs_path, path);
     }

@@ -118,6 +118,7 @@ int ncmpii_log_sizearray_init(NC_Log_sizearray *sp);
 void ncmpii_log_sizearray_free(NC_Log_sizearray *sp);
 int ncmpii_log_sizearray_append(NC_Log_sizearray *sp, size_t size);
 int log_flush(NC *ncp);
+char *real_path(char* path, char* abs_path);
 
 /*
 int ncmpii_log_create(NC *ncp);

@@ -32,11 +32,10 @@
 #define SINGLEPROCRANK 2
 #define SINGLEPROCnp 5
 
-char *real_path(char* path, char* abs_path){
+char *real_path1(char* path, char* abs_path){
     char cwd[NC_LOG_PATH_MAX];
 
     getwd(cwd);
-    strcpy(abs, path);
     if (path[0] == '/'){
         strcpy(abs_path, path);
     }
@@ -69,7 +68,7 @@ int main(int argc, char* argv[]) {
     char abslogbase[PATH_MAX];
     char logbase[PATH_MAX];
     //struct stat metastat, datastat;
-	size_t metasize, datasize;
+	size_t metasize, datasize, expmetasize;
     int ncid, varid, dimid, buf;    /* Netcdf file id and variable id */
     MPI_Offset start;
     MPI_Info Info;
@@ -100,7 +99,7 @@ int main(int argc, char* argv[]) {
     }    
 
     /* Resolve absolute path */ 
-    pathret = real_path(logbase, abslogbase);
+    pathret = real_path1(logbase, abslogbase);
     if (pathret == NULL){
         printf("Error at line %d in %s: Can not resolve log base path\n", __LINE__, __FILE__);
         nerr++;
@@ -179,7 +178,7 @@ int main(int argc, char* argv[]) {
      * Resolve absolute path
      * We need absolute file name to calculate size of metadata header size
      */ 
-    pathret = real_path(filename, absfilename);
+    pathret = real_path1(filename, absfilename);
     if (pathret == NULL){
         printf("Error at line %d in %s: Can not resolve file name\n", __LINE__, __FILE__);
         nerr++;
@@ -193,8 +192,12 @@ int main(int argc, char* argv[]) {
         nerr++;
         goto ERROR;
     }
-    if (metasize != sizeof(NC_Log_metadataheader) + strlen(absfilename)){
-        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename), metasize);
+    expmetasize = sizeof(NC_Log_metadataheader) + strlen(absfilename);
+    if (expmetasize % 4 != 0){
+        expmetasize += 4 - (expmetasize % 4);
+    }
+    if (metasize != expmetasize){
+        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, expmetasize, metasize);
         nerr++;
         goto ERROR;
     }
@@ -241,8 +244,12 @@ int main(int argc, char* argv[]) {
         nerr++;
         goto ERROR;
     }
-    if (metasize != sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3){
-        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3, metasize);
+    expmetasize = sizeof(NC_Log_metadataheader) + strlen(absfilename) + sizeof(NC_Log_metadataentry) + sizeof(MPI_Offset) * 3;
+    if (expmetasize % 4 != 0){
+        expmetasize += 4 - (expmetasize % 4);
+    }
+    if (metasize != expmetasize){
+        printf("Error at line %d in %s: expecting metadata log size = %d but got %d\n", __LINE__, __FILE__, expmetasize, metasize);
         nerr++;
         goto ERROR;
     }
