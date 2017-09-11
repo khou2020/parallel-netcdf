@@ -234,7 +234,7 @@ ncmpi_create(MPI_Comm    comm,
              int        *ncidp)
 {
     int default_format, rank, status=NC_NOERR, err;
-    int safe_mode=0, mpireturn, root_cmode, enable_foo_driver=0;
+    int safe_mode=0, mpireturn, root_cmode, enable_foo_driver=0, enable_bb_driver = 0;
     char *env_str;
     MPI_Info combined_info=MPI_INFO_NULL;
     void *ncp;
@@ -294,7 +294,12 @@ ncmpi_create(MPI_Comm    comm,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
-    }
+        
+        MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
+                     value, &flag);
+        if (flag && strcasecmp(value, "enable") == 0)
+            enable_bb_driver = 1;
+   }
 
     /* TODO: Use environment variable and cmode to tell the file format which
      * is later used to select the right driver. For now, we have only one
@@ -305,9 +310,15 @@ ncmpi_create(MPI_Comm    comm,
         driver = ncfoo_inq_driver();
     else
 #endif
-        /* default is ncmpio driver */
-        driver = ncmpio_inq_driver();
-
+    {
+        if (enable_bb_driver){
+            driver = ncbbio_inq_driver();
+        }
+        else {
+            /* default is ncmpio driver */
+            driver = ncmpio_inq_driver();
+        }
+    }
 #if 0 /* refer to netCDF library's USE_REFCOUNT */
     /* check whether this path is already opened */
     pncp = find_in_PNCList_by_name(path);

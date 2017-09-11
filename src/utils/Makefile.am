@@ -6,7 +6,7 @@
 #
 # @configure_input@
 
-SUBDIRS = ncmpigen ncmpidump ncmpidiff ncmpivalid pnetcdf_version ncoffsets
+SUBDIRS = ncmpigen ncmpidump ncmpidiff ncmpivalid pnetcdf_version ncoffsets ncmpilogdump
 DIST_SUBDIRS = $(SUBDIRS)
 
 # The script shows the end users how pnetcdf is built

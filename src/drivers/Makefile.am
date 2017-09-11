@@ -6,7 +6,7 @@
 #
 # @configure_input@
 
-DIST_SUBDIRS = include common ncmpio
+DIST_SUBDIRS = include common ncmpio ncbbio
 
 SUBDIRS = $(DIST_SUBDIRS)
 
