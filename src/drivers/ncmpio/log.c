@@ -21,6 +21,24 @@
 #include <log.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+char *real_path(char* path, char* abs_path){
+    char cwd[NC_LOG_PATH_MAX];
+
+    getwd(cwd);
+    if (path[0] == '/'){
+        strcpy(abs_path, path);
+    }
+    else{
+        strcpy(abs_path, cwd);
+        if (abs_path[strlen(abs_path) - 1] != '/'){
+            strcat(abs_path, "/");
+        }
+        strcat(abs_path, path);
+    }
+    return abs_path;
+}
+
 /*
  * Create a new log structure
  * IN    comm:    communicator passed to ncmpi_open
@@ -77,12 +95,12 @@ int ncmpii_log_create(NC* ncp) {
     */
 
     /* Resolve absolute path */    
-    abspath = realpath(ncp->path, basename);
+    abspath = real_path(ncp->path, basename);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
     }
-    abspath = realpath(ncp->logbase, logbase);
+    abspath = real_path(ncp->logbase, logbase);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);

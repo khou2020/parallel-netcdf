@@ -80,7 +80,7 @@ int ncmpii_log_check_header(NC* ncp, int num_entries){
     }
 
     /* Resolve absolute path */    
-    abspath = realpath(ncp->path, basename);
+    abspath = real_path(ncp->path, basename);
     if (abspath == NULL){
         DEBUG_RETURN_ERROR(NC_ELOGCHECK);
     }
