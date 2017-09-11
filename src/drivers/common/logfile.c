@@ -12,6 +12,24 @@
 #include <pnc_debug.h>
 #include <linux/limits.h>
 
+char *real_path(char* path, char* abs_path){
+    char cwd[NC_LOG_PATH_MAX];
+
+    getwd(cwd);
+    strcpy(abs, path);
+    if (path[0] == '/'){
+        strcpy(abs_path, path);
+    }
+    else{
+        strcpy(abs_path, cwd);
+        if (abs_path[strlen(abs_path) - 1] != '/'){
+            strcat(abs_path, "/");
+        }
+        strcat(abs_path, path);
+    }
+    return abs_path;
+}
+
 int ncmpi_inq_logfile_path(int ncid, char *path, char *logbase, int rank, char *metapath, char *datapath, char *abs_path) {
     char *abspath, *fname;
     char basename[NC_LOG_PATH_MAX], abslogbase[NC_LOG_PATH_MAX];
@@ -34,12 +52,12 @@ int ncmpi_inq_logfile_path(int ncid, char *path, char *logbase, int rank, char *
     closedir(logdir);
 
     /* Resolve absolute path */    
-    abspath = realpath(path, abs_path);
+    abspath = real_path(path, abs_path);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
     }
-    abspath = realpath(logbase, abslogbase);
+    abspath = real_path(logbase, abslogbase);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);

@@ -23,6 +23,24 @@
 #include <stdio.h>
 #include <mpi.h>
 
+char *real_path(char* path, char* abs_path){
+    char cwd[NC_LOG_PATH_MAX];
+
+    getwd(cwd);
+    strcpy(abs, path);
+    if (path[0] == '/'){
+        strcpy(abs_path, path);
+    }
+    else{
+        strcpy(abs_path, cwd);
+        if (abs_path[strlen(abs_path) - 1] != '/'){
+            strcat(abs_path, "/");
+        }
+        strcat(abs_path, path);
+    }
+    return abs_path;
+}
+
 int ncmpii_log_check_header(NC* ncp, int num_entries){
     int i, err, np, rank, max_ndims;
     int data_fd, meta_fd;
@@ -80,7 +98,7 @@ int ncmpii_log_check_header(NC* ncp, int num_entries){
     }
 
     /* Resolve absolute path */    
-    abspath = realpath(ncp->path, basename);
+    abspath = real_path(ncp->path, basename);
     if (abspath == NULL){
         DEBUG_RETURN_ERROR(NC_ELOGCHECK);
     }
