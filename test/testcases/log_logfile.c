@@ -32,6 +32,23 @@
 #define SINGLEPROCRANK 2
 #define SINGLEPROCnp 5
 
+char *real_path1(char* path, char* abs_path){
+    char cwd[NC_LOG_PATH_MAX];
+
+    getwd(cwd);
+    if (path[0] == '/'){
+        strcpy(abs_path, path);
+    }
+    else{
+        strcpy(abs_path, cwd);
+        if (abs_path[strlen(abs_path) - 1] != '/'){
+            strcat(abs_path, "/");
+        }
+        strcat(abs_path, path);
+    }
+    return abs_path;
+}
+
 /* 
  * This function test if log file can be successfully created
  * It create a 1-D variable of size np and check if corresponding log file is created
@@ -82,7 +99,7 @@ int main(int argc, char* argv[]) {
     }    
 
     /* Resolve absolute path */ 
-    pathret = realpath(logbase, abslogbase);
+    pathret = real_path1(logbase, abslogbase);
     if (pathret == NULL){
         printf("Error at line %d in %s: Can not resolve log base path\n", __LINE__, __FILE__);
         nerr++;
@@ -161,7 +178,7 @@ int main(int argc, char* argv[]) {
      * Resolve absolute path
      * We need absolute file name to calculate size of metadata header size
      */ 
-    pathret = realpath(filename, absfilename);
+    pathret = real_path1(filename, absfilename);
     if (pathret == NULL){
         printf("Error at line %d in %s: Can not resolve file name\n", __LINE__, __FILE__);
         nerr++;
