@@ -259,20 +259,20 @@
           print 1001,' number of blocks      : ',local_blocks
           print 1001,' number of variables   : ',nvar
           print 1003,' checkpoint time       : ',tmax(1), '  sec'
-          print 1003,'        max header     : ',chk_t(1),'  sec'
-          print 1003,'        max unknown    : ',chk_t(2),'  sec'
-          print 1003,'        max close      : ',chk_t(3),'  sec'
-          print 1003,'        I/O amount     : ',chk_io/1048576, '  MiB'
+          print 1003,' checkpoint max header : ',chk_t(1),'  sec'
+          print 1003,' checkpoint max unknown: ',chk_t(2),'  sec'
+          print 1003,' checkpoint max close  : ',chk_t(3),'  sec'
+          print 1003,' checkpoint I/O amount : ',chk_io/1048576, '  MiB'
           print 1003,' plot no corner        : ',tmax(2),      '  sec'
-          print 1003,'        max header     : ',nocorner_t(1),'  sec'
-          print 1003,'        max unknown    : ',nocorner_t(2),'  sec'
-          print 1003,'        max close      : ',nocorner_t(3),'  sec'
-          print 1003,'        I/O amount     : ',nocorner_io/1048576, '  MiB'
+          print 1003,' plot no corner header : ',nocorner_t(1),'  sec'
+          print 1003,' plot no corner unknown: ',nocorner_t(2),'  sec'
+          print 1003,' plot no corner close  : ',nocorner_t(3),'  sec'
+          print 1003,' plot no corner amount : ',nocorner_io/1048576, '  MiB'
           print 1003,' plot    corner        : ',tmax(3),    '  sec'
-          print 1003,'        max header     : ',corner_t(1),'  sec'
-          print 1003,'        max unknown    : ',corner_t(2),'  sec'
-          print 1003,'        max close      : ',corner_t(3),'  sec'
-          print 1003,'        I/O amount     : ',corner_io/1048576, '  MiB'
+          print 1003,' plot corner max header: ',corner_t(1),'  sec'
+          print 1003,' plot corner unknown   : ',corner_t(2),'  sec'
+          print 1003,' plot corner max close : ',corner_t(3),'  sec'
+          print 1003,' plot corner I/O amount: ',corner_io/1048576, '  MiB'
           print 1004
           print 1007,' File base name        : ', trim(basenm)
           if (striping_factor .GT. 0) then
@@ -283,6 +283,8 @@
           print 1004
           print 1005
           print 1006, NumPEs, nxb, nyb, nzb, time_total, bw
+          print 1003,' wall time   : ',time_total,'  sec'
+          print 1003,' bandwidth   : ',bw,'  MiB'
           print *
 
       endif

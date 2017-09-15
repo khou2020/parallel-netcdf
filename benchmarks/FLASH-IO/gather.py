@@ -7,20 +7,40 @@ def gather(dir:str):
             path = os.path.join(dir, filename)
             with open(path, 'r') as fin:
                 rec = {}
-                log_metadata_size = 0
-                log_data_size = 0
-                log_flush_buffer_size = 0
                 log_put_time = 0.0
                 log_bb_wr_time = 0.0
                 log_bb_rd_time = 0.0
                 log_flush_time = 0.0
                 log_replay_time = 0.0
                 log_api_time = 0.0
+                rec['Log_Put_Time'] = 1000000.0
+                rec['Log_BB_Write_Time'] = 1000000.0
+                rec['Log_BB_Read_Time'] = 1000000.0
+                rec['Log_Flush_Time'] = 1000000.0
+                rec['Log_Replay_Time'] = 1000000.0
+                rec['Log_Api_Time'] = 1000000.0
                 rec['File_Name'] = filename
                 rec['Stage_Out_Time'] = 0.0
                 for line in fin:
                     line = str(line)
-                    if 'IO_DRIVER:' in line:
+                    if 'Round' in line:
+                        rec['Log_Put_Time'] = min([rec['Log_Put_Time'], log_put_time])
+                        rec['Log_BB_Write_Time'] = min([rec['Log_BB_Write_Time'], log_bb_wr_time])
+                        rec['Log_BB_Read_Time'] = min([rec['Log_BB_Read_Time'], log_bb_rd_time])
+                        rec['Log_Flush_Time'] = min([rec['Log_Flush_Time'], log_flush_time])
+                        rec['Log_Replay_Time'] = min([rec['Log_Replay_Time'], log_replay_time])
+                        rec['Log_Api_Time'] = min([rec['Log_Api_Time'], log_api_time])
+                          
+                        log_metadata_size = 0
+                        log_data_size = 0
+                        log_flush_buffer_size = 0
+                        log_put_time = 0.0
+                        log_bb_wr_time = 0.0
+                        log_bb_rd_time = 0.0
+                        log_flush_time = 0.0
+                        log_replay_time = 0.0
+                        log_api_time = 0.0           
+                    elif 'IO_DRIVER:' in line:
                         tokens = line.split(sep = ':')
                         rec['IO_Driver'] = tokens[-1].strip()
                     elif 'IO_MODE:' in line:
@@ -38,8 +58,8 @@ def gather(dir:str):
                     elif 'Max I/O  time=' in line:
                         tokens = line.split(sep = '=')
                         rec['GCRM_IO_Time'] = float(tokens[-1].strip()[:-3])
-                    elif 'put time=' in line:
-                        tokens = line.split(sep = '=')
+                    elif 'Total I/O amount' in line:
+                        tokens = line.split(sep = ':')
                         if (not ('GCRM_Put_Time' in rec)):
                             rec['GCRM_Put_Time'] = float(tokens[-1].strip()[:-3])
                     elif 'close time=' in line:
@@ -94,16 +114,15 @@ def gather(dir:str):
                         tokens = line.split(sep = ':')
                         rec['Stage_Out_Time'] = float(tokens[-1].strip()[:-3])
                         
-                    
-                    rec['Log_Api_Time'] = log_api_time
                     rec['Log_Metadata_Size'] = log_metadata_size
                     rec['Log_Data_Size'] = log_data_size
-                    rec['Log_BB_Write_Time'] = log_bb_wr_time
-                    rec['Log_BB_Read_Time'] = log_bb_rd_time
-                    rec['Log_Flush_Time'] = log_flush_time
-                    rec['Log_Replay_Time'] = log_replay_time
-                    rec['Log_Put_Time'] = log_put_time
                     rec['Log_Buffer_Size'] = log_flush_buffer_size
+                    rec['Log_Put_Time'] = min([rec['Log_Put_Time'], log_put_time])
+                    rec['Log_BB_Write_Time'] = min([rec['Log_BB_Write_Time'], log_bb_wr_time])
+                    rec['Log_BB_Read_Time'] = min([rec['Log_BB_Read_Time'], log_bb_rd_time])
+                    rec['Log_Flush_Time'] = min([rec['Log_Flush_Time'], log_flush_time])
+                    rec['Log_Replay_Time'] = min([rec['Log_Replay_Time'], log_replay_time])
+                    rec['Log_Api_Time'] = min([rec['Log_Api_Time'], log_api_time])
 
             recs.append(rec)
     return recs
