@@ -147,7 +147,7 @@
           do i=0, nkeys-1
               call MPI_Info_get_nthkey(info_used, i, key, err)
               call MPI_Info_get(info_used, key, MPI_MAX_INFO_VAL, value, flag, err)
- 123          format('MPI File Info: [',I2,'] key = ',A25, ', value =',A)
+ 123          format('MPI File Info: [',I2,'] key = ',A25, ', value =',A32)
               print 123, i, key, value
           enddo
           print *
