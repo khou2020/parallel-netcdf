@@ -12,8 +12,12 @@ echo "N_NODE:$2"
 echo "N_PROC:$3"
 cd $PWD
 mkdir -p $1
-rm -rf $1/ncmpi_$4_$3
-mkdir $1/ncmpi_$4_$3
-srun -n $3 ./flash_benchmark_io $1/ncmpi_$4_$3/flash_
+for i in 1 2 3
+do
+    echo "Round " $i ":"
+    rm -rf $1/ncmpi_$4_$3
+    mkdir $1/ncmpi_$4_$3
+    srun -n $3 ./flash_benchmark_io $1/ncmpi_$4_$3/flash_
+done
 ')dnl
 SCRIPT(EXPDIR,NNODE,NPROC,IOMODE)
