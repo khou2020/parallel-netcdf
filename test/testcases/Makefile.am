@@ -63,8 +63,9 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                null_args \
                tst_dimsizes \
                mix_collectives \
-               redef1 \
-			   debug 
+               large_var_cdf5 \
+               debug \
+               redef1
 
 M4_SRCS  = put_all_kinds.m4 erange_fill.m4
 
@@ -117,6 +118,8 @@ else
    check_PROGRAMS = $(TESTPROGRAMS)
 endif
 
+check_PROGRAMS += tst_open_cdf5
+
 # autimake 1.11.3 has not yet implemented AM_TESTS_ENVIRONMENT
 # For newer versions, we can use AM_TESTS_ENVIRONMENT instead
 # AM_TESTS_ENVIRONMENT  = TESTPROGRAMS="$(TESTPROGRAMS)" ; export TESTPROGRAMS;
@@ -128,10 +131,11 @@ TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
 
 TESTS = seq_runs.sh
 
-CLEANFILES = $(M4_SRCS:.m4=.c) *.nc core core.* *.gcda *.gcno *.gcov gmon.out \
-             testfile.nc.cdf1 testfile.nc.cdf2 testfile.nc.cdf5
+CLEANFILES = $(M4_SRCS:.m4=.c) core core.* *.gcda *.gcno *.gcov gmon.out \
+             testfile.nc testfile.nc.cdf1 testfile.nc.cdf2 testfile.nc.cdf5 \
+             redef1.nc
 
-EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump
+EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump bad_begin.nc5
 
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests

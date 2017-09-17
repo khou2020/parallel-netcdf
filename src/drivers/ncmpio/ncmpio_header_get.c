@@ -25,7 +25,7 @@
 #define NC_MAGIC_LEN 4
 
 /*----< compute_var_shape() >------------------------------------------------*/
-/* Recompute the shapes of all variables
+/* Recompute the shapes of all variables: shape, xsz, and len
  * Sets ncp->begin_var to start of first variable.
  * Sets ncp->begin_rec to start of first record variable.
  * Returns -1 on error. The only possible error is an reference to a non
@@ -446,11 +446,16 @@ hdr_get_uint64(bufferinfo *gbp,
 }
 
 /*----< hdr_get_NC_tag() >----------------------------------------------------*/
+/* NC_tag is 32-bit integer and can be the followings:
+ *     ZERO (NC_UNSPECIFIED)
+ *     NC_DIMENSION
+ *     NC_ATTRIBUTE
+ *     NC_VARIABLE
+ */
 inline static int
 hdr_get_NC_tag(bufferinfo *gbp,
                NC_tag     *tagp)
 {
-    /* NC_tag is 4-byte integer: NC_DIMENSION, NC_VARIABLE, NC_ATTRIBUTE */
     uint type = 0;
     int status = hdr_check_buffer(gbp, 4);
     if (status != NC_NOERR) return status;
@@ -515,7 +520,7 @@ hdr_get_NC_name(bufferinfo  *gbp,
     int err;
     char *cpos;
     MPI_Aint pos_addr, base_addr;
-    MPI_Offset nchars, nbytes, padding, bufremain, strcount;
+    MPI_Offset nchars, padding, bufremain, strcount;
 
     *namep = NULL;
     /* get nelems */
@@ -582,11 +587,11 @@ hdr_get_NC_name(bufferinfo  *gbp,
         memset(pad, 0, X_ALIGN-1);
         if (memcmp(gbp->pos, pad, (size_t)padding) != 0) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header non-zero padding found\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, non-zero padding found\n",__FILE__,__func__,__LINE__);
 #endif
             NCI_Free(*namep);
             *namep = NULL;
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
         gbp->pos = (void *)((char *)gbp->pos + padding);
     }
@@ -693,18 +698,18 @@ hdr_get_NC_dimarray(bufferinfo  *gbp,
     ncap->unlimited_id = -1;
 
     if (ndefined == 0) {
-        if (tag != NC_DIMENSION && tag != NC_UNSPECIFIED) {
+        if (tag != NC_UNSPECIFIED) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header format for NC_DIMENSION\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, expecting tag ABSENT but got %d\n",__FILE__,__func__,__LINE__,tag);
 #endif
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
     } else {
         if (tag != NC_DIMENSION) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header format for NC_DIMENSION\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, expecting tag NC_DIMENSION but got %d\n",__FILE__,__func__,__LINE__,tag);
 #endif
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
 
         alloc_size = _RNDUP(ncap->ndefined, NC_ARRAY_GROWBY);
@@ -788,9 +793,9 @@ hdr_get_NC_attrV(bufferinfo *gbp,
         memset(pad, 0, X_ALIGN-1);
         if (memcmp(gbp->pos, pad, (size_t)padding) != 0) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header non-zero padding found\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, non-zero padding found\n",__FILE__,__func__,__LINE__);
 #endif
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
         gbp->pos = (void *)((char *)gbp->pos + padding);
     }
@@ -877,7 +882,7 @@ hdr_get_NC_attrarray(bufferinfo   *gbp,
     int i, status;
     size_t alloc_size;
     NC_tag tag = NC_UNSPECIFIED;
-    MPI_Offset ndefined;
+    MPI_Offset ndefined; /* nelems */
 
     assert(gbp != NULL && gbp->pos != NULL);
     assert(ncap != NULL);
@@ -903,18 +908,18 @@ hdr_get_NC_attrarray(bufferinfo   *gbp,
     ncap->ndefined = (size_t)ndefined;
 
     if (ndefined == 0) {
-        if (tag != NC_ATTRIBUTE && tag != NC_UNSPECIFIED) {
+        if (tag != NC_UNSPECIFIED) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header format for NC_ATTRIBUTE\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, expecting tag ABSENT but got %d\n",__FILE__,__func__,__LINE__,tag);
 #endif
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
     } else {
         if (tag != NC_ATTRIBUTE) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header format for NC_ATTRIBUTE\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, expecting tag NC_ATTRIBUTE but got %d\n",__FILE__,__func__,__LINE__,tag);
 #endif
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
 
         alloc_size = _RNDUP(ncap->ndefined, NC_ARRAY_GROWBY);
@@ -1135,18 +1140,18 @@ hdr_get_NC_vararray(bufferinfo  *gbp,
      * of ndefined from int to MPI_Offset */
 
     if (ndefined == 0) { /* no variable defined */
-        if (tag != NC_VARIABLE && tag != NC_UNSPECIFIED) {
+        if (tag != NC_UNSPECIFIED) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header format for NC_VARIABLE\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, expecting tag ABSENT but got %d\n",__FILE__,__func__,__LINE__,tag);
 #endif
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
     } else {
         if (tag != NC_VARIABLE) {
 #ifdef PNETCDF_DEBUG
-            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header format for NC_VARIABLE\n",__FILE__,__func__,__LINE__);
+            fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, expecting tag NC_VARIABLE but got %d\n",__FILE__,__func__,__LINE__,tag);
 #endif
-            DEBUG_RETURN_ERROR(NC_EINVAL)
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
         }
 
         alloc_size = _RNDUP(ncap->ndefined, NC_ARRAY_GROWBY);
@@ -1156,12 +1161,12 @@ hdr_get_NC_vararray(bufferinfo  *gbp,
         /* get [var ...] */
         for (i=0; i<ndefined; i++) {
             status = hdr_get_NC_var(gbp, ncap->value + i);
-            ncap->value[i]->varid = i;
             if (status != NC_NOERR) { /* Error: fail to get the next var */
                 ncap->ndefined = i; /* update to no. successful defined */
                 ncmpio_free_NC_vararray(ncap);
                 return status;
             }
+            ncap->value[i]->varid = i;
         }
     }
 
@@ -1336,14 +1341,20 @@ ncmpio_hdr_get_NC(NC *ncp)
     /* get the un-aligned size occupied by the file header */
     ncp->xsz = ncmpio_hdr_len_NC(ncp);
 
-    /* Recompute the shapes of all variables
+    /* Recompute the shapes of all variables (shape, xsz, len)
      * Sets ncp->begin_var to start of first variable.
      * Sets ncp->begin_rec to start of first record variable.
      */
     status = compute_var_shape(ncp);
     if (status != NC_NOERR) goto fn_exit;
 
+    /* Check whether variable sizes are legal for the given file format */
     status = ncmpio_NC_check_vlens(ncp);
+    if (status != NC_NOERR) goto fn_exit;
+
+    /* Check whether variable begins are in an increasing order.
+     * Adding this check here is necessary for detecting corrupted metadata. */
+    status = ncmpio_NC_check_voffs(ncp);
     if (status != NC_NOERR) goto fn_exit;
 
 fn_exit:

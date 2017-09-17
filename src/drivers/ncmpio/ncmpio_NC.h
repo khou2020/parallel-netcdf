@@ -18,7 +18,7 @@
 #include "ncmpio_driver.h"
 
 #define FILE_ALIGNMENT_DEFAULT 512
-#define HEADER_ALIGNMENT_LB    4
+#define FILE_ALIGNMENT_LB      4
 
 /* define MPI_OFFSET if not defined */
 #ifndef HAVE_DECL_MPI_OFFSET
@@ -52,7 +52,7 @@
 #define MIN_NC_XSZ 32
 
 typedef enum {
-    NC_UNSPECIFIED =  0,
+    NC_UNSPECIFIED =  0,  /* ABSENT */
     NC_DIMENSION   = 10,  /* \x00 \x00 \x00 \x0A */
     NC_VARIABLE    = 11,  /* \x00 \x00 \x00 \x0B */
     NC_ATTRIBUTE   = 12   /* \x00 \x00 \x00 \x0C */
@@ -370,7 +370,13 @@ extern void
 ncmpio_free_NC(NC *ncp);
 
 extern int
+ncmpio_NC_check_vlen(NC_var *varp, MPI_Offset vlen_max);
+
+extern int
 ncmpio_NC_check_vlens(NC *ncp);
+
+extern int
+ncmpio_NC_check_voffs(NC *ncp);
 
 /* Begin defined in ncmpio_header_get.c -------------------------------------*/
 typedef struct bufferinfo {

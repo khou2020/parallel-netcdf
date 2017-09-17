@@ -61,7 +61,7 @@ typedef int nc_type;
 #define	NC_CHAR 	2	/**< ISO/ASCII character */
 #define	NC_SHORT 	3	/**< signed 2 byte integer */
 #define	NC_INT 	        4	/**< signed 4 byte integer */
-#define NC_LONG         NC_INT  /**< deprecated, but required for backward compatibility. */
+#define NC_LONG         NC_INT  /**< \deprecated required for backward compatibility. */
 #define	NC_FLOAT 	5	/**< single precision floating point number */
 #define	NC_DOUBLE 	6	/**< double precision floating point number */
 #define	NC_UBYTE 	7	/**< unsigned 1 byte int */
@@ -341,7 +341,7 @@ open netCDF dataset. */
 #define	NC_EBADID	(-33)
 #define	NC_ENFILE	(-34)	   /**< Too many netcdfs open */
 #define	NC_EEXIST	(-35)	   /**< netcdf file exists && NC_NOCLOBBER */
-#define	NC_EINVAL	(-36)	   /**< Invalid Argument or file format violates CDF specification */
+#define	NC_EINVAL	(-36)	   /**< Invalid Argument */
 #define	NC_EPERM	(-37)	   /**< Write to read only */
 
 /** Operation not allowed in data mode. This is returned for netCDF
@@ -387,7 +387,7 @@ classic or 64-bit offset file, or an netCDF-4 file with
 The variable ID is invalid for the specified netCDF dataset. */
 #define NC_ENOTVAR	(-49)
 #define NC_EGLOBAL	(-50)	   /**< Action prohibited on NC_GLOBAL varid */
-#define NC_ENOTNC	(-51)	   /**< Not a netcdf file */
+#define NC_ENOTNC	(-51)	   /**< Not a netcdf file (file format violates CDF specification) */
 #define NC_ESTS        	(-52)	   /**< In Fortran, string too short */
 #define NC_EMAXNAME    	(-53)	   /**< NC_MAX_NAME exceeded */
 #define NC_EUNLIMIT    	(-54)	   /**< NC_UNLIMITED size already in use */
@@ -425,7 +425,9 @@ by the desired type. */
 #define NC_EDAPSVC      (-70)      /**< DAP server error */
 #define NC_EDAS		(-71)      /**< Malformed or inaccessible DAS */
 #define NC_EDDS		(-72)      /**< Malformed or inaccessible DDS */
+#define NC_EDMR         NC_EDDS    /**< Dap4 alias */
 #define NC_EDATADDS	(-73)      /**< Malformed or inaccessible DATADDS */
+#define NC_EDATADAP     NC_EDATADDS    /**< Dap4 alias */
 #define NC_EDAPURL	(-74)      /**< Malformed DAP URL */
 #define NC_EDAPCONSTRAINT (-75)    /**< Malformed DAP Constraint*/
 #define NC_ETRANSLATION (-76)      /**< Untranslatable construct */

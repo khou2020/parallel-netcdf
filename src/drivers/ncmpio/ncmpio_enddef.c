@@ -295,9 +295,9 @@ NC_begins(NC *ncp)
        loop thru vars, first pass is for the 'non-record' vars */
     end_var = ncp->begin_var;
     for (j=0, i=0; i<ncp->vars.ndefined; i++) {
-        if (IS_RECVAR(ncp->vars.value[i]))
-            /* skip record variables on this pass */
-            continue;
+        /* skip record variables on this pass */
+        if (IS_RECVAR(ncp->vars.value[i])) continue;
+
         if (first_var == NULL) first_var = ncp->vars.value[i];
 
         /* for CDF-1 check if over the file size limit 32-bit integer */
@@ -460,8 +460,8 @@ write_NC(NC *ncp)
     assert(!NC_readonly(ncp));
 
     /* In NC_begins(), root's ncp->xsz, root's header size, has been
-     * broadcasted, so ncp->xsz is now root's header size. To check any
-     * inconsistency in file header, we need to calculate local's header
+     * broadcast, so ncp->xsz is now root's header size. To check any
+     * inconsistency in file header, we need to calculate local header
      * size by calling ncmpio_hdr_len_NC()./
      */
     local_xsz = ncmpio_hdr_len_NC(ncp);
@@ -618,23 +618,23 @@ write_NC(NC *ncp)
         return err;                                                     \
 }
 
-/*----< NC_check_vlen() >----------------------------------------------------*/
+/*----< ncmpio_NC_check_vlen() >---------------------------------------------*/
 /* Check whether variable size is less than or equal to vlen_max,
  * without overflowing in arithmetic calculations.  If OK, return 1,
  * else, return 0.  For CDF1 format or for CDF2 format on non-LFS
  * platforms, vlen_max should be 2^31 - 4, but for CDF2 format on
  * systems with LFS it should be 2^32 - 4.
  */
-static int
-NC_check_vlen(NC_var     *varp,
-              MPI_Offset  vlen_max)
+int
+ncmpio_NC_check_vlen(NC_var     *varp,
+                     MPI_Offset  vlen_max)
 {
     int i;
     MPI_Offset prod=varp->xsz;     /* product of xsz and dimensions so far */
 
     for (i = IS_RECVAR(varp) ? 1 : 0; i < varp->ndims; i++) {
         if (varp->shape[i] > vlen_max / prod) {
-            return 0;           /* size in bytes won't fit in a 32-bit int */
+            return 0;           /* size in bytes > vlen_max */
         }
         prod *= varp->shape[i];
     }
@@ -650,41 +650,44 @@ NC_check_vlen(NC_var     *varp,
 int
 ncmpio_NC_check_vlens(NC *ncp)
 {
-    NC_var **vpp;
-    /* maximum permitted variable size (or size of one record's worth
-       of a record variable) in bytes.  This is different for format 1
-       and format 2. */
-    MPI_Offset ii, vlen_max, rec_vars_count;
-    MPI_Offset large_fix_vars_count, large_rec_vars_count;
     int last = 0;
+    MPI_Offset i, vlen_max, rec_vars_count;
+    MPI_Offset large_fix_vars_count, large_rec_vars_count;
+    NC_var *varp;
 
     if (ncp->vars.ndefined == 0) /* no variable defined */
         return NC_NOERR;
 
-    if (ncp->format >= 5) /* CDF-5 has no such limitation */
-        return NC_NOERR;
+    /* maximum permitted variable size (or size of one record's worth
+       of a record variable) in bytes. It is different between format 1
+       2 and 5. */
 
-    /* only CDF-1 and CDF-2 need to continue */
-
-    if (ncp->format == 2) /* CDF2 format */
-        vlen_max = X_UINT_MAX - 3; /* "- 3" handles rounded-up size */
+    if (ncp->format >= 5) /* CDF-5 format max */
+        vlen_max = X_INT64_MAX - 3; /* "- 3" handles rounded-up size */
+    else if (ncp->format == 2) /* CDF2 format */
+        vlen_max = X_UINT_MAX  - 3; /* "- 3" handles rounded-up size */
     else
-        vlen_max = X_INT_MAX - 3; /* CDF1 format */
+        vlen_max = X_INT_MAX   - 3; /* CDF1 format */
 
     /* Loop through vars, first pass is for non-record variables */
     large_fix_vars_count = 0;
     rec_vars_count = 0;
-    vpp = ncp->vars.value;
-    for (ii = 0; ii < ncp->vars.ndefined; ii++, vpp++) {
-        if (!IS_RECVAR(*vpp)) {
-            last = 0;
-            if (NC_check_vlen(*vpp, vlen_max) == 0) {
-                /* check this variable's shape product against vlen_max */
-                large_fix_vars_count++;
-                last = 1;
-            }
-        } else {
+    for (i=0; i<ncp->vars.ndefined; i++) {
+        varp = ncp->vars.value[i];
+        if (IS_RECVAR(varp)) {
             rec_vars_count++;
+            continue;
+        }
+
+        last = 0;
+        if (ncmpio_NC_check_vlen(varp, vlen_max) == 0) {
+            /* check this variable's shape product against vlen_max */
+
+            if (ncp->format >= 5) /* variable too big for CDF-5 */
+                DEBUG_RETURN_ERROR(NC_EVARSIZE)
+
+            large_fix_vars_count++;
+            last = 1;
         }
     }
     /* OK if last non-record variable size too large, since not used to
@@ -705,15 +708,19 @@ ncmpio_NC_check_vlens(NC *ncp)
 
     /* Loop through vars, second pass is for record variables.   */
     large_rec_vars_count = 0;
-    vpp = ncp->vars.value;
-    for (ii = 0; ii < ncp->vars.ndefined; ii++, vpp++) {
-        if (IS_RECVAR(*vpp)) {
-            last = 0;
-            if (NC_check_vlen(*vpp, vlen_max) == 0) {
-                /* check this variable's shape product against vlen_max */
-                large_rec_vars_count++;
-                last = 1;
-            }
+    for (i=0; i<ncp->vars.ndefined; i++) {
+        varp = ncp->vars.value[i];
+        if (!IS_RECVAR(varp)) continue;
+
+        last = 0;
+        if (ncmpio_NC_check_vlen(varp, vlen_max) == 0) {
+            /* check this variable's shape product against vlen_max */
+
+            if (ncp->format >= 5) /* variable too big for CDF-5 */
+                DEBUG_RETURN_ERROR(NC_EVARSIZE)
+
+            large_rec_vars_count++;
+            last = 1;
         }
     }
 
@@ -732,6 +739,56 @@ ncmpio_NC_check_vlens(NC *ncp)
     return NC_NOERR;
 }
 
+/*----< ncmpio_NC_check_voffs() >--------------------------------------------*/
+/*
+ * Given a valid ncp, check whether the file starting offsets (begin) of all
+ * variables follows the same increasing order as they were defined.
+ */
+int
+ncmpio_NC_check_voffs(NC *ncp)
+{
+    NC_var *varp;
+    MPI_Offset i, prev_off;
+
+    if (ncp->vars.ndefined == 0) return NC_NOERR;
+
+    /* Loop through vars, first pass is for non-record variables */
+    prev_off = ncp->begin_var;
+    for (i=0; i<ncp->vars.ndefined; i++) {
+        varp = ncp->vars.value[i];
+        if (IS_RECVAR(varp)) continue;
+
+        if (varp->begin < prev_off) {
+            if (ncp->safe_mode)
+                printf("Variable \"%s\" begin offset (%lld) is less than previous variable end offset (%lld)\n", varp->name, varp->begin, prev_off);
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
+        }
+        prev_off = varp->begin + varp->len;
+    }
+
+    if (ncp->begin_rec < prev_off) {
+        if (ncp->safe_mode)
+            printf("Record variable section begin offset (%lld) is less than fix-sized variable section end offset (%lld)\n", varp->begin, prev_off);
+        DEBUG_RETURN_ERROR(NC_ENOTNC)
+    }
+
+    /* Loop through vars, second pass is for record variables */
+    prev_off = ncp->begin_rec;
+    for (i=0; i<ncp->vars.ndefined; i++) {
+        varp = ncp->vars.value[i];
+        if (!IS_RECVAR(varp)) continue;
+
+        if (varp->begin < prev_off) {
+            if (ncp->safe_mode)
+                printf("Variable \"%s\" begin offset (%lld) is less than previous variable end offset (%lld)\n", varp->name, varp->begin, prev_off);
+            DEBUG_RETURN_ERROR(NC_ENOTNC)
+        }
+        prev_off = varp->begin + varp->len;
+    }
+
+    return NC_NOERR;
+}
+
 /*----< ncmpio__enddef() >---------------------------------------------------*/
 /* This is a collective subroutine. */
 int
@@ -743,7 +800,7 @@ ncmpio__enddef(void       *ncdp,
 {
     int i, flag, striping_unit, mpireturn, err=NC_NOERR, status=NC_NOERR;
     char value[MPI_MAX_INFO_VAL];
-    MPI_Offset all_var_size;
+    MPI_Offset all_fix_var_size;
     NC *ncp = (NC*)ncdp;
 
     /* sanity check for NC_ENOTINDEFINE, NC_EINVAL, NC_EMULTIDEFINE_FNC_ARGS
@@ -767,16 +824,18 @@ ncmpio__enddef(void       *ncdp,
     }
     ncp->striping_unit = striping_unit;
 
-    all_var_size = 0;  /* sum of all defined variables */
-    for (i=0; i<ncp->vars.ndefined; i++)
-        all_var_size += ncp->vars.value[i]->len;
+    all_fix_var_size = 0;  /* sum of all defined fix-sized variables */
+    for (i=0; i<ncp->vars.ndefined; i++) {
+        if (IS_RECVAR(ncp->vars.value[i])) continue;
+        all_fix_var_size += ncp->vars.value[i]->len;
+    }
 
     /* ncp->h_align, ncp->v_align, ncp->r_align, and ncp->chunk have been
      * set during file create/open */
 
     if (ncp->h_align == 0) { /* user info does not set nc_header_align_size */
         if (striping_unit &&
-            all_var_size > HEADER_ALIGNMENT_LB * striping_unit)
+            all_fix_var_size > FILE_ALIGNMENT_LB * striping_unit)
             /* if striping_unit is available and file size sufficiently large */
             ncp->h_align = striping_unit;
         else
@@ -788,7 +847,7 @@ ncmpio__enddef(void       *ncdp,
         if (v_align > 0) /* else respect user hint */
             ncp->v_align = v_align;
         else if (striping_unit &&
-                 all_var_size > HEADER_ALIGNMENT_LB * striping_unit)
+                 all_fix_var_size > FILE_ALIGNMENT_LB * striping_unit)
             /* if striping_unit is available and file size sufficiently large */
             ncp->v_align = striping_unit;
         else
@@ -848,11 +907,25 @@ ncmpio__enddef(void       *ncdp,
     err = NC_begins(ncp);
     CHECK_ERROR(err)
 
+    if (ncp->safe_mode) {
+        /* check whether variable begins are in an increasing order.
+         * This check is for debugging purpose. */
+        err = ncmpio_NC_check_voffs(ncp);
+        CHECK_ERROR(err)
+    }
+
 #ifdef ENABLE_SUBFILING
     if (ncp->num_subfiles > 1) {
         /* get ncp info for the subfile */
         err = NC_begins(ncp->ncp_sf);
         CHECK_ERROR(err)
+
+        if (ncp->safe_mode) {
+            /* check whether variable begins are in an increasing order.
+             * This check is for debugging purpose. */
+            err = ncmpio_NC_check_voffs(ncp->ncp_sf);
+            CHECK_ERROR(err)
+        }
     }
 #endif
 

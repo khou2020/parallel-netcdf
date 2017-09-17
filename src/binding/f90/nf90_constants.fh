@@ -153,7 +153,7 @@
     NF90_EMAXVARS       = NF_EMAXVARS      , & ! NF_MAX_VARS exceeded
     NF90_ENOTVAR        = NF_ENOTVAR       , & ! Variable not found
     NF90_EGLOBAL        = NF_EGLOBAL       , & ! Action prohibited on NF_GLOBAL varid
-    NF90_ENOTNC         = NF_ENOTNC        , & ! Not a netcdf file
+    NF90_ENOTNC         = NF_ENOTNC        , & ! Not a netcdf file (file format violates CDF specification)
     NF90_ESTS           = NF_ESTS          , & ! In Fortran, string too short
     NF90_EMAXNAME       = NF_EMAXNAME      , & ! NF_MAX_NAME exceeded
     NF90_EUNLIMIT       = NF_EUNLIMIT      , & ! NFMPI_UNLIMITED size already in use
@@ -178,7 +178,9 @@
     NF90_EDAPSVC        = NF_EDAPSVC       , & ! DAP server error
     NF90_EDAS           = NF_EDAS          , & ! Malformed or inaccessible DAS
     NF90_EDDS           = NF_EDDS          , & ! Malformed or inaccessible DDS
+    NF90_EDMR           = NF_EDDS          , & ! Dap4 alias
     NF90_EDATADDS       = NF_EDATADDS      , & ! Malformed or inaccessible DATADDS
+    NF90_EDATADAP       = NF_EDATADDS      , & ! Dap4 alias
     NF90_EDAPURL        = NF_EDAPURL       , & ! Malformed DAP URL
     NF90_EDAPCONSTRAINT = NF_EDAPCONSTRAINT, & ! Malformed DAP Constraint
     NF90_ETRANSLATION   = NF_ETRANSLATION  , & ! Untranslatable construct
