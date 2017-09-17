@@ -64,7 +64,7 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                tst_dimsizes \
                mix_collectives \
                redef1 \
-			   log
+			   debug 
 
 M4_SRCS  = put_all_kinds.m4 erange_fill.m4
 

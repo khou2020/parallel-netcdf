@@ -35,8 +35,7 @@ C_SRCS = ncbbio_attr.c \
          ncbbio_file.c \
          ncbbio_var.c \
 		 log.c \
-		 log_mem.c \
-		 log_check.c
+		 log_mem.c 
 
 $(M4_SRCS:.m4=.c): Makefile
 

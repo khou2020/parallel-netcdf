@@ -78,11 +78,17 @@ ncbbio_create(MPI_Comm     comm,
     ncbbp->mode       = cmode;
     ncbbp->ncmpio_driver     = driver;
     ncbbp->flag       = 0;
+    ncbbp->ncid = ncid;
     ncbbp->ncp        = ncp;
     MPI_Comm_dup(comm, &ncbbp->comm);
     
     /* Init log structure */
-    ncbbp->inited = 0;
+    err = ncmpii_log_create(ncbbp, info);
+    if (err != NC_NOERR) {
+        NCI_Free(ncbbp);
+        return err;
+    }
+    ncbbp->inited = 1;
     
     *ncpp = ncbbp;
 
@@ -129,15 +135,17 @@ ncbbio_open(MPI_Comm     comm,
     ncbbp->mode       = omode;
     ncbbp->ncmpio_driver     = driver;
     ncbbp->flag       = 0;
+    ncbbp->ncid = ncid;
     ncbbp->ncp        = ncp;
     MPI_Comm_dup(comm, &ncbbp->comm);
 
     /* Init log structure */
-    err = log_open(ncbbp, info);
-    if (err != NC_NOER) {
+    err = ncmpii_log_create(ncbbp, info);
+    if (err != NC_NOERR) {
         NCI_Free(ncbbp);
         return err;
     }
+    ncbbp->inited = 1;
 
     *ncpp = ncbbp;
 
@@ -228,6 +236,8 @@ ncbbio_begin_indep_data(void *ncdp)
     err = ncbbp->ncmpio_driver->begin_indep_data(ncbbp->ncp);
     if (err != NC_NOERR) return err;
 
+    ncbbp->isindep = 1;
+
     return NC_NOERR;
 }
 
@@ -239,6 +249,8 @@ ncbbio_end_indep_data(void *ncdp)
     
     err = ncbbp->ncmpio_driver->end_indep_data(ncbbp->ncp);
     if (err != NC_NOERR) return err;
+
+    ncbbp->isindep = 0;
 
     return NC_NOERR;
 }

@@ -193,7 +193,7 @@ err_check:
     //status = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, imap,
     //                              cbuf, bufcount, buftype, reqMode);
     
-    status = ncmpii_log_put_var(ncbbp, varid, start, count, stride, cbuf, buftypei, NULL);
+    status = ncmpii_log_put_var(ncbbp, varid, start, count, stride, cbuf, buftype, NULL);
 
     if (cbuf != buf) NCI_Free(cbuf);
 
@@ -333,7 +333,6 @@ ncbbio_put_varn(void              *ncdp,
     void *cbuf = (void*)buf;
     void *bufp;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
     
     /*
     err = ncbbp->ncmpio_driver->put_varn(ncbbp->ncp, varid, num, starts, counts, buf,
@@ -341,30 +340,7 @@ ncbbio_put_varn(void              *ncdp,
     if (err != NC_NOERR) return err;
     */
     
-    if (bufcount != -1) {
-        /* pack buf to cbuf -------------------------------------------------*/
-        /* If called from a true varm API or a flexible API, ncmpii_pack()
-         * packs user buf into a contiguous cbuf (need to be freed later).
-         * Otherwise, cbuf is simply set to buf. ncmpii_pack() also returns
-         * etype (MPI primitive datatype in buftype), and nelems (number of
-         * etypes in buftype * bufcount)
-         */
-        int ndims;
-        MPI_Offset nelems;
-        MPI_Datatype etype;
-
-        err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, &ndims, NULL,
-                                   NULL, NULL, NULL, NULL);
-        if (err != NC_NOERR) goto err_check;
-
-        err = ncmpii_pack(ndims, count, NULL, (void*)buf, bufcount, buftype,
-                          &nelems, &etype, &cbuf);
-        if (err != NC_NOERR) goto err_check;
-
-        bufcount = (nelems == 0) ? 0 : -1;  /* make it a high-level API */
-        buftype  = etype;                   /* an MPI primitive type */
-    }
-
+    
 err_check:
     if (err != NC_NOERR) {
         if (reqMode & NC_REQ_INDEP) return err;
@@ -373,7 +349,7 @@ err_check:
 
     bufp = cbuf;
     for(i = 0; i < num; i++){
-        err = ncmpii_log_put_var(ncbbp, varid, start, count, stride, bufp, buftype, *size);
+        err = ncmpii_log_put_var(ncbbp, varid, starts[i], counts[i], NULL, bufp, buftype, &size);
         if (status == NC_NOERR){
             status = err;
         }

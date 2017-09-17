@@ -115,7 +115,7 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libncbbio_la_LIBADD =
 am__objects_1 = ncbbio_attr.lo ncbbio_dim.lo ncbbio_driver.lo \
-	ncbbio_file.lo ncbbio_var.lo log.lo log_mem.lo log_check.lo
+	ncbbio_file.lo ncbbio_var.lo log.lo log_mem.lo
 am__objects_2 =
 am_libncbbio_la_OBJECTS = $(am__objects_1) $(am__objects_2)
 am__objects_3 = log_flush.lo
@@ -204,7 +204,7 @@ CC = /home/khl7265/local/bin/mpicc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g  -O0
 CONFIGURE_ARGS_CLEAN = --prefix=/home/khl7265/local/ncmpi_bb --disable-fortran --enable-debug --disable-shared
-CONFIG_DATE = Mon Sep 11 10:56:50 CDT 2017
+CONFIG_DATE = Sat Sep 16 00:59:10 CDT 2017
 CPP = /home/khl7265/local/bin/mpicc -E
 CPPFLAGS = 
 CXX = /home/khl7265/local/bin/mpicxx
@@ -401,8 +401,7 @@ C_SRCS = ncbbio_attr.c \
          ncbbio_file.c \
          ncbbio_var.c \
 		 log.c \
-		 log_mem.c \
-		 log_check.c
+		 log_mem.c 
 
 libncbbio_la_SOURCES = $(C_SRCS) $(H_SRCS)
 nodist_libncbbio_la_SOURCES = $(M4_SRCS:.m4=.c)
@@ -469,7 +468,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/log.Plo
-include ./$(DEPDIR)/log_check.Plo
 include ./$(DEPDIR)/log_flush.Plo
 include ./$(DEPDIR)/log_mem.Plo
 include ./$(DEPDIR)/ncbbio_attr.Plo

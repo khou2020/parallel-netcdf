@@ -11,8 +11,6 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <assert.h>
-#include "nc.h"
-#include "ncx.h"
 #include <limits.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -25,9 +23,9 @@
 #include <pnc_debug.h>
 #include <common.h>
 #include <pnetcdf.h>
-#include <log.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <ncbbio_driver.h>
 
 
 
@@ -37,8 +35,8 @@
  * Meta data is stored in memory, metalog is only used for restoration after abnormal shutdown
  * IN    ncbbp:    log structure
  */
-int split_iput(NC_bb *ncbbp, NC_var *varp, MPI_Offset *start, MPI_Offset *count, MPI_Offset *stride, MPI_Datatype buftype, MPI_Offset dataoff, MPI_Offset datalen, size_t buffersize, void *buffer) {
-    int i, err;
+int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset *count, MPI_Offset *stride, MPI_Datatype buftype, MPI_Offset dataoff, MPI_Offset datalen, size_t buffersize, void *buffer) {
+    int i, err, reqmode;
     MPI_Offset count1, count2;
     MPI_Offset start1, start2;
     MPI_Offset datalen1, datalen2;
@@ -53,7 +51,7 @@ int split_iput(NC_bb *ncbbp, NC_var *varp, MPI_Offset *start, MPI_Offset *count,
         /* Read buffer into memory */
         ioret = read(ncbbp->datalog_fd, buffer, datalen); 
         if (ioret < 0) {
-            ioret = ncmpii_error_mpi2nc("read");
+            ioret = ncmpii_error_posix2nc("read");
             if (ioret == NC_EFILE){
                 ioret = NC_EREAD;
             }
@@ -71,12 +69,22 @@ int split_iput(NC_bb *ncbbp, NC_var *varp, MPI_Offset *start, MPI_Offset *count,
          * Blocking call will be intercepted by logging
          * Must use non-blocking call even if only one instance at a time
          */
-        err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, buffer, -1, buftype, NULL, WRITE_REQ, 0, 0);
+        //err = ncmpii_igetput_varm(ncp, varid, start, count, stride, NULL, buffer, -1, buftype, NULL, WRITE_REQ, 0, 0);
+        reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL;
+        if (ncbbp->isindep){
+            reqmode |= NC_REQ_COLL;
+        }
+        else{
+            reqmode |= NC_REQ_INDEP;
+        }
+        err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, NULL, buffer, -1, buftype, reqmode);
+        
         if (err != NC_NOERR) {
             return err;
         }
         
         /* Wait for request */ 
+        /*
         if (NC_indep(ncp)) {
             err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
             if (err != NC_NOERR) {
@@ -89,12 +97,13 @@ int split_iput(NC_bb *ncbbp, NC_var *varp, MPI_Offset *start, MPI_Offset *count,
                 return err;
             }
         }
+        */
 
         t3 = MPI_Wtime();
         ncbbp->flush_read_time += t3 - t2;
     }
     else{
-        for (i = 0; i < varp->ndims; i++) {
+        for (i = 0; i < ndims; i++) {
             if (count[i] > 1){
                 break;
             }
@@ -104,7 +113,7 @@ int split_iput(NC_bb *ncbbp, NC_var *varp, MPI_Offset *start, MPI_Offset *count,
          * We don't split data type
          * If buffer is not enough for even one entry, return error
          */
-        if ( i == varp->ndims) {
+        if ( i == ndims) {
             DEBUG_RETURN_ERROR(NC_ENOMEM);   
         }
 
@@ -122,13 +131,13 @@ int split_iput(NC_bb *ncbbp, NC_var *varp, MPI_Offset *start, MPI_Offset *count,
          */
         start[i] = start1;
         count[i] = count1;
-        err = split_iput(ncp, varp, start, count, stride, buftype, dataoff, datalen1, buffersize, buffer);
+        err = split_iput(ncbbp, varid, ndims, start, count, stride, buftype, dataoff, datalen1, buffersize, buffer);
         if (err != NC_NOERR) {
             return err;
         }
         start[i] = start2;
         count[i] = count2;
-        err = split_iput(ncp, varp, start, count, stride, buftype, dataoff + datalen1, datalen2, buffersize, buffer);
+        err = split_iput(ncbbp, varid, ndims, start, count, stride, buftype, dataoff + datalen1, datalen2, buffersize, buffer);
         if (err != NC_NOERR) {
             return err;
         }
@@ -155,12 +164,11 @@ int log_flush(NC_bb *ncbbp) {
     MPI_Datatype buftype;
     char *databuffer;
     NC_bb_metadataheader* headerp;
-    NC_var *varp;
 
     t1 = MPI_Wtime();
-
+    
+    
     /* Read datalog in to memory */
-   
     /* 
      * Prepare data buffer
      * We determine the data buffer size according to:
@@ -169,8 +177,8 @@ int log_flush(NC_bb *ncbbp) {
      * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
      */
     databuffersize = ncbbp->datalogsize;
-    if (ncbbp->ncp->logflushbuffersize > 0 && databuffersize > ncbbp->ncp->logflushbuffersize){
-        databuffersize = ncbbp->ncp->logflushbuffersize;
+    if (ncbbp->logflushbuffersize > 0 && databuffersize > ncbbp->logflushbuffersize){
+        databuffersize = ncbbp->logflushbuffersize;
     }
     /* Allocate buffer */
     databuffer = (char*)NCI_Malloc(databuffersize);
@@ -181,7 +189,7 @@ int log_flush(NC_bb *ncbbp) {
     /* Seek to the start position of first data record */
     ioret = lseek(ncbbp->datalog_fd, 8, SEEK_SET);
     if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc("lseek"));
+        DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
     }
     /* Initialize buffer status */
     databufferidx = 8;
@@ -205,7 +213,7 @@ int log_flush(NC_bb *ncbbp) {
              */
             ioret = read(ncbbp->datalog_fd, databuffer, databufferused); 
             if (ioret < 0) {
-                ioret = ncmpii_error_mpi2nc("read");
+                ioret = ncmpii_error_posix2nc("read");
                 if (ioret == NC_EFILE){
                     ioret = NC_EREAD;
                 }
@@ -269,18 +277,21 @@ int log_flush(NC_bb *ncbbp) {
                     stride = NULL;    
                 }
 
-                /* Translate varid to varp */
-                err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
+                /* Translate varid to varid */
+                /*
+                err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varid);
                 if (status == NC_NOERR) {
                     status = err;
                 }
+                */
 
    
                 
                 t2 = MPI_Wtime();
                 
                 /* Replay event with non-blocking call */
-                err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
+                //err = ncmpii_igetput_varm(ncp, varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
+                err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
                 if (status == NC_NOERR) {
                     status = err;
                 }
@@ -297,19 +308,18 @@ int log_flush(NC_bb *ncbbp) {
             /* 
              * Wait must be called first or previous data will be corrupted
              */
-            if (NC_indep(ncp)) {
-                err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
-                if (status == NC_NOERR) {
-                    status = err;
-                }
+            if (ncbbp->isindep) {
+                //err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_INDEP); 
             }
             else{
-                err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
-                if (status == NC_NOERR) {
-                    status = err;
-                }
+                //err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_COLL);
             }
-            
+            if (status == NC_NOERR) {
+                status = err;
+            }
+ 
             t3 = MPI_Wtime();
             ncbbp->flush_replay_time += t3 - t2;
 
@@ -376,16 +386,18 @@ int log_flush(NC_bb *ncbbp) {
                     stride = NULL;    
                 }
 
-                /* Translate varid to varp */
-                err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
+                /* Translate varid to varid */
+                /*
+                err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varid);
                 if (status == NC_NOERR) {
                     status = err;
                 }
+                */
 
 
                        
             /* Replay event in parts */
-            err = split_iput(ncp, varp, start, count, stride, buftype, entryp->data_off, entryp->data_len, databuffersize, databuffer);
+            err = split_iput(ncbbp, entryp->varid, entryp->ndims, start, count, stride, buftype, entryp->data_off, entryp->data_len, databuffersize, databuffer);
             if (status == NC_NOERR) {
                 status = err;
             }
@@ -417,7 +429,7 @@ int log_flush(NC_bb *ncbbp) {
              */
             ioret = read(ncbbp->datalog_fd, databuffer, databufferused); 
             if (ioret < 0) {
-                ioret = ncmpii_error_mpi2nc("read");
+                ioret = ncmpii_error_posix2nc("read");
                 if (ioret == NC_EFILE){
                     ioret = NC_EREAD;
                 }
@@ -481,18 +493,21 @@ int log_flush(NC_bb *ncbbp) {
                     stride = NULL;    
                 }
 
-                /* Translate varid to varp */
-                err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varp);
+                /* Translate varid to varid */
+                /*
+                err = ncmpii_NC_lookupvar(ncp, entryp->varid, &varid);
                 if (status == NC_NOERR) {
                     status = err;
                 }
+                */
 
    
                 
                 t2 = MPI_Wtime();
                 
                 /* Replay event with non-blocking call */
-                err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
+                //err = ncmpii_igetput_varm(ncp, varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
+                err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
                 if (status == NC_NOERR) {
                     status = err;
                 }
@@ -509,19 +524,18 @@ int log_flush(NC_bb *ncbbp) {
             /* 
              * Wait must be called first or previous data will be corrupted
              */
-            if (NC_indep(ncp)) {
-                err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
-                if (status == NC_NOERR) {
-                    status = err;
-                }
+            if (ncbbp->isindep) {
+                //err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_INDEP); 
             }
             else{
-                err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
-                if (status == NC_NOERR) {
-                    status = err;
-                }
+                //err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, COLL_IO);
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_COLL);
             }
-            
+            if (status == NC_NOERR) {
+                status = err;
+            }
+ 
             t3 = MPI_Wtime();
             ncbbp->flush_replay_time += t3 - t2;
 

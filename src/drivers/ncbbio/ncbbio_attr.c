@@ -103,7 +103,7 @@ ncbbio_copy_att(void       *ncdp_in,
     NC_bb *ncbbp_in  = (NC_bb*)ncdp_in;
     NC_bb *ncbbp_out = (NC_bb*)ncdp_out;
     
-    err = ncbbp_in->driver->copy_att(ncbbp_in->ncp,  varid_in, name,
+    err = ncbbp_in->ncmpio_driver->copy_att(ncbbp_in->ncp,  varid_in, name,
                                    ncbbp_out->ncp, varid_out);
     if (err != NC_NOERR) return err;
 

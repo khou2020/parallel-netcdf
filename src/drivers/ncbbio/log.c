@@ -4,7 +4,6 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <assert.h>
-#include "nc.h"
 #include "ncx.h"
 #include <limits.h>
 #include <fcntl.h>
@@ -18,9 +17,10 @@
 #include <pnc_debug.h>
 #include <common.h>
 #include <pnetcdf.h>
-#include <log.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ncbbio_driver.h>
+
 /*
  * Create a new log structure
  * IN    comm:    communicator passed to ncmpi_open
@@ -31,7 +31,7 @@
  */
 int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
     int i, rank, np, err, flag;
-    char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX], hint[NC_LOG_PATH_MAX];
+    char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX], hint[NC_LOG_PATH_MAX], value[MPI_MAX_INFO_VAL];
     char *abspath, *fname;
     double t1, t2;
     DIR *logdir;
@@ -43,7 +43,7 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
     /* Extract hints */
     ncbbp->hints = NC_LOG_HINT_DEL_ON_CLOSE | NC_LOG_HINT_FLUSH_ON_READ | 
                     NC_LOG_HINT_FLUSH_ON_SYNC;
-    MPI_Info_get(info, "pnetcdf_bb_firname", MPI_MAX_INFO_VAL - 1,
+    MPI_Info_get(info, "pnetcdf_bb_dirname", MPI_MAX_INFO_VAL - 1,
                  value, &flag);
     if (flag) {
         strncpy(ncbbp->logbase, value, PATH_MAX);
@@ -61,16 +61,21 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (flag && strcasecmp(value, "enable") == 0){
         ncbbp->hints |= NC_LOG_HINT_LOG_CHECK;
     }
+    MPI_Info_get(info, "pnetcdf_bb_del_on_close", MPI_MAX_INFO_VAL - 1, 
+                 value, &flag);
+    if (flag && strcasecmp(value, "disable") == 0){
+        ncbbp->hints ^= NC_LOG_HINT_DEL_ON_CLOSE;
+    }
 
     /* Get rank and number of processes */
     err = MPI_Comm_rank(ncbbp->comm, &rank);
     if (err != MPI_SUCCESS) {
-        err = ncmpii_handle_error(err, "MPI_Comm_rank");
+        err = ncmpii_error_mpi2nc(err, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(err);
     }
     err = MPI_Comm_size(ncbbp->comm, &np);
     if (err != MPI_SUCCESS) {
-        err = ncmpii_handle_error(err, "MPI_Comm_rank");
+        err = ncmpii_error_mpi2nc(err, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(err);
     }
     
@@ -118,8 +123,8 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
      * We need to create them before we can search for usable id
      * As log file name hasn't been determined, we need to use a dummy one here
      */
-    sprintf(ncbbp->metalogpath, "%s%s_%d_%d.meta", logbase, fname, ncbbp->ncp->ncid, rank);
-    sprintf(ncbbp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncbbp->ncp->ncid, rank);
+    sprintf(ncbbp->metalogpath, "%s%s_%d_%d.meta", logbase, fname, ncbbp->ncid, rank);
+    sprintf(ncbbp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncbbp->ncid, rank);
      
     /* Initialize metadata buffer */
     err = ncmpii_log_buffer_init(&ncbbp->metadata);
@@ -154,6 +159,9 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
     ncbbp->np = np;
 
     /* Find unlimited dimension */
+    /*
+     * record size of dims instead
+     *
     ncbbp->recdimid = -1;
     for(i = 0; i < ncbbp->ncp->dims.ndefined; i++) {
         if (ncbbp->ncp->dims.value[i]->size == NC_UNLIMITED){
@@ -161,6 +169,7 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
             break;
         }
     }
+    */
 
     /* Initialize metadata header */
     
@@ -190,11 +199,15 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
     headerp->num_entries = 0;    /* The log is empty */
     /* Highest dimension among all variables */
     headerp->max_ndims = 0;    
+    /*
+     * drop unused max_ndims
+     *
     for(i = 0; i < ncbbp->ncp->vars.ndefined; i++){
         if (ncbbp->ncp->vars.value[i]->ndims > headerp->max_ndims){
             headerp->max_ndims = ncbbp->ncp->vars.value[i]->ndims; 
         }
     }
+    */
     headerp->entry_begin = ncbbp->metadata.nused;  /* Location of the first entry */
     headerp->basenamelen = strlen(basename);
 
@@ -206,12 +219,12 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
     ncbbp->datalog_fd = ncbbp->metalog_fd = -1;
     ncbbp->metalog_fd = open(ncbbp->metalogpath, flag, 0744);
     if (ncbbp->metalog_fd < 0) {
-        err = ncmpii_error_mpi2nc("open"); 
+        err = ncmpii_error_posix2nc("open"); 
         DEBUG_RETURN_ERROR(err); 
     }
     ncbbp->datalog_fd = open(ncbbp->datalogpath, flag, 0744);
     if (ncbbp->datalog_fd < 0) {
-        err = ncmpii_error_mpi2nc("open"); 
+        err = ncmpii_error_posix2nc("open"); 
         DEBUG_RETURN_ERROR(err); 
     }
    
@@ -220,7 +233,7 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
      */
     ioret = write(ncbbp->metalog_fd, headerp, headersize);
     if (ioret < 0){
-        err = ncmpii_error_mpi2nc("write");
+        err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
         DEBUG_RETURN_ERROR(err);
     }
@@ -233,7 +246,7 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
      */
     ioret = write(ncbbp->datalog_fd, "PnetCDF0", 8);
     if (ioret < 0){ 
-        err = ncmpii_error_mpi2nc("write");
+        err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
         DEBUG_RETURN_ERROR(err);
     }
@@ -251,6 +264,7 @@ ERROR:;
     ncbbp->total_data += 8;
 
 #ifdef PNETCDF_DEBUG 
+    /*
     if (ncbbp->hints & NC_LOG_HINT_LOG_CHECK) {
         err = ncmpii_log_check_header(ncbbp, 0);
         if (err != NC_NOERR){
@@ -260,6 +274,7 @@ ERROR:;
             DEBUG_RETURN_ERROR(err);
         }
     }
+    */
 #endif
 
     return NC_NOERR;
@@ -278,6 +293,9 @@ int ncmpii_log_enddef(NC_bb *ncbbp){
     t1 = MPI_Wtime();
     
     /* Find unlimited dimension */
+    /* 
+     * Dropped
+     *
     recdimid = -1;
     for(i = 0; i < ncbbp->ncp->dims.ndefined; i++) {
         if (ncbbp->ncp->dims.value[i]->size == NC_UNLIMITED){
@@ -289,43 +307,49 @@ int ncmpii_log_enddef(NC_bb *ncbbp){
         ncbbp->recdimid = recdimid;
         ncbbp->numrecs = 0;
     }
+    */
  
     /* Highest dimension among all variables */
+    /*
+     *
     maxdims = 0;    
     for(i = 0; i < ncbbp->ncp->vars.ndefined; i++){
         if (ncbbp->ncp->vars.value[i]->ndims > headerp->max_ndims){
             maxdims = ncbbp->ncp->vars.value[i]->ndims; 
         }
     }
+    */
 
-    /* Update the header in max dim increased */
+    /* Update the header if max dim increased */
+    /*
     if (maxdims > headerp->max_ndims){
         headerp->max_ndims = maxdims;
 
         /* Seek to the location of maxndims 
          * Note: location need to be updated when struct change
-         */
+         *
         ioret = lseek(ncbbp->metalog_fd, sizeof(NC_bb_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries) - sizeof(headerp->max_ndims), SEEK_SET);
         if (ioret < 0){
-            DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc("lseek"));
+            DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
         }
-        /* Overwrite num_entries
+        /* Overwrite maxndims
          * This marks the completion of the record
-         */
+         *
         ioret = write(ncbbp->metalog_fd, &headerp->max_ndims, SIZEOF_MPI_OFFSET);
         if (ioret < 0){
-            err = ncmpii_error_mpi2nc("write");
+            err = ncmpii_error_posix2nc("write");
             if (err == NC_EFILE){
                 err = NC_EWRITE;
             }
             DEBUG_RETURN_ERROR(err);
         }
         if (ioret != SIZEOF_MPI_OFFSET){
-            err = ncmpii_error_mpi2nc("write");
+            err = ncmpii_error_posix2nc("write");
             
             DEBUG_RETURN_ERROR(NC_EWRITE);
         }
     }
+    */
     
     t2 = MPI_Wtime();
     ncbbp->total_time += t2 - t1;
@@ -357,20 +381,20 @@ int ncmpii_log_close(NC_bb *ncbbp) {
     if (ncbbp->metalog_fd >= 0){
         /* Commit to CDF file */
         if (headerp->num_entries > 0){
-            ncbbp->ncp->logflushing = 1;
-            log_flush(ncp);
-            ncbbp->ncp->logflushing = 0;
+            //ncbbp->ncp->logflushing = 1;
+            log_flush(ncbbp);
+            //ncbbp->ncp->logflushing = 0;
         }
 
         /* Close log file */
         err = close(ncbbp->metalog_fd);
         err |= close(ncbbp->datalog_fd);
         if (err < 0){
-            DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc("close"));        
+            DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("close"));        
         }
 
         /* Delete log files if delete flag is set */
-        if (ncbbp->ncp->hints & NC_LOG_HINT_DEL_ON_CLOSE){
+        if (ncbbp->hints & NC_LOG_HINT_DEL_ON_CLOSE){
             unlink(ncbbp->datalogpath);
             unlink(ncbbp->metalogpath);
         }
@@ -383,21 +407,21 @@ int ncmpii_log_close(NC_bb *ncbbp) {
     t2 = MPI_Wtime();
     ncbbp->total_time += t2 - t1;
     
-    MPI_Reduce(&ncbbp->total_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->ncp->comm);
-    MPI_Reduce(&ncbbp->flush_read_time, &flush_read_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->ncp->comm);
-    MPI_Reduce(&ncbbp->flush_replay_time, &flush_replay_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->ncp->comm);
-    MPI_Reduce(&ncbbp->flush_total_time, &flush_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->ncp->comm);
-    MPI_Reduce(&ncbbp->log_write_time, &log_write_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->ncp->comm);
-    MPI_Reduce(&ncbbp->log_total_time, &log_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->ncp->comm);
-    MPI_Reduce(&ncbbp->total_meta, &total_meta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->ncp->comm);
-    MPI_Reduce(&ncbbp->total_data, &total_data, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->ncp->comm);
+    MPI_Reduce(&ncbbp->total_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&ncbbp->flush_read_time, &flush_read_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&ncbbp->flush_replay_time, &flush_replay_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&ncbbp->flush_total_time, &flush_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&ncbbp->log_write_time, &log_write_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&ncbbp->log_total_time, &log_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&ncbbp->total_meta, &total_meta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->comm);
+    MPI_Reduce(&ncbbp->total_data, &total_data, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->comm);
     
     if (ncbbp->rank == 0){ 
         printf("==========================================================\n");
-        printf("File: %s\n", ncbbp->ncp->path);
+        printf("File: %s\n", ncbbp->path);
         printf("Data writen to variable: %llu\n", total_data);
         printf("Metadata generated: %llu\n", total_meta);
-        printf("Flush buffer size: %llu\n", ncbbp->ncp->logflushbuffersize);
+        printf("Flush buffer size: %llu\n", ncbbp->logflushbuffersize);
         printf("Time in log: %lf\n", total_time);
         printf("\tTime recording entries: %lf\n", log_total_time);
         printf("\t\tTime writing to BB: %lf\n", log_write_time);
@@ -426,7 +450,7 @@ int ncmpii_log_close(NC_bb *ncbbp) {
  * IN    packedsize:    Size of buf in byte, only valid when buftype is MPI_PACKED
  */
 int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset *putsize){
-    int err, varid, dim;
+    int err, i, dim, elsize;
     int itype;    /* Type used in log file */
     char *buffer;
     double t1, t2, t3, t4; 
@@ -447,12 +471,16 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     /* Get variable info */
     err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, &dim, 
                                         NULL, NULL, NULL, NULL, NULL);
-    MPI_Type_size(buftype, &size);
-    for(i = 0; i < ndim; i++){
+    MPI_Type_size(buftype, &elsize);
+    size = (MPI_Offset)elsize;
+    for(i = 0; i < dim; i++){
         size *= count[i];
     }
 
     /* Update numrecs */
+    /*
+     * Dropped
+     *
     if (dim > 0 && varp->dimids[0] == ncbbp->recdimid) {
         if (stride == NULL) {
             recsize = start[0] + count[0];
@@ -464,6 +492,7 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
             ncbbp->numrecs = recsize;
         }
     }
+    */
 
     /* Convert to log types 
      * Log spec has different enum of types than MPI
@@ -565,7 +594,7 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
      */
     ioret = write(ncbbp->datalog_fd, buf, size);
     if (ioret < 0){
-        err = ncmpii_error_mpi2nc("write");
+        err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
             err = NC_EWRITE;
         }
@@ -582,13 +611,13 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
      */
     ioret = lseek(ncbbp->metalog_fd, ncbbp->metadata.nused - esize, SEEK_SET);   
     if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc("lseek"));
+        DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
     }
     
     /* Write meta data log */
     ioret = write(ncbbp->metalog_fd, buffer, esize);
     if (ioret < 0){
-        err = ncmpii_error_mpi2nc("write");
+        err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
             err = NC_EWRITE;
         }
@@ -612,14 +641,14 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
      */
     ioret = lseek(ncbbp->metalog_fd, 56, SEEK_SET);
     if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc("lseek"));
+        DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
     }
     /* Overwrite num_entries
      * This marks the completion of the record
      */
     ioret = write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
     if (ioret < 0){
-        err = ncmpii_error_mpi2nc("write");
+        err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
             err = NC_EWRITE;
         }
@@ -646,7 +675,8 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     }
 
 #ifdef PNETCDF_DEBUG
-    if (ncbbp->ncp->hints & NC_LOG_HINT_LOG_CHECK) {
+    /*
+    if (ncbbp->hints & NC_LOG_HINT_LOG_CHECK) {
         if (stride == NULL){
             err = ncmpii_log_check_put(ncp, varid, NC_LOG_API_KIND_VARA, itype, size, start, count, stride, headerp->num_entries);
         }
@@ -660,6 +690,7 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
             DEBUG_RETURN_ERROR(err);
         }
     }
+    */
 #endif
 
     return NC_NOERR;
@@ -676,7 +707,7 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
     int numput;
     double t1, t2; 
     size_t ioret;
-    NC_req *putlist;
+    //NC_req *putlist;
     NC_bb_metadataheader *headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
     
     t1 = MPI_Wtime();
@@ -687,26 +718,26 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
     }
     
     /* Turn non-blocking put into flush mode */
-    ncbbp->ncp->logflushing = 1;
-    numput = ncbbp->ncp->numPutReqs;
-    putlist = ncbbp->ncp->put_list;
-    ncbbp->ncp->numPutReqs = 0;
-    ncbbp->ncp->put_list = NULL;
+    //ncbbp->ncp->logflushing = 1;
+    //numput = ncbbp->ncp->numPutReqs;
+    //putlist = ncbbp->ncp->put_list;
+    //ncbbp->ncp->numPutReqs = 0;
+    //ncbbp->ncp->put_list = NULL;
 
     /* Replay log file */
-    err = log_flush(ncp);
+    err = log_flush(ncbbp);
     if (err != NC_NOERR) {
-        ncbbp->ncp->logflushing = 0;
+        //ncbbp->ncp->logflushing = 0;
         if (status == NC_NOERR){
             DEBUG_ASSIGN_ERROR(status, err);
         }
     }
 
     /* Turn non-blocking put back to normal mode */
-    ncbbp->ncp->logflushing = 0;
-    NCI_Free(ncbbp->ncp->put_list);
-    ncbbp->ncp->numPutReqs = numput;
-    ncbbp->ncp->put_list = putlist;
+    //ncbbp->ncp->logflushing = 0;
+    //NCI_Free(ncbbp->ncp->put_list);
+    //ncbbp->ncp->numPutReqs = numput;
+    //ncbbp->ncp->put_list = putlist;
  
     /* Reset log status */
     
@@ -717,7 +748,7 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
      */
     ioret = lseek(ncbbp->metalog_fd, 56, SEEK_SET);
     if (ioret < 0){
-        err = ncmpii_error_mpi2nc("lseek");
+        err = ncmpii_error_posix2nc("lseek");
         if (status == NC_NOERR){
             DEBUG_ASSIGN_ERROR(status, err);
         }
@@ -727,7 +758,7 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
      */
     ioret = write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
     if (ioret < 0){
-        err = ncmpii_error_mpi2nc("write");
+        err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
             err = NC_EWRITE;
         }
@@ -748,7 +779,7 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
     /* Rewind data log file descriptors and reset the size */
     ioret = lseek(ncbbp->datalog_fd, 8, SEEK_SET);
     if (ioret != 8){
-        err = ncmpii_error_mpi2nc("lseek");
+        err = ncmpii_error_posix2nc("lseek");
         if (status == NC_NOERR){
             DEBUG_ASSIGN_ERROR(status, err);
         }
@@ -756,7 +787,8 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
     ncbbp->datalogsize = 8;
    
 #ifdef PNETCDF_DEBUG
-    if (ncbbp->ncp->hints & NC_LOG_HINT_LOG_CHECK) {
+    /*
+    if (ncbbp->hints & NC_LOG_HINT_LOG_CHECK) {
         err = ncmpii_log_check_header(ncp, 0);
         if (err != NC_NOERR){
             printf("*********************************************************\n");
@@ -767,6 +799,7 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
             }
         }
     }
+    */
 
     /*
     if (ncbbp->total_data != ncbbp->ncp->put_size){
@@ -782,7 +815,8 @@ int ncmpii_log_flush(NC_bb* ncbbp) {
 }
 
 int ncmpii_log_inq_put_size(NC_bb *ncbbp, MPI_Offset *putsize){
-    *putsize = ncbbp->ncp->put_size + (MPI_Offset)ncbbp->datalogsize - 8;
+    // To be complete
+    //*putsize = ncbbp->ncp->put_size + (MPI_Offset)ncbbp->datalogsize - 8;
     return NC_NOERR;
 }
 

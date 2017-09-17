@@ -33,7 +33,7 @@ define(`PRINTTYPE',dnl
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <../../drivers/ncmpio/log.h>
+#include <../../drivers/ncbbio/ncbbio_driver.h>
 #include <pnetcdf.h>
 
 int main(int argc, char *argv[]) {
@@ -45,8 +45,8 @@ int main(int argc, char *argv[]) {
     MPI_Offset *start, *count, *stride;
     char *data, *head, *tail;
     char *Data, *Meta;
-    NC_Log_metadataheader *Header;
-    NC_Log_metadataentry *E;
+    NC_bb_metadataheader *Header;
+    NC_bb_metadataentry *E;
 
     if (argc < 2){
         printf("Usage: ./ncmpilogdump <metadata log> [<data log>]\n");
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     }
    
     /* Parse header */
-    Header = (NC_Log_metadataheader*)Meta;
+    Header = (NC_bb_metadataheader*)Meta;
     
     printf("Metadata log header:\n");
     printf("Magic:\t\t\t\t\t\t%.8s\n", Header->magic);
@@ -134,8 +134,8 @@ int main(int argc, char *argv[]) {
     offset = Header->entry_begin;
     for (j = 0; j < Header->num_entries; j++) {
         /* Parse metadata entry header */
-        E = (NC_Log_metadataentry*)(Meta + offset);
-        tail = (char*)E + sizeof(NC_Log_metadataentry);
+        E = (NC_bb_metadataentry*)(Meta + offset);
+        tail = (char*)E + sizeof(NC_bb_metadataentry);
         start = (MPI_Offset*)tail;
         count = start + E->ndims;
         stride = count + E->ndims;

@@ -115,7 +115,7 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libncbbio_la_LIBADD =
 am__objects_1 = ncbbio_attr.lo ncbbio_dim.lo ncbbio_driver.lo \
-	ncbbio_file.lo ncbbio_var.lo log.lo log_mem.lo log_check.lo
+	ncbbio_file.lo ncbbio_var.lo log.lo log_mem.lo
 am__objects_2 =
 am_libncbbio_la_OBJECTS = $(am__objects_1) $(am__objects_2)
 am__objects_3 = log_flush.lo
@@ -401,8 +401,7 @@ C_SRCS = ncbbio_attr.c \
          ncbbio_file.c \
          ncbbio_var.c \
 		 log.c \
-		 log_mem.c \
-		 log_check.c
+		 log_mem.c 
 
 libncbbio_la_SOURCES = $(C_SRCS) $(H_SRCS)
 nodist_libncbbio_la_SOURCES = $(M4_SRCS:.m4=.c)
@@ -469,7 +468,6 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log_check.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log_flush.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log_mem.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ncbbio_attr.Plo@am__quote@
