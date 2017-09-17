@@ -333,30 +333,50 @@ ncbbio_put_varn(void              *ncdp,
     void *cbuf = (void*)buf;
     void *bufp;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    
+    MPI_Datatype ptype = buftype;
+
     /*
     err = ncbbp->ncmpio_driver->put_varn(ncbbp->ncp, varid, num, starts, counts, buf,
                                 bufcount, buftype, reqMode);
     if (err != NC_NOERR) return err;
     */
     
-    
+    if (bufcount != -1){
+        int isderived, iscontig_of_ptypes;
+        int elsize, position;
+        MPI_Offset bnelems = 0;
+
+        err = ncmpii_dtype_decode(buftype, &ptype, &elsize, &bnelems, &isderived, &iscontig_of_ptypes);
+        if (err != NC_NOERR){
+            return err;
+        }
+
+        cbuf = NCI_Malloc(elsize * bnelems);
+        MPI_Pack(buf, (int)bufcount, buftype, cbuf, (int)(elsize * bnelems), &position, MPI_COMM_SELF);
+    }
+
+/*
 err_check:
     if (err != NC_NOERR) {
         if (reqMode & NC_REQ_INDEP) return err;
-        reqMode |= NC_REQ_ZERO; /* participate collective call */
+        reqMode |= NC_REQ_ZERO; /* participate collective call *
     }
+*/
 
     bufp = cbuf;
     for(i = 0; i < num; i++){
-        err = ncmpii_log_put_var(ncbbp, varid, starts[i], counts[i], NULL, bufp, buftype, &size);
+        err = ncmpii_log_put_var(ncbbp, varid, starts[i], counts[i], NULL, bufp, ptype, &size);
         if (status == NC_NOERR){
             status = err;
         }
         bufp += size;
     }
 
-    return NC_NOERR;
+    if (cbuf != buf){
+        NCI_Free(cbuf);
+    }
+
+    return status;
 }
 
 int

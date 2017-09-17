@@ -65,6 +65,7 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                mix_collectives \
                large_var_cdf5 \
                debug \
+			   debug2 \
                redef1
 
 M4_SRCS  = put_all_kinds.m4 erange_fill.m4
