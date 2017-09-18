@@ -121,6 +121,7 @@ typedef struct NC_bb {
     int inited;
     int hints;
     int isindep;
+    int curreqid;
     size_t datalogsize;
     NC_bb_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
     NC_bb_sizearray entrydatasize;    /* Array of metadata entries */

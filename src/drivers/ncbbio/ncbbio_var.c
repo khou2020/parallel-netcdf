@@ -239,11 +239,17 @@ ncbbio_iput_var(void             *ncdp,
     int err;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
+    /*
     err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, varid, start, count, stride, imap,
                                 buf, bufcount, buftype, reqid, reqMode);
     if (err != NC_NOERR) return err;
-
-    return NC_NOERR;
+    */
+    err = ncbbio_put_var(ncdp, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
+    if (err == NC_NOERR){
+        *reqid = ncbbp->curreqid--;
+    }
+    
+    return err;
 }
 
 int
@@ -393,7 +399,7 @@ ncbbio_iget_varn(void               *ncdp,
 {
     int err;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    
+
     err = ncbbp->ncmpio_driver->iget_varn(ncbbp->ncp, varid, num, starts, counts, buf,
                                  bufcount, buftype, reqid, reqMode);
     if (err != NC_NOERR) return err;
@@ -415,12 +421,18 @@ ncbbio_iput_varn(void               *ncdp,
 {
     int err;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    
+    /*
     err = ncbbp->ncmpio_driver->iput_varn(ncbbp->ncp, varid, num, starts, counts, buf,
                                  bufcount, buftype, reqid, reqMode);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
+    */
+    err = ncbbio_put_varn(ncdp, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
+    if (err == NC_NOERR){
+        *reqid = ncbbp->curreqid--;
+    }
+    return err;
 }
 
 int

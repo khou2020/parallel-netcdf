@@ -79,6 +79,7 @@ ncbbio_create(MPI_Comm     comm,
     ncbbp->ncmpio_driver     = driver;
     ncbbp->flag       = 0;
     ncbbp->ncid = ncid;
+    ncbbp->curreqid = -1;
     ncbbp->ncp        = ncp;
     MPI_Comm_dup(comm, &ncbbp->comm);
     
@@ -136,6 +137,7 @@ ncbbio_open(MPI_Comm     comm,
     ncbbp->ncmpio_driver     = driver;
     ncbbp->flag       = 0;
     ncbbp->ncid = ncid;
+    ncbbp->curreqid = -1;
     ncbbp->ncp        = ncp;
     MPI_Comm_dup(comm, &ncbbp->comm);
 
@@ -343,13 +345,43 @@ ncbbio_wait(void *ncdp,
            int  *statuses,
            int   reqMode)
 {
-    int err;
+    int i, j, err, numreq = num_reqs;
+    int *ids = req_ids, *stats = statuses;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
+    if (req_ids != NULL && num_reqs > 0){
+        ids = NCI_Malloc(sizeof(int) * num_reqs);
+        stats = NCI_Malloc(sizeof(int) * num_reqs);
+        numreq = 0;
+        for (i = 0; i < num_reqs; i++){
+            if (req_ids[i] >= 0){
+                ids[numreq++] = req_ids[i];
+            }
+        }
+    }
+
+    err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, numreq, ids, stats, reqMode);
+    if (ids != req_ids){
+        if (statuses != NULL){
+            for (i = j = 0; i < num_reqs; i++){
+                if (req_ids[i] >= 0){
+                    statuses[i] = stats[j++];
+                }
+                else{
+                    statuses[i] = NC_NOERR;
+                }
+            }
+        }
+        NCI_Free(ids);
+        NCI_Free(stats);
+    }
+ 
+    /*
     err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, num_reqs, req_ids, statuses, reqMode);
     if (err != NC_NOERR) return err;
+    */
 
-    return NC_NOERR;
+    return err;
 }
 
 int
