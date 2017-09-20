@@ -53,6 +53,11 @@ ncmpii_inq_misc(void *ncdp, int *pathlen, char *path, int *num_fix_varsp,
                 MPI_Offset *buf_size);
 
 extern int
+ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, 
+                double *api_time, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime);
+                
+
+extern int
 ncmpii_sync_numrecs(void *ncdp);
 
 extern int

@@ -218,6 +218,24 @@ function nf90mpi_inq_put_size(ncid, put_size)
 end function nf90mpi_inq_put_size
 
 ! -------
+function nf90mpi_inq_bb(ncid, datasize, metasize, buffersize, apitime, puttime, bbwrtime, flushtime, bbrdtime, replaytime, stagingtime)
+  integer,                          intent( in) :: ncid
+  integer (kind = MPI_OFFSET_KIND), intent(out) :: datasize
+  integer (kind = MPI_OFFSET_KIND), intent(out) :: metasize
+  integer (kind = MPI_OFFSET_KIND), intent(out) :: buffersize
+  DOUBLE PRECISION ,                intent(out) :: apitime
+  DOUBLE PRECISION ,                intent(out) :: puttime
+  DOUBLE PRECISION ,                intent(out) :: bbwrtime
+  DOUBLE PRECISION ,                intent(out) :: flushtime
+  DOUBLE PRECISION ,                intent(out) :: bbrdtime
+  DOUBLE PRECISION ,                intent(out) :: replaytime
+  DOUBLE PRECISION ,                intent(out) :: stagingtime
+  integer                                       :: nf90mpi_inq_bb
+
+  nf90mpi_inq_bb = nfmpi_inq_bb(ncid, datasize, metasize, buffersize, apitime, puttime, bbwrtime, flushtime, bbrdtime, replaytime, stagingtime)
+end function nf90mpi_inq_bb
+
+! -------
 function nf90mpi_inq_get_size(ncid, get_size)
   integer,                          intent( in) :: ncid
   integer (kind = MPI_OFFSET_KIND), intent(out) :: get_size

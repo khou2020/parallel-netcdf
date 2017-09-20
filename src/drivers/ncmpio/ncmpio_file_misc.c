@@ -36,6 +36,8 @@
 #include "subfile.h"
 #endif
 
+#include "log.h"
+
 /*----< ncmpii_redef() >-----------------------------------------------------*/
 /* This is a collective subroutine. */
 int
@@ -354,7 +356,7 @@ ncmpii_inq_misc(void       *ncdp,
         /* Log relatived info */
         if (ncp->loghints & NC_LOG_HINT_LOG_ENABLE) {
             MPI_Info_set(*info_used, "pnetcdf_bb_dirname", ncp->logbase);
-            sprintf(value, "%llu", ncp->logflushbuffersize);
+            sprintf(value, "%llu", (unsigned long long)ncp->logflushbuffersize);
             MPI_Info_set(*info_used, "pnetcdf_bb_flush_buffer_size", value);
             MPI_Info_set(*info_used, "pnetcdf_bb", "enable");
             
@@ -413,6 +415,103 @@ ncmpii_inq_misc(void       *ncdp,
     }
 
     return NC_NOERR;
+}
+
+int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, 
+    double *apitime, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime)
+{
+    NC *ncp=(NC*)ncdp;
+    NC_Log *nclogp = ncp->nclogp;
+
+    if (datasize != NULL){
+        if (nclogp != NULL){
+            *datasize = nclogp->total_data;
+        }
+        else{
+            *datasize = 0;
+        }
+    }
+
+    if (metasize != NULL){
+        if (nclogp != NULL){
+            *metasize = nclogp->total_meta;
+        }
+        else{
+            *metasize = 0;
+        }
+    }
+
+    if (buffersize != NULL){
+        if (nclogp != NULL){
+            *buffersize = (MPI_Offset)ncp->logflushbuffersize;
+        }
+        else{
+            *buffersize = 0;
+        }
+    }
+
+    if (apitime != NULL){
+        if (nclogp != NULL){
+            *apitime = nclogp->total_time;
+        }
+        else{
+            *apitime = 0;
+        }
+    }
+
+    if (puttime != NULL){
+        if (nclogp != NULL){
+            *puttime = nclogp->log_write_time;
+        }
+        else{
+            *puttime = 0;
+        }
+    }
+
+    if (bbwrtime != NULL){
+        if (nclogp != NULL){
+            *bbwrtime = nclogp->flush_read_time;
+        }
+        else{
+            *bbwrtime = 0;
+        }
+    }
+
+    if (flushtime != NULL){
+        if (nclogp != NULL){
+            *flushtime = nclogp->flush_total_time;
+        }
+        else{
+            *flushtime = 0;
+        }
+    }
+
+    if (bbrdtime != NULL){
+        if (nclogp != NULL){
+            *bbrdtime = nclogp->flush_read_time;
+        }
+        else{
+            *bbrdtime = 0;
+        }
+    }
+
+    if (replaytime != NULL){
+        if (nclogp != NULL){
+            *replaytime = nclogp->flush_replay_time;
+        }
+        else{
+            *replaytime = 0;
+        }
+    }
+
+    if (stagingtime != NULL){
+        if (nclogp != NULL){
+            *stagingtime = 0;
+        }
+        else{
+            *stagingtime = 0;
+        }
+    }
 }
 
 /*----< ncmpi_delete() >-----------------------------------------------------*/

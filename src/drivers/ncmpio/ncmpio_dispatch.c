@@ -25,6 +25,7 @@ static PNC_Dispatch ncmpio_dispatcher = {
     ncmpii_set_fill,
     ncmpii_inq,
     ncmpii_inq_misc,
+    ncmpii_inq_bb,
     ncmpii_sync_numrecs,
     ncmpii_begin_indep_data,
     ncmpii_end_indep_data,

@@ -800,6 +800,10 @@ extern int
 ncmpi_inq_put_size(int ncid, MPI_Offset *size);
 
 extern int
+ncmpi_inq_bb(int ncid, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, 
+    double *apitime, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime);
+
+extern int
 ncmpi_inq_get_size(int ncid, MPI_Offset *size);
 
 extern int
