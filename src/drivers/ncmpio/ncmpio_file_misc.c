@@ -512,6 +512,8 @@ int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Of
             *stagingtime = 0;
         }
     }
+
+    return NC_NOERR;
 }
 
 /*----< ncmpi_delete() >-----------------------------------------------------*/
