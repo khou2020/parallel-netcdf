@@ -237,12 +237,9 @@ INTERFACE
                      INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: size
     END     FUNCTION nfmpi_inq_put_size
 
-    INTEGER FUNCTION nfmpi_inq_bb(ncid, datasize, metasize, buffersize, apitime, puttime, bbwrtime, flushtime, bbrdtime, replaytime, stagingtime)
+    INTEGER FUNCTION nfmpi_inq_bb_time(ncid, apitime, puttime, bbwrtime, flushtime, bbrdtime, replaytime, stagingtime)
                      @USE_MPIF_HEADER@
                      INTEGER,                       INTENT(IN)  :: ncid
-                     INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: datasize
-                     INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: metasize
-                     INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: buffersize
                      DOUBLE PRECISION,              INTENT(OUT) :: apitime
                      DOUBLE PRECISION,              INTENT(OUT) :: puttime
                      DOUBLE PRECISION,              INTENT(OUT) :: bbwrtime
@@ -250,7 +247,15 @@ INTERFACE
                      DOUBLE PRECISION,              INTENT(OUT) :: bbrdtime
                      DOUBLE PRECISION,              INTENT(OUT) :: replaytime
                      DOUBLE PRECISION,              INTENT(OUT) :: stagingtime
-    END     FUNCTION nfmpi_inq_bb
+    END     FUNCTION nfmpi_inq_bb_time
+
+    INTEGER FUNCTION nfmpi_inq_bb_size(ncid, datasize, metasize, buffersize)
+                     @USE_MPIF_HEADER@
+                     INTEGER,                       INTENT(IN)  :: ncid
+                     INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: datasize
+                     INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: metasize
+                     INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: buffersize
+    END     FUNCTION nfmpi_inq_bb_size
 
     INTEGER FUNCTION nfmpi_inq_get_size(ncid, size)
                      @USE_MPIF_HEADER@

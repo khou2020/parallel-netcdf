@@ -98,6 +98,16 @@
         unk(i,:,:,:,:) = float(i)
       enddo
 
+      bb_api = 0
+      bb_put = 0
+      bb_wr = 0
+      bb_flush = 0
+      bb_rd = 0
+      bb_replay = 0
+      bb_data  = 0
+      bb_meta = 0
+      bb_buffer = 0
+
 !---------------------------------------------------------------------------
 ! netCDF checkpoint file
 !---------------------------------------------------------------------------
@@ -204,89 +214,90 @@
        double precision chk_io, corner_io, nocorner_io
 
        ! local variables
-       integer ierr, striping_factor, striping_unit
-       double precision tmax(3), time_total, io_amount, bw
+       integer ierr, striping_factor, striping_unit, MaxPE
+       double precision tmax(3), ttotal(2), time_total, io_amount, bw
        integer(kind=MPI_OFFSET_KIND) malloc_size, sum_size
 
+       ttotal(1) = time_io(1) + time_io(2) + time_io(3)
+       ttotal(2) = MyPE
+       call MPI_Allreduce(ttotal, tmax, 2, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, MPI_COMM_WORLD, ierr)
+       MaxPE = tmax(2)
+
        call MPI_Reduce(chk_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MasterPE, MPI_COMM_WORLD, ierr)
+                       MaxPE, MPI_COMM_WORLD, ierr)
        chk_t(:) = tmax(:)
 
        call MPI_Reduce(corner_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MasterPE, MPI_COMM_WORLD, ierr)
+                       MaxPE, MPI_COMM_WORLD, ierr)
        corner_t(:) = tmax(:)
 
        call MPI_Reduce(nocorner_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MasterPE, MPI_COMM_WORLD, ierr)
+                       MaxPE, MPI_COMM_WORLD, ierr)
        nocorner_t(:) = tmax(:)
 
        call MPI_Reduce(time_io, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MasterPE, MPI_COMM_WORLD, ierr)
+                       MaxPE, MPI_COMM_WORLD, ierr)
 
        call MPI_Reduce(chk_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
-                       MasterPE, MPI_COMM_WORLD, ierr)
+                       MaxPE, MPI_COMM_WORLD, ierr)
        chk_io = bw
        call MPI_Reduce(nocorner_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
-                       MasterPE, MPI_COMM_WORLD, ierr)
+                       MaxPE, MPI_COMM_WORLD, ierr)
        nocorner_io = bw
        call MPI_Reduce(corner_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
-                       MasterPE, MPI_COMM_WORLD, ierr)
+                       MaxPE, MPI_COMM_WORLD, ierr)
        corner_io = bw
 
-      if (verbose .AND. MyPE .EQ. MasterPE) then
+      if (MyPE .EQ. MaxPE) then
           
-          call print_info(info_used)
+            call print_info(info_used)
 
-          striping_factor = 0
-          striping_unit   = 0
-          call get_file_striping(info_used, striping_factor, striping_unit)
+            striping_factor = 0
+            striping_unit   = 0
+            call get_file_striping(info_used, striping_factor, striping_unit)
 
-          time_total = tmax(1) + tmax(2) + tmax(3)
-          io_amount = chk_io + nocorner_io + corner_io
-          bw = io_amount / 1048576.0
-          io_amount = bw
-          bw = bw / time_total
+            time_total = tmax(1) + tmax(2) + tmax(3)
+            io_amount = chk_io + nocorner_io + corner_io
+            bw = io_amount / 1048576.0
+            io_amount = bw
+            bw = bw / time_total
 
- 1001 format(A,I13)
- 1002 format(A,I13,A)
- 1003 format(A,F16.2,A)
+ 1001 format('#%$: ', A, ': ', F16.2)
+ 1002 format('#%$: ', A, ': ', I13)
+ 1003 format('#%$: ', A, ': ', A)
  1004 format(' -------------------------------------------------------')
- 1005 format(' nproc    array size      exec (sec)   bandwidth (MiB/s)')
- 1006 format(I5, 3x, i3,' x ',i3,' x ',i3, 3x, F7.2 , 2x,F10.2 /)
- 1007 format(A,A)
 
-          print 1001,' number of guards      : ',nguard
-          print 1001,' number of blocks      : ',local_blocks
-          print 1001,' number of variables   : ',nvar
-          print 1003,' checkpoint time       : ',tmax(1), '  sec'
-          print 1003,' checkpoint max header : ',chk_t(1),'  sec'
-          print 1003,' checkpoint max unknown: ',chk_t(2),'  sec'
-          print 1003,' checkpoint max close  : ',chk_t(3),'  sec'
-          print 1003,' checkpoint I/O amount : ',chk_io/1048576, '  MiB'
-          print 1003,' plot no corner        : ',tmax(2),      '  sec'
-          print 1003,' plot no corner header : ',nocorner_t(1),'  sec'
-          print 1003,' plot no corner unknown: ',nocorner_t(2),'  sec'
-          print 1003,' plot no corner close  : ',nocorner_t(3),'  sec'
-          print 1003,' plot no corner amount : ',nocorner_io/1048576, '  MiB'
-          print 1003,' plot    corner        : ',tmax(3),    '  sec'
-          print 1003,' plot corner max header: ',corner_t(1),'  sec'
-          print 1003,' plot corner unknown   : ',corner_t(2),'  sec'
-          print 1003,' plot corner max close : ',corner_t(3),'  sec'
-          print 1003,' plot corner I/O amount: ',corner_io/1048576, '  MiB'
-          print 1004
-          print 1007,' File base name        : ', trim(basenm)
-          if (striping_factor .GT. 0) then
-              print 1001,'   file striping count : ',striping_factor
-              print 1002,'   file striping size  : ',striping_unit, '     bytes'
-          endif
-          print 1003,' Total I/O amount      : ',io_amount,'  MiB'
-          print 1004
-          print 1005
-          print 1006, NumPEs, nxb, nyb, nzb, time_total, bw
-          print 1003,' wall time   : ',time_total,'  sec'
-          print 1003,' bandwidth   : ',bw,'  MiB'
-          print *
-
+            print 1001,' number_of_guards',nguard
+            print 1001,' number_of_blocks',local_blocks
+            print 1001,' number_of_variables',nvar
+            print 1001,' checkpoint_time        ',tmax(1)
+            print 1001,' checkpoint_time_header  ',chk_t(1)
+            print 1001,' checkpoint_time_other  ',chk_t(2)
+            print 1001,' checkpoint_time_close  ',chk_t(3)
+            print 1001,' checkpoint_IO_size     ',chk_io/1048576
+            print 1001,' plot_no_corner_time         ',tmax(2)
+            print 1001,' plot_no_corner_time_header  ',nocorner_t(1)
+            print 1001,' plot_no_corner_time_unknown ',nocorner_t(2)
+            print 1001,' plot_no_corner_time_close   ',nocorner_t(3)
+            print 1001,' plot_no_corner_time_amount  ',nocorner_io/1048576
+            print 1001,' plot_corner_time         ',tmax(3)
+            print 1001,' plot_corner_time_header ',corner_t(1)
+            print 1001,' plot_corner_time_other    ',corner_t(2)
+            print 1001,' plot_corner_time_close ',corner_t(3)
+            print 1001,' plot_corner_IO_size ',corner_io/1048576
+            print 1004
+            print 1003,' file_base_name        ', trim(basenm)
+            if (striping_factor .GT. 0) then
+                  print 1002,'   file_striping_count  ',striping_factor
+                  print 1002,'   file_striping_size   ',striping_unit
+            endif
+            print 1001,' total_io_size       ',io_amount
+            print 1002,' number_of_processes', NumPEs
+            print 1002,' dim_x', nxb
+            print 1002,' dim_y', nyb
+            print 1002,' dim_z', nzb
+            print 1001,' total_time       ',time_total
+            print 1001,' bandwidth       ',bw
       endif
       call MPI_Info_free(info_used, ierr)
 

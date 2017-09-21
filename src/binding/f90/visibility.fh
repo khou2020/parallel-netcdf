@@ -70,7 +70,7 @@
             nf90mpi_get_file_info,       nf90mpi_inq_malloc_size, &
             nf90mpi_inq_malloc_max_size, nf90mpi_inq_malloc_list, &
             nf90mpi_inq_files_opened,    nf90mpi_inq_recsize, &
-            nf90mpi_inq_bb
+            nf90mpi_inq_bb_time,         nf90mpi_inq_bb_size
 
 !
 ! F77 APIs
@@ -489,7 +489,8 @@
         nfmpi_wait_all, &
         nfmpi_cancel, &
         nfmpi_inq_put_size, &
-        nfmpi_inq_bb, &
+        nfmpi_inq_bb_time, &
+        nfmpi_inq_bb_size, &
         nfmpi_inq_get_size, &
         nfmpi_inq_header_size, &
         nfmpi_inq_header_extent, &

@@ -265,6 +265,8 @@
 
       integer ncid, cmode, file_info, reqs(num_out+6), stats(num_out+6)
       integer(kind=MPI_OFFSET_KIND) starts(4), counts(4), put_size, buf_size
+      integer(kind=MPI_OFFSET_KIND) bbdata, bbmeta, bbbuffer
+      double precision bbapi,  bbwr, bbrd, bbreplay, bbput, bbflush, bbstage
 
       if (corners) then
          corner_t(1) = MPI_Wtime()
@@ -683,8 +685,24 @@
       if (err .NE. NF_NOERR) &
           call check(err, "(sp) nfmpi_inq_put_size: ")
 
+      err = nfmpi_inq_bb_time(ncid, bbapi, bbput, bbwr, bbflush, bbrd, bbreplay, bbstage)
+      if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_time")
+
+      err = nfmpi_inq_bb_size(ncid, bbdata, bbmeta, bbbuffer)
+      if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_size")
+
       err = nfmpi_close(ncid)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_close_file sp")
+
+      bb_api = bb_api + bbapi
+      bb_put = bb_put + bbput
+      bb_wr = bb_wr + bbwr
+      bb_flush = bb_flush + bbflush
+      bb_rd = bb_rd + bbrd
+      bb_replay = bb_replay + bbreplay
+      bb_data  = bb_data + bbdata
+      bb_meta = bb_meta + bbmeta
+      bb_buffer = bb_buffer + bbbuffer
 
       if (corners) then
          corner_t(3) = MPI_Wtime() - corner_t(3)
