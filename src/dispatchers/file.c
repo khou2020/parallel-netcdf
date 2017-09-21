@@ -1308,7 +1308,7 @@ ncmpi_inq_files_opened(int *num,    /* cannot be NULL */
         *num = 0;
         for (i=0; i<NC_MAX_NFILES; i++) {
             if (pnc_filelist[i] != NULL) {
-                    ncids[*num] = i;
+                ncids[*num] = i;
                 (*num)++;
             }
         }

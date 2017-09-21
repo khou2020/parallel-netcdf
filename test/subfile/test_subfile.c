@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 
     /* process 0 takes the file name as a command-line argument and
        broadcasts it to other processes */
-    if (!rank) {
+    if (rank == 0) {
 	while ((opt = getopt(argc, argv, "f:s:p:n:l:r")) != EOF) {
 	    switch (opt) {
 	    case 'f': fbasename = optarg;
@@ -81,28 +81,29 @@ int main(int argc, char **argv)
 	}
 	if (fbasename == NULL) {
 	    fprintf(stderr, "\n*#  Usage: test_subfile -f pathname -s num_sf -p par_dim_id \n\n");
-	    MPI_Abort(MPI_COMM_WORLD, 1);
+	    nerrs++;
 	}
-
+    }
+    MPI_Bcast(&nerrs, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    if (nerrs > 0) {
+        MPI_Finalize();
+        return 1;
+    }
+        
+    if (rank == 0) {
 	len = strlen(fbasename);
 	MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(fbasename, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&num_sf, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&par_dim_id, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&nvars, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&do_read, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&length, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
     else {
 	MPI_Bcast(&len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	fbasename = (char *) malloc(len+1);
-	MPI_Bcast(fbasename, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&num_sf, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&par_dim_id, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&nvars, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&do_read, 1, MPI_INT, 0, MPI_COMM_WORLD);
-        MPI_Bcast(&length, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
+    MPI_Bcast(fbasename, len+1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&num_sf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&par_dim_id, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nvars, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&do_read, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&length, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
