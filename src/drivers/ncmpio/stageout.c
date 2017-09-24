@@ -22,14 +22,14 @@ int stageout(char* bb, char* pfs, double *iotime) {
     st = MPI_Wtime();
     
     /* Perform stage out */   
-    ret = dw_stage_file_out(bb, pfs, DW_STAGE_IMMEDIATE);
+    ret = dw_stage_directory_out(bb, pfs, DW_STAGE_IMMEDIATE);
     if (ret != MPI_SUCCESS) {
         printf("#Error!: dw_stage_file, %d, %s\n", ret, strerror(-ret));
         return ret;
     }
 
     /* Wait stage out */  
-    ret = dw_wait_file_stage(bb);
+    ret = dw_wait_directory_stage(bb);
     if (ret != MPI_SUCCESS) {
         printf("#Error!: dw_wait_file_stage, %d, %s\n", ret, strerror(-ret));
         return ret;
@@ -38,7 +38,7 @@ int stageout(char* bb, char* pfs, double *iotime) {
     et = MPI_Wtime();
 
     /* Query final stage state of dw target */
-    ret = dw_query_file_stage(bb, &comp, &pend, &defer, &fail);
+    ret = dw_query_directory_stage(bb, &comp, &pend, &defer, &fail);
     if (ret != MPI_SUCCESS) {
         printf("#Error!: dw_query_file_stage, %d, %s\n", ret, strerror(-ret));
         return ret;
@@ -51,7 +51,7 @@ int stageout(char* bb, char* pfs, double *iotime) {
     // Use cp command if not on cori, for debugging purpose
     char cmd[4096];
     printf("Not on cori, use cp\n");
-    sprintf(cmd, "cp %s %s\n", bb, pfs);
+    sprintf(cmd, "cp -r %s/. %s/\n", bb, pfs);
     printf("%s", cmd);
     st = MPI_Wtime();
     system(cmd);

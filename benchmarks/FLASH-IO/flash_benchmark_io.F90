@@ -152,7 +152,7 @@
           integer nkeys, i, err
           logical flag
 
-1010 format('#%$: ', A, ': ', A)
+1010 format('#%$: ', A32, ': ', A64)
 
           call MPI_Info_get_nkeys(info_used, nkeys, err)
           print *, 'MPI File Info: nkeys =', nkeys

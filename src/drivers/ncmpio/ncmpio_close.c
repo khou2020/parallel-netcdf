@@ -55,12 +55,8 @@ ncmpiio_close(NC *ncp, int doUnlink) {
         if (mpireturn != MPI_SUCCESS)
             return ncmpii_handle_error(mpireturn, "MPI_File_delete");
     }
-
-    /* free MPI objects */
-    if (ncp->mpiinfo != MPI_INFO_NULL) MPI_Info_free(&(ncp->mpiinfo));
-    if (ncp->comm != MPI_COMM_NULL)    MPI_Comm_free(&(ncp->comm));
-    NCI_Free(ncp->path);
-
+    
+    // Perform stage out
     if (ncp->stageout){
         int ret, rank;
         double stime;
@@ -75,6 +71,12 @@ ncmpiio_close(NC *ncp, int doUnlink) {
         ncp->stagetime += stime;
     }
 
+    /* free MPI objects */
+    if (ncp->mpiinfo != MPI_INFO_NULL) MPI_Info_free(&(ncp->mpiinfo));
+    if (ncp->comm != MPI_COMM_NULL)    MPI_Comm_free(&(ncp->comm));
+    NCI_Free(ncp->path);
+
+    
     return NC_NOERR;
 }
 
