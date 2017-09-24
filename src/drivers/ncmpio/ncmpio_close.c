@@ -57,6 +57,8 @@ ncmpiio_close(NC *ncp, int doUnlink) {
     }
     
     // Perform stage out
+    // Moved as a indep function
+    /*
     if (ncp->stageout){
         int ret, rank;
         double stime;
@@ -70,6 +72,7 @@ ncmpiio_close(NC *ncp, int doUnlink) {
         TRACE_COMM(MPI_Bcast)(&stime, 1, MPI_DOUBLE, 0, ncp->comm);
         ncp->stagetime += stime;
     }
+    */
 
     /* free MPI objects */
     if (ncp->mpiinfo != MPI_INFO_NULL) MPI_Info_free(&(ncp->mpiinfo));

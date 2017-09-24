@@ -218,6 +218,10 @@
        integer ierr, striping_factor, striping_unit, MaxPE
        double precision tmax(3), ttotal(2), time_total, io_amount, bw
        integer(kind=MPI_OFFSET_KIND) malloc_size, sum_size
+
+      double precision time_staging
+      character*4096  bbpath
+      character*4096  pfspath
  
        ttotal(1) = time_io(1) + time_io(2) + time_io(3)
        ttotal(2) = MyPE
@@ -252,6 +256,16 @@
 
       if (MyPE .EQ. MaxPE) then
          
+            
+            call getenv( 'stageout_bb_path', bbpath )
+            call getenv( 'stageout_pfs_path', pfspath )
+            if ((bbpath .EQ. '') .OR. (pfspath .EQ. '')) then
+                  time_staging = 0
+            else
+                  call nfmpi_stage_out(bbpath, pfspath, time_staging)
+                  !call nfmpi_stageout()
+            endif 
+
             call print_info(info_used)
 
             striping_factor = 0
@@ -304,7 +318,9 @@
             print 1009,' dim_x', nxb
             print 1009,' dim_y', nyb
             print 1009,' dim_z', nzb
-            print 1008,' total_time       ',time_total
+            print 1008,' flash_time       ', time_total
+            print 1008,' total_time       ', time_total + time_staging
+            print 1008,' stage_time       ', time_staging
             print 1008,' bandwidth       ',bw
       endif
       call MPI_Info_free(info_used, ierr)

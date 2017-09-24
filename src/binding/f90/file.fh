@@ -315,6 +315,22 @@ function nf90mpi_inq_malloc_size(size)
 end function nf90mpi_inq_malloc_size
 
 ! -------
+function nf90mpi_stageout()
+  integer                                       :: nf90mpi_stageout
+
+  nf90mpi_stageout = nfmpi_stageout()
+end function nf90mpi_stageout
+
+! -------
+function nf90mpi_stage_out(bb, pfs, iotime)
+  character (len = *), intent( in)  :: bb
+  character (len = *), intent( in)  :: pfs
+  DOUBLE PRECISION,    intent( out) :: iotime
+  integer                           :: nf90mpi_stage_out
+  nf90mpi_stage_out = nfmpi_stage_out(bb, pfs, iotime)
+end function nf90mpi_stage_out
+
+! -------
 function nf90mpi_inq_malloc_max_size(size)
   integer (kind = MPI_OFFSET_KIND), intent(out) :: size
   integer                                       :: nf90mpi_inq_malloc_max_size
