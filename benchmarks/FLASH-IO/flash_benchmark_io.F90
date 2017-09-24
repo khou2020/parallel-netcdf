@@ -220,8 +220,6 @@
        integer(kind=MPI_OFFSET_KIND) malloc_size, sum_size
 
       double precision time_staging
-      character*4096  bbpath
-      character*4096  pfspath
  
        ttotal(1) = time_io(1) + time_io(2) + time_io(3)
        ttotal(2) = MyPE
@@ -255,16 +253,8 @@
        corner_io = bw
 
       if (MyPE .EQ. MaxPE) then
-         
-            
-            call getenv( 'stageout_bb_path', bbpath )
-            call getenv( 'stageout_pfs_path', pfspath )
-            if ((bbpath .EQ. '') .OR. (pfspath .EQ. '')) then
-                  time_staging = 0
-            else
-                  call nfmpi_stage_out(bbpath, pfspath, time_staging)
-                  !call nfmpi_stageout()
-            endif 
+           
+            call nfmpi_stage_out_env(time_staging)
 
             call print_info(info_used)
 

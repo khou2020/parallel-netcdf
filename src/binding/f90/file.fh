@@ -331,6 +331,13 @@ function nf90mpi_stage_out(bb, pfs, iotime)
 end function nf90mpi_stage_out
 
 ! -------
+function nf90mpi_stage_out_env(iotime)
+  DOUBLE PRECISION,    intent( out) :: iotime
+  integer                           :: nf90mpi_stage_out_env
+  nf90mpi_stage_out_env = nfmpi_stage_out_env(iotime)
+end function nf90mpi_stage_out_env
+
+! -------
 function nf90mpi_inq_malloc_max_size(size)
   integer (kind = MPI_OFFSET_KIND), intent(out) :: size
   integer                                       :: nf90mpi_inq_malloc_max_size

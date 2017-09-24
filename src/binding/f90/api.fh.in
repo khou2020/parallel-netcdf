@@ -284,6 +284,11 @@ INTERFACE
                      DOUBLE PRECISION,              INTENT(OUT)  :: iotime
     END     FUNCTION nfmpi_stage_out
 
+    INTEGER FUNCTION nfmpi_stage_out_env(iotime)
+                     @USE_MPIF_HEADER@
+                     DOUBLE PRECISION,              INTENT(OUT)  :: iotime
+    END     FUNCTION nfmpi_stage_out_env
+
     INTEGER FUNCTION nfmpi_inq_malloc_max_size(size)
                      @USE_MPIF_HEADER@
                      INTEGER(KIND=MPI_OFFSET_KIND), INTENT(OUT) :: size

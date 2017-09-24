@@ -821,6 +821,9 @@ extern int
 ncmpi_stage_out(char* bb, char* pfs, double *iotime);
 
 extern int
+ncmpi_stage_out_env(double *iotime);
+
+extern int
 ncmpi_inq_malloc_max_size(MPI_Offset *size);
 
 extern int

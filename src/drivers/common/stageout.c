@@ -65,3 +65,25 @@ int ncmpi_stage_out(char* bb, char* pfs, double *iotime) {
 
     return 0;
 }
+
+/*
+ * Move file from bb to pfs using datawarp api
+ * iotime: Time used to move file
+ */
+ int ncmpi_stage_out_env(double *iotime) {
+    int ret;
+    char *bb = NULL, *pfs = NULL;
+
+    bb = getenv("stageout_bb_path");
+    pfs = getenv("stageout_pfs_path");
+
+    if (bb == NULL || pfs == NULL){
+        *iotime = 0;
+        ret = 0;
+    }
+    else{
+        ret = ncmpi_stage_out(bb, pfs, iotime);
+    }
+
+    return ret;
+}
