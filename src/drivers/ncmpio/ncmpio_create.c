@@ -287,6 +287,8 @@ ncmpii_create(MPI_Comm     comm,
          * be '\0' (null character). In this case, safe_mode is enabled */
     }
 
+    ncp->stagetime = 0;
+
     *ncpp = (void*)ncp;
 
     return NC_NOERR;

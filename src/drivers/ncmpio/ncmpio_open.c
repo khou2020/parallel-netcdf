@@ -236,6 +236,8 @@ ncmpii_open(MPI_Comm     comm,
         nameT->num++;
     }
 #endif
+
+    ncp->stagetime = 0;
     
     *ncpp = (void*)ncp;
 

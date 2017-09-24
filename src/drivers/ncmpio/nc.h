@@ -452,7 +452,12 @@ struct NC {
     size_t logflushbuffersize; /* Buffer size used to flush the log */
     int loghints;
     int logflushing;
+    int stageout;
     char logbase[PATH_MAX];
+
+    char bbpath[PATH_MAX];
+    char pfspath[PATH_MAX];
+    double stagetime;
 };
 
 #define NC_readonly(ncp) \

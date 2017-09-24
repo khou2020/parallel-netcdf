@@ -61,6 +61,20 @@ ncmpiio_close(NC *ncp, int doUnlink) {
     if (ncp->comm != MPI_COMM_NULL)    MPI_Comm_free(&(ncp->comm));
     NCI_Free(ncp->path);
 
+    if (ncp->stageout){
+        int ret, rank;
+        double stime;
+        MPI_Comm_rank(ncp->comm, &rank);
+        if (rank == 0){
+            ret = stageout(ncp->bbpath, ncp->pfspath, &stime);
+            if (ret != 0){
+                return -1;
+            }
+        }
+        TRACE_COMM(MPI_Bcast)(&stime, 1, MPI_DOUBLE, 0, ncp->comm);
+        ncp->stagetime += stime;
+    }
+
     return NC_NOERR;
 }
 

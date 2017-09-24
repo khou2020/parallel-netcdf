@@ -67,7 +67,8 @@ C_SRCS = ncmpio_dispatch.c \
 		 log.c \
 		 log_mem.c \
 		 log_flush.c \
-		 log_check.c
+		 log_check.c \
+         stageout.c
 
 $(M4_SRCS:.m4=.c): Makefile
 

@@ -505,12 +505,7 @@ int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Of
     }
 
     if (stagingtime != NULL){
-        if (nclogp != NULL){
-            *stagingtime = 0;
-        }
-        else{
-            *stagingtime = 0;
-        }
+        *stagingtime = ncp->stagetime;
     }
 
     return NC_NOERR;

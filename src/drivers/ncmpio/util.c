@@ -382,6 +382,23 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
     else {
         strncpy(ncp->logbase, ".", PATH_MAX);    
     }
+    
+    ncp->stageout = 1;    
+    MPI_Info_get(info, "pnetcdf_bbpath", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag) {
+        strncpy(ncp->bbpath, value, PATH_MAX);    
+    }
+    else {
+        ncp->stageout = 0;
+    }
+
+    MPI_Info_get(info, "pnetcdf_pfspath", MPI_MAX_INFO_VAL - 1, value, &flag);
+    if (flag) {
+        strncpy(ncp->pfspath, value, PATH_MAX);    
+    }
+    else {
+        ncp->stageout = 0;
+    }
 
 #ifdef ENABLE_SUBFILING
     MPI_Info_get(info, "pnetcdf_subfiling", MPI_MAX_INFO_VAL-1, value, &flag);
