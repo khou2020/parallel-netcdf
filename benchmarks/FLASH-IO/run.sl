@@ -3,7 +3,7 @@
 #SBATCH -N 1 
 #SBATCH -C haswell
 #SBATCH -t 00:10:00
-#SBATCH -o stage__32.txt
+#SBATCH -o flash_1.txt
 #DW jobdw capacity=1289GiB access_mode=striped type=scratch pool=sm_pool
 
 OUTDIR=/global/cscratch1/sd/khl7265/FS_64_8M/flash
