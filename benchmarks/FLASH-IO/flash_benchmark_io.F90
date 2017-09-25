@@ -29,11 +29,10 @@
       double precision chk_io, corner_io, nocorner_io
       double precision checkpoint_wr_ncmpi_par
       double precision plotfile_ncmpi_par
-      
+
       character*16 tmp
 
       integer, parameter :: local_blocks = INT(0.8*maxblocks)
-
 
 ! initialize MPI and get the rank and size
       call MPI_INIT(ierr)
@@ -43,7 +42,6 @@
       MasterPE = 0
       verbose = .TRUE.
       use_indep_io = .FALSE.
-      use_nonblocking_io = .TRUE.
 
       ! root process reads command-line arguments
       if (MyPE .EQ. MasterPE) then
@@ -52,14 +50,14 @@
             call getarg(0, executable)
             call getarg(1, basenm)
 
-            if (argc .GT. 1) then
+            if (argc .GT. 2) then
                   call getarg(2, tmp)
                   if (TRIM(tmp) .EQ. 'blocking') then
                         use_nonblocking_io = .FALSE.
                   endif
             endif
 
-            if (argc .GT. 2) then
+            if (argc .GT. 3) then
                   call getarg(3, tmp)
                   if (TRIM(tmp) .EQ. 'indep') then
                         use_indep_io = .TRUE.
@@ -75,10 +73,7 @@
       ! broadcast file base name prefix
       call MPI_Bcast(basenm, 128, MPI_CHARACTER, MasterPE, &
                      MPI_COMM_WORLD, ierr)
-      call MPI_Bcast(use_nonblocking_io, 1, MPI_LOGICAL, MasterPE, MPI_COMM_WORLD, ierr)
-      call MPI_Bcast(use_indep_io, 1, MPI_LOGICAL, MasterPE, MPI_COMM_WORLD, ierr)
 
-        
 ! put ~100 blocks on each processor -- make it vary a little, since it does
 ! in the real application.  This is the maximum that we can fit on Blue 
 ! Pacific comfortably.
@@ -101,8 +96,8 @@
       ! use nonblocking APIs
       ! use_nonblocking_io = .TRUE.
       ! use_nonblocking_io = .FALSE.
-      
-      ! initialize the unknowns with the index of the variable
+
+! initialize the unknowns with the index of the variable
       do i = 1, nvar
         unk(i,:,:,:,:) = float(i)
       enddo
@@ -227,39 +222,44 @@
        integer ierr, striping_factor, striping_unit, MaxPE
        double precision tmax(3), ttotal(2), time_total, io_amount, bw
        integer(kind=MPI_OFFSET_KIND) malloc_size, sum_size
+       integer(kind=MPI_OFFSET_KIND) bb_meta_all, bb_data_all, bb_buffer_all
 
-       double precision time_staging
- 
-       ttotal(1) = time_io(1) + time_io(2) + time_io(3)
-       ttotal(2) = MyPE
-       call MPI_Allreduce(ttotal, tmax, 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, MPI_COMM_WORLD, ierr)
-       MaxPE = tmax(2)
-       ! MaxPE = 0
+      double precision time_staging
 
-       call MPI_Reduce(chk_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MaxPE, MPI_COMM_WORLD, ierr)
-       chk_t(:) = tmax(:)
+      ttotal(1) = time_io(1) + time_io(2) + time_io(3)
+      ttotal(2) = MyPE
+      call MPI_Allreduce(ttotal, tmax, 1, MPI_2DOUBLE_PRECISION, MPI_MAXLOC, MPI_COMM_WORLD, ierr)
+      MaxPE = tmax(2)
+      ! MaxPE = 0
 
-       call MPI_Reduce(corner_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MaxPE, MPI_COMM_WORLD, ierr)
-       corner_t(:) = tmax(:)
+      call MPI_Reduce(bb_meta, bb_meta_all, 1, MPI_OFFSET, MPI_SUM, MaxPE, MPI_COMM_WORLD, ierr)
+      call MPI_Reduce(bb_data, bb_data_all, 1, MPI_OFFSET, MPI_SUM, MaxPE, MPI_COMM_WORLD, ierr)
+      call MPI_Reduce(bb_buffer, bb_buffer_all, 1, MPI_OFFSET, MPI_MAX, MaxPE, MPI_COMM_WORLD, ierr)
 
-       call MPI_Reduce(nocorner_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MaxPE, MPI_COMM_WORLD, ierr)
-       nocorner_t(:) = tmax(:)
+      call MPI_Reduce(chk_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
+                  MaxPE, MPI_COMM_WORLD, ierr)
+      chk_t(:) = tmax(:)
 
-       call MPI_Reduce(time_io, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
-                       MaxPE, MPI_COMM_WORLD, ierr)
+      call MPI_Reduce(corner_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
+                  MaxPE, MPI_COMM_WORLD, ierr)
+      corner_t(:) = tmax(:)
 
-       call MPI_Reduce(chk_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
-                       MaxPE, MPI_COMM_WORLD, ierr)
-       chk_io = bw
-       call MPI_Reduce(nocorner_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
-                       MaxPE, MPI_COMM_WORLD, ierr)
-       nocorner_io = bw
-       call MPI_Reduce(corner_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
-                       MaxPE, MPI_COMM_WORLD, ierr)
-       corner_io = bw
+      call MPI_Reduce(nocorner_t, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
+                  MaxPE, MPI_COMM_WORLD, ierr)
+      nocorner_t(:) = tmax(:)
+
+      call MPI_Reduce(time_io, tmax, 3, MPI_DOUBLE_PRECISION, MPI_MAX, &
+                  MaxPE, MPI_COMM_WORLD, ierr)
+
+      call MPI_Reduce(chk_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
+                  MaxPE, MPI_COMM_WORLD, ierr)
+      chk_io = bw
+      call MPI_Reduce(nocorner_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
+                  MaxPE, MPI_COMM_WORLD, ierr)
+      nocorner_io = bw
+      call MPI_Reduce(corner_io, bw, 1, MPI_DOUBLE_PRECISION, MPI_SUM, &
+                  MaxPE, MPI_COMM_WORLD, ierr)
+      corner_io = bw
 
       if (MyPE .EQ. MaxPE) then
            
@@ -321,16 +321,17 @@
             print 1008,' total_time       ', time_total + time_staging
             print 1008,' stage_time       ', time_staging
             print 1008,' bandwidth       ',bw
-            if (use_nonblocking_io) then
-                print 1010,' nonblocking_io', '1'
-            else
-                print 1010,' nonblocking_io', '0'
-            endif
-            if (use_indep_io) then
-                print 1010,' indep_io', '1'
-            else
-                print 1010,' indep_io', '0'
-            endif
+            print 1009,' nonblocking_io', use_nonblocking_io
+            print 1009,' indep_io', use_indep_io
+            print 1008,' bb_api_time       ', bb_api
+            print 1008,' bb_put_time       ', bb_put
+            print 1008,' bb_wr_time       ', bb_wr
+            print 1008,' bb_flush_time       ', bb_flush
+            print 1008,' bb_rd_time       ', bb_rd
+            print 1008,' bb_replay_time       ', bb_replay
+            print 1009,' bb_metadata_size       ', bb_meta_all
+            print 1009,' bb_data_size       ', bb_data_all
+            print 1009,' bb_flush_buffer_size       ', bb_buffer_all
       endif
       call MPI_Info_free(info_used, ierr)
 
@@ -338,16 +339,16 @@
       ierr = nfmpi_inq_malloc_max_size(malloc_size)
       if (ierr .EQ. NF_NOERR) then
           call MPI_Reduce(malloc_size, sum_size, 1, MPI_OFFSET, MPI_SUM, &
-                          MasterPE, MPI_COMM_WORLD, ierr)
-          if (verbose .AND. MyPE .EQ. MasterPE) &
+                          MaxPE, MPI_COMM_WORLD, ierr)
+          if (verbose .AND. MyPE .EQ. MaxPE) &
               print 1002, &
               'maximum heap memory allocted by PnetCDF internally is', &
               sum_size/1048576, ' MiB'
 
           ierr = nfmpi_inq_malloc_size(malloc_size)
           call MPI_Reduce(malloc_size, sum_size, 1, MPI_OFFSET, MPI_SUM, &
-                          MasterPE, MPI_COMM_WORLD, ierr)
-          if (verbose .AND. MyPE .EQ. MasterPE .AND. &
+                          MaxPE, MPI_COMM_WORLD, ierr)
+          if (verbose .AND. MyPE .EQ. MaxPE .AND. &
               sum_size .GT. 0_MPI_OFFSET_KIND) &
               print 1002, &
               'heap memory allocated by PnetCDF internally has ', &
