@@ -64,7 +64,7 @@
 #endif
 
 #if N_DIM == 3
-      parameter(nzb=32)                                        !<<< USER EDIT
+      parameter(nzb=16)                                        !<<< USER EDIT
 #else
       parameter(nzb=1)
 #endif

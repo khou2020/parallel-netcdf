@@ -443,8 +443,13 @@
           err = nfmpi_iput_vara_int(ncid, varid(1), starts, counts, lrefine, reqs(1))
           if (err .NE. NF_NOERR) call check(err, "nfmpi_iput_vara_int: lrefine sp")
       else
-          err = nfmpi_put_vara_int_all(ncid, varid(1), starts, counts, lrefine)
-          if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int_all: lrefine sp")
+            if (use_indep_io) then
+                  err = nfmpi_put_vara_int(ncid, varid(1), starts, counts, lrefine)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int: lrefine sp")
+            else
+                  err = nfmpi_put_vara_int_all(ncid, varid(1), starts, counts, lrefine)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int_all: lrefine sp")
+            endif
       endif
 
 ! store the nodetype
@@ -452,8 +457,13 @@
           err = nfmpi_iput_vara_int(ncid, varid(2), starts, counts, nodetype, reqs(2))
           if (err .NE. NF_NOERR) call check(err, "nfmpi_iput_vara_int: nodetype sp")
       else
-          err = nfmpi_put_vara_int_all(ncid, varid(2), starts, counts, nodetype)
-          if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int_all: nodetype sp")
+             if (use_indep_io) then
+                  err = nfmpi_put_vara_int(ncid, varid(2), starts, counts, nodetype)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int: nodetype sp")
+             else
+                  err = nfmpi_put_vara_int_all(ncid, varid(2), starts, counts, nodetype)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int_all: nodetype sp")
+            endif
       endif
 
 ! store the global id
@@ -465,8 +475,13 @@
           err = nfmpi_iput_vara_int(ncid, varid(3), starts, counts, gid, reqs(3))
           if (err .NE. NF_NOERR) call check(err, "nfmpi_iput_vara_int: gid sp")
       else
-          err = nfmpi_put_vara_int_all(ncid, varid(3), starts, counts, gid)
-          if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int_all: gid sp")
+            if (use_indep_io) then
+                  err = nfmpi_put_vara_int(ncid, varid(3), starts, counts, gid)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int: gid sp")
+            else
+                  err = nfmpi_put_vara_int_all(ncid, varid(3), starts, counts, gid)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_int_all: gid sp")
+            endif
       endif
 
 !-----------------------------------------------------------------------------
@@ -485,8 +500,13 @@
           err = nfmpi_iput_vara_real(ncid, varid(4), starts, counts, coord_single, reqs(4))
           if (err .NE. NF_NOERR) call check(err, "nfmpi_iput_vara_real: coord sp")
       else
-          err = nfmpi_put_vara_real_all(ncid, varid(4), starts, counts, coord_single)
-          if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_read_all: coord sp")
+            if (use_indep_io) then
+                  err = nfmpi_put_vara_real(ncid, varid(4), starts, counts, coord_single)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_read: coord sp")
+            else
+                  err = nfmpi_put_vara_real_all(ncid, varid(4), starts, counts, coord_single)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_read_all: coord sp")
+            endif
       endif
 
 ! store the block size
@@ -502,8 +522,13 @@
           err = nfmpi_iput_vara_real(ncid, varid(5), starts, counts, blk_sz_single, reqs(5))
           if (err .NE. NF_NOERR) call check(err, "nfmpi_iput_vara_real: size sp")
       else
-          err = nfmpi_put_vara_real_all(ncid, varid(5), starts, counts, blk_sz_single)
-          if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: size sp")
+            if (use_indep_io) then
+                  err = nfmpi_put_vara_real(ncid, varid(5), starts, counts, blk_sz_single)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real: size sp")
+            else
+                  err = nfmpi_put_vara_real_all(ncid, varid(5), starts, counts, blk_sz_single)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: size sp")
+            endif
       endif
 
 ! store the bounding box
@@ -523,8 +548,13 @@
           err = nfmpi_iput_vara_real(ncid, varid(6), starts, counts, bnd_single, reqs(6))
           if (err .NE. NF_NOERR) call check(err, "nfmpi_iput_vara_real: bnd_box")
       else
-          err = nfmpi_put_vara_real_all(ncid, varid(6), starts, counts, bnd_single)
-          if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: bnd_box")
+            if (use_indep_io) then
+                  err = nfmpi_put_vara_real(ncid, varid(6), starts, counts, bnd_single)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real: bnd_box")
+            else
+                  err = nfmpi_put_vara_real_all(ncid, varid(6), starts, counts, bnd_single)
+                  if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: bnd_box")
+            endif
       endif
 
       if (use_nonblocking_io) then
@@ -615,8 +645,13 @@
                 err = nfmpi_bput_vara_real(ncid, varid(6+ivar), starts, counts, unkt_crn, reqs(ivar+6))
                 if (err .NE. NF_NOERR) call check(err, "nfmpi_bput_vara_real: unknowns sp")
             else
-                err = nfmpi_put_vara_real_all(ncid, varid(6+ivar), starts, counts, unkt_crn)
-                if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: unknowns sp")
+                  if (use_indep_io) then
+                        err = nfmpi_put_vara_real(ncid, varid(6+ivar), starts, counts, unkt_crn)
+                        if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real: unknowns sp")
+                  else
+                        err = nfmpi_put_vara_real_all(ncid, varid(6+ivar), starts, counts, unkt_crn)
+                        if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: unknowns sp")
+                  endif
             endif
 
          else
@@ -639,8 +674,13 @@
                 err = nfmpi_bput_vara_real(ncid, varid(6+ivar), starts, counts, unkt, reqs(ivar+6))
                 if (err .NE. NF_NOERR) call check(err, "nfmpi_bput_vara_real: unknowns sp")
             else
-                err = nfmpi_put_vara_real_all(ncid, varid(6+ivar), starts, counts, unkt)
-                if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: unknowns sp")
+                  if (use_indep_io) then
+                        err = nfmpi_put_vara_real(ncid, varid(6+ivar), starts, counts, unkt)
+                        if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real: unknowns sp")
+                  else
+                        err = nfmpi_put_vara_real_all(ncid, varid(6+ivar), starts, counts, unkt)
+                        if (err .NE. NF_NOERR) call check(err, "nfmpi_put_vara_real_all: unknowns sp")
+                  endif
             endif
          endif
 
@@ -648,17 +688,31 @@
 
       ! wait for all nonblocking requests to complete
       if (use_nonblocking_io) then
-          ! wait for the nonblocking I/O to complete
-          err = nfmpi_wait_all(ncid, num_out+6, reqs, stats)
-          if (err .NE. NF_NOERR) &
-              call check(err, "(sp) nfmpi_wait_all: ")
-
-          ! check the status of each nonblocking request
-          do i=1, num_out+6
-             write(str,'(I2)') i
-             if (stats(i) .NE. NF_NOERR) &
-                 call check(stats(i), '(sp) nfmpi_wait_all req '//trim(str))
-          enddo
+            if (use_indep_io) then
+                  ! wait for the nonblocking I/O to complete
+                  err = nfmpi_wait(ncid, num_out+6, reqs, stats)
+                  if (err .NE. NF_NOERR) &
+                        call check(err, "(sp) nfmpi_wait: ")
+                  
+                  ! check the status of each nonblocking request
+                  do i=1, num_out+6
+                        write(str,'(I2)') i
+                        if (stats(i) .NE. NF_NOERR) &
+                        call check(stats(i), '(sp) nfmpi_wait req '//trim(str))
+                  enddo
+            else
+                  ! wait for the nonblocking I/O to complete
+                  err = nfmpi_wait_all(ncid, num_out+6, reqs, stats)
+                  if (err .NE. NF_NOERR) &
+                        call check(err, "(sp) nfmpi_wait_all: ")
+                  
+                  ! check the status of each nonblocking request
+                  do i=1, num_out+6
+                        write(str,'(I2)') i
+                        if (stats(i) .NE. NF_NOERR) &
+                        call check(stats(i), '(sp) nfmpi_wait_all req '//trim(str))
+                  enddo
+            endif        
 
           ! detach the temporary buffer
           err = nfmpi_buffer_detach(ncid)

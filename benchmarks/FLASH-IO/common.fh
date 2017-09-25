@@ -51,6 +51,7 @@
 
         integer info_used
         logical use_nonblocking_io
+        logical use_indep_io
 
         double precision chk_t(3), corner_t(3), nocorner_t(3)
         integer(kind=MPI_OFFSET_KIND) bb_data, bb_meta, bb_buffer
