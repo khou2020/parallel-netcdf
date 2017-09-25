@@ -303,7 +303,7 @@ int log_flush(NC *ncp) {
         databuffersize = ncp->logflushbuffersize;
     }
     if (nclogp->max_buffer < databuffersize){
-        nclogp->max_buffer = databuffersize
+        nclogp->max_buffer = databuffersize;
     }
 
     /* Allocate buffer */
