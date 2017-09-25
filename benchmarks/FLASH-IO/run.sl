@@ -26,7 +26,7 @@ do
             echo "rm -f ${OUTDIR}/*"
             rm -f ${OUTDIR}/*
             
-            srun -n ${NP} --export=MPICH_MPIIO_HINTS ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
+            srun -n ${NP} ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
 
             echo "#%$: io_driver: ncmpi"
             echo "#%$: number_of_nodes: ${NN}"
@@ -48,7 +48,7 @@ do
             echo "rm -f ${BBDIR}/*"
             rm -f ${BBDIR}/*
             
-            srun -n ${NP} --export=MPICH_MPIIO_HINTS ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
+            srun -n ${NP} ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
 
             echo "#%$: io_driver: bb"
             echo "#%$: number_of_nodes: ${NN}"
@@ -56,16 +56,13 @@ do
 
             echo "ls -lah ${OUTDIR}"
             ls -lah ${OUTDIR}
-            echo "ls -lah ${BBDIR}"
-            ls -lah ${BBDIR}
-            
+                        
             echo '-----+-----++------------+++++++++--+---'
         done
         unset PNETCDF_HINTS
         echo '--++---+----+++-----++++---+++--+-++--+---'
 
         # Staging
-        export MPICH_MPIIO_HINTS="*:romio_cb_write=disable"
         export stageout_bb_path="${BBDIR}"
         export stageout_pfs_path="${OUTDIR}"
         for i in 1 2 3
@@ -75,7 +72,7 @@ do
             echo "rm -f ${BBDIR}/*"
             rm -f ${BBDIR}/*
             
-            srun -n ${NP} --export=MPICH_MPIIO_HINTS ./flash_benchmark_io ${BBDIR}/flash_ ${u} ${v}
+            srun -n ${NP} ./flash_benchmark_io ${BBDIR}/flash_ ${u} ${v}
 
             echo "#%$: io_driver: stage"
             echo "#%$: number_of_nodes: ${NN}"
@@ -90,7 +87,6 @@ do
         done
         unset stageout_bb_path
         unset stageout_pfs_path
-        unset MPICH_MPIIO_HINTS
         echo '--++---+----+++-----++++---+++--+-++--+---'
     done
 done
