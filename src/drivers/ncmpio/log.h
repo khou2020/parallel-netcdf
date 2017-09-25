@@ -102,6 +102,7 @@ typedef struct NC_Log {
     int isflushing;   /* If log is flushing */
     MPI_Offset total_data;
     MPI_Offset total_meta;
+    MPI_OFFSET max_buffer;
     MPI_Offset numrecs;
     double flush_read_time;
     double flush_replay_time;

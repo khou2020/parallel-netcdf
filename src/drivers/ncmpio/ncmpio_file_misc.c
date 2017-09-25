@@ -364,7 +364,7 @@ ncmpii_inq_misc(void       *ncdp,
                 MPI_Info_set(*info_used, "pnetcdf_bb_overwrite", "enable");
             }
             if (!(ncp->loghints & NC_LOG_HINT_DEL_ON_CLOSE)) {
-                MPI_Info_set(*info_used, "pnetcdf_bb_del_on_close", "enable");
+                MPI_Info_set(*info_used, "pnetcdf_bb_del_on_close", "disable");
             }
             if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_WAIT) {
                 MPI_Info_set(*info_used, "pnetcdf_bb_flush_on_wait", "enable");
@@ -443,7 +443,7 @@ int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Of
 
     if (buffersize != NULL){
         if (nclogp != NULL){
-            *buffersize = (MPI_Offset)ncp->logflushbuffersize;
+            *buffersize = nclogp->max_buffer;
         }
         else{
             *buffersize = 0;

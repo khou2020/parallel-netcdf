@@ -142,6 +142,7 @@ int ncmpii_log_create(NC* ncp) {
     /* Performance counters */
     nclogp->total_data = 0;
     nclogp->total_meta = 0;
+    nclogp->max_buffer = 0;
     nclogp->flush_read_time = 0;
     nclogp->flush_replay_time = 0;
     nclogp->flush_total_time = 0;

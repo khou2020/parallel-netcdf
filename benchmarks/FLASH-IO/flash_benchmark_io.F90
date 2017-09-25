@@ -321,8 +321,16 @@
             print 1008,' total_time       ', time_total + time_staging
             print 1008,' stage_time       ', time_staging
             print 1008,' bandwidth       ',bw
-            print 1009,' nonblocking_io', use_nonblocking_io
-            print 1009,' indep_io', use_indep_io
+            if (use_nonblocking_io) then
+                print 1010,' nonblocking_io', '1'
+            else
+                print 1010,' nonblocking_io', '0'
+            endif
+            if (use_indep_io) then
+                print 1010,' indep_io','1' 
+            else
+                print 1010,' indep_io', '0'
+            endif
             print 1008,' bb_api_time       ', bb_api
             print 1008,' bb_put_time       ', bb_put
             print 1008,' bb_wr_time       ', bb_wr
