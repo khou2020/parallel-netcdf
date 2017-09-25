@@ -148,7 +148,8 @@
 
           err = nfmpi_enddef(ncid)
           if (err .NE. NF_NOERR) call check(err, "nfmpi_enddef")
-      end subroutine write_header_info_sp
+          
+        end subroutine write_header_info_sp
 
 !----------------------------------------------------------------------------
 ! subroutine plotfile
@@ -386,7 +387,7 @@
       err = nfmpi_create(MPI_COMM_WORLD, trim(filename), cmode, &
                          file_info, ncid)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_create")
-
+      
       call MPI_Info_free(file_info, err)
 
 !-----------------------------------------------------------------------------
@@ -430,12 +431,15 @@
                                 nzones_block, &
                                 sunklabels, &
                                 varid)
+      if (use_indep_io) then
+          err = nfmpi_begin_indep_data(ncid)
+          if (err .NE. NF_NOERR) call check(err, "nfmpi_begin_indep_data")
+      endif
 
       global_offset = n_to_left(MyPE)
 !-----------------------------------------------------------------------------
 ! store the tree information
 !-----------------------------------------------------------------------------
-
 ! store the refinement level
       starts(1) = global_offset+1
       counts(1) = lnblocks

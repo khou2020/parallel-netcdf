@@ -32,7 +32,7 @@
       
       character*16 tmp
 
-      integer, parameter :: local_blocks = INT(1*maxblocks)
+      integer, parameter :: local_blocks = INT(0.8*maxblocks)
 
 
 ! initialize MPI and get the rank and size
@@ -43,6 +43,7 @@
       MasterPE = 0
       verbose = .TRUE.
       use_indep_io = .FALSE.
+      use_nonblocking_io = .TRUE.
 
       ! root process reads command-line arguments
       if (MyPE .EQ. MasterPE) then
@@ -51,14 +52,14 @@
             call getarg(0, executable)
             call getarg(1, basenm)
 
-            if (argc .GT. 2) then
+            if (argc .GT. 1) then
                   call getarg(2, tmp)
                   if (TRIM(tmp) .EQ. 'blocking') then
                         use_nonblocking_io = .FALSE.
                   endif
             endif
 
-            if (argc .GT. 3) then
+            if (argc .GT. 2) then
                   call getarg(3, tmp)
                   if (TRIM(tmp) .EQ. 'indep') then
                         use_indep_io = .TRUE.
@@ -74,7 +75,10 @@
       ! broadcast file base name prefix
       call MPI_Bcast(basenm, 128, MPI_CHARACTER, MasterPE, &
                      MPI_COMM_WORLD, ierr)
+      call MPI_Bcast(use_nonblocking_io, 1, MPI_LOGICAL, MasterPE, MPI_COMM_WORLD, ierr)
+      call MPI_Bcast(use_indep_io, 1, MPI_LOGICAL, MasterPE, MPI_COMM_WORLD, ierr)
 
+        
 ! put ~100 blocks on each processor -- make it vary a little, since it does
 ! in the real application.  This is the maximum that we can fit on Blue 
 ! Pacific comfortably.
@@ -95,10 +99,10 @@
       empty(:) = 0
 
       ! use nonblocking APIs
-      use_nonblocking_io = .TRUE.
+      ! use_nonblocking_io = .TRUE.
       ! use_nonblocking_io = .FALSE.
-
-! initialize the unknowns with the index of the variable
+      
+      ! initialize the unknowns with the index of the variable
       do i = 1, nvar
         unk(i,:,:,:,:) = float(i)
       enddo
@@ -224,7 +228,7 @@
        double precision tmax(3), ttotal(2), time_total, io_amount, bw
        integer(kind=MPI_OFFSET_KIND) malloc_size, sum_size
 
-      double precision time_staging
+       double precision time_staging
  
        ttotal(1) = time_io(1) + time_io(2) + time_io(3)
        ttotal(2) = MyPE
@@ -317,8 +321,16 @@
             print 1008,' total_time       ', time_total + time_staging
             print 1008,' stage_time       ', time_staging
             print 1008,' bandwidth       ',bw
-            print 1009,' nonblocking_io', use_nonblocking_io
-            print 1009,' indep_io', use_indep_io
+            if (use_nonblocking_io) then
+                print 1010,' nonblocking_io', '1'
+            else
+                print 1010,' nonblocking_io', '0'
+            endif
+            if (use_indep_io) then
+                print 1010,' indep_io', '1'
+            else
+                print 1010,' indep_io', '0'
+            endif
       endif
       call MPI_Info_free(info_used, ierr)
 

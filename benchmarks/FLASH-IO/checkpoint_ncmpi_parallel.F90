@@ -154,7 +154,8 @@
       
           err = nfmpi_enddef(ncid)
           if (err .NE. NF_NOERR) call check(err, "nfmpi_enddef")
-      end subroutine write_header_info
+          
+        end subroutine write_header_info
 
 !----------------------------------------------------------------------------
 ! subroutine checkpoint_wr
@@ -348,7 +349,7 @@
       err = nfmpi_create(MPI_COMM_WORLD, trim(filename), cmode, &
                          file_info, ncid)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_create")
-
+      
       call MPI_Info_free(file_info, err)
 
       err = nfmpi_get_file_info(ncid, info_used)
@@ -386,6 +387,11 @@
                              nzones_block, & 
                              unklabels, &
                              varid)
+        
+        if (use_indep_io) then
+              err = nfmpi_begin_indep_data(ncid)
+              if (err .NE. NF_NOERR) call check(err, "nfmpi_begin_indep_data")
+        endif
 
 #ifdef TIMERS
       print *, 'header: MyPE = ', MyPE, ' time = ',  & 
