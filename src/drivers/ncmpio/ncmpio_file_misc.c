@@ -443,7 +443,7 @@ int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Of
 
     if (buffersize != NULL){
         if (nclogp != NULL){
-            *buffersize = (MPI_Offset)ncp->logflushbuffersize;
+            *buffersize = nclogp->max_buffer;
         }
         else{
             *buffersize = 0;

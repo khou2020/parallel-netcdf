@@ -142,6 +142,7 @@ int ncmpii_log_create(NC* ncp) {
     /* Performance counters */
     nclogp->total_data = 0;
     nclogp->total_meta = 0;
+    nclogp->max_buffer = 0;
     nclogp->flush_read_time = 0;
     nclogp->flush_replay_time = 0;
     nclogp->flush_total_time = 0;
@@ -393,6 +394,7 @@ int ncmpii_log_close(NC *ncp) {
     t2 = MPI_Wtime();
     nclogp->total_time += t2 - t1;
     
+    /*
     MPI_Reduce(&nclogp->total_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
     MPI_Reduce(&nclogp->flush_read_time, &flush_read_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
     MPI_Reduce(&nclogp->flush_replay_time, &flush_replay_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
@@ -416,6 +418,7 @@ int ncmpii_log_close(NC *ncp) {
         printf("\t\tTime replaying: %lf\n", flush_replay_time);
         printf("==========================================================\n");
     }
+    */
 
     /* Delete log structure */
     NCI_Free(nclogp);
