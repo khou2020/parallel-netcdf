@@ -5,19 +5,21 @@ define(`SCRIPT', dnl
 #SBATCH -N $2
 #SBATCH -C haswell
 #SBATCH -t 00:10:00
-#SBATCH -o ncmpi_$4_$3.txt
-echo "IO_DRIVER:NCMPIO"
-echo "IO_MODE:$4"
-echo "N_NODE:$2" 
-echo "N_PROC:$3"
-cd $PWD
+#SBATCH -o ncmpi_$4_$5_$3.txt
+
 mkdir -p $1
+mkdir -p $1/ncmpi_$4_$5_$3
 for i in 1 2 3
 do
     echo "Round " $i ":"
-    rm -rf $1/ncmpi_$4_$3
-    mkdir $1/ncmpi_$4_$3
-    srun -n $3 ./flash_benchmark_io $1/ncmpi_$4_$3/flash_
+    rm f $1/ncmpi_$4_$5_$3/*
+    srun -n $3 ./flash_benchmark_io $1/ncmpi_$4_$5_$3/flash_
+    echo "io_driver: NCMPIO"
+    echo "n_nodes: $2" 
+    echo 'ls -lah $1/ncmpi_$4_$5_$3'
+    ls -lah $1/ncmpi_$4_$5_$3
+    echo '-----+-----++------------+++++++++--+---'
 done
+echo '--++---+----+++-----++++---+++--+-++--+---'
 ')dnl
-SCRIPT(EXPDIR,NNODE,NPROC,IOMODE)
+SCRIPT(EXPDIR,NNODE,NPROC,IOMODEA,IOMODEB)

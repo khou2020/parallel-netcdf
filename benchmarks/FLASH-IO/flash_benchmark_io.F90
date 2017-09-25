@@ -30,6 +30,8 @@
       double precision checkpoint_wr_ncmpi_par
       double precision plotfile_ncmpi_par
 
+      character*16 tmp
+
       integer, parameter :: local_blocks = INT(0.8*maxblocks)
 
 ! initialize MPI and get the rank and size
@@ -39,26 +41,28 @@
 
       MasterPE = 0
       verbose = .TRUE.
+      use_indep_io = .FALSE.
 
       ! root process reads command-line arguments
       if (MyPE .EQ. MasterPE) then
-         isArgvRight = .TRUE.
-         argc = IARGC()   ! IARGC() does not count the executable name
-         call getarg(0, executable)
-         if (argc .GT. 2) then
-            print *, &
-            'Usage: ',trim(executable),' [-q] <ouput file base name>'
-            isArgvRight = .FALSE.
-         else
-            ! default file name prefix
-            basenm = "flash_io_test_"
-            if (argc .EQ. 1) then
-               call getarg(1, basenm)
-            else if (argc .EQ. 2) then
-               verbose = .FALSE.
-               call getarg(2, basenm)
+            isArgvRight = .TRUE.
+            argc = IARGC()   ! IARGC() does not count the executable name
+            call getarg(0, executable)
+            call getarg(1, basenm)
+
+            if (argc .GT. 2) then
+                  call getarg(2, tmp)
+                  if (TRIM(tmp) .EQ. 'blocking') then
+                        use_nonblocking_io = .FALSE.
+                  endif
             endif
-         endif
+
+            if (argc .GT. 3) then
+                  call getarg(3, tmp)
+                  if (TRIM(tmp) .EQ. 'indep') then
+                        use_indep_io = .TRUE.
+                  endif
+            endif
       endif
 
       ! broadcast if command-line arguments are valid
@@ -312,6 +316,8 @@
             print 1008,' total_time       ', time_total + time_staging
             print 1008,' stage_time       ', time_staging
             print 1008,' bandwidth       ',bw
+            print 1009,' nonblocking_io', use_nonblocking_io
+            print 1009,' indep_io', use_indep_io
       endif
       call MPI_Info_free(info_used, ierr)
 
