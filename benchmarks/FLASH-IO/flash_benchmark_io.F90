@@ -30,7 +30,7 @@
       double precision checkpoint_wr_ncmpi_par
       double precision plotfile_ncmpi_par
 
-      integer, parameter :: local_blocks = INT(0.8*maxblocks)
+      integer, parameter :: local_blocks = INT(1*maxblocks)
 
 ! initialize MPI and get the rank and size
       call MPI_INIT(ierr)
