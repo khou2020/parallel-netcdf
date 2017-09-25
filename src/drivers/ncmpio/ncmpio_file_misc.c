@@ -364,7 +364,7 @@ ncmpii_inq_misc(void       *ncdp,
                 MPI_Info_set(*info_used, "pnetcdf_bb_overwrite", "enable");
             }
             if (!(ncp->loghints & NC_LOG_HINT_DEL_ON_CLOSE)) {
-                MPI_Info_set(*info_used, "pnetcdf_bb_del_on_close", "enable");
+                MPI_Info_set(*info_used, "pnetcdf_bb_del_on_close", "disable");
             }
             if (ncp->loghints & NC_LOG_HINT_FLUSH_ON_WAIT) {
                 MPI_Info_set(*info_used, "pnetcdf_bb_flush_on_wait", "enable");
