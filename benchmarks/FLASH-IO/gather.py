@@ -16,7 +16,7 @@ def gather(dir:str):
                         bestrec = None
                     elif (line[:40] == '-----+-----++------------+++++++++--+---'):
                         if (not drop):
-                            if (bestrec == None or bestrec['io_time'] < rec['io_time']):
+                            if (bestrec == None or bestrec['total_time'] < rec['total_time']):
                                 bestrec = rec
                         rec = {}
                         drop = False
@@ -34,6 +34,7 @@ def gather(dir:str):
                                 val = val
                         rec[tokens[1].strip()] = val
                     elif (line[:5] == 'Error' or line[:7] == '#Error!'):
+                        print(line)
                         drop = True
     return recs
 
@@ -117,42 +118,25 @@ def plot1d(fout, recs:list, filter:dict, x:str, vals:list):
     fout.write('\n')
 
 def main(argv:list):
-    dir = ''
+    dir = 'C:/Users/x3276/OneDrive/Research/Log io/Result/FLASH/64_8M'
 
     if len(argv) > 1:
         dir = argv[1]
     
     recs = gather(dir)
-
-    for rec in recs:
-        if 'io_size' in rec:
-            rec['io_size_gb'] = rec['io_size'] / 1024
-            if 'io_time' in rec:
-                rec['bandwidth_gbps'] = rec['io_size_gb'] / rec['io_time']
-                rec['bandwidth'] = rec['io_size'] / rec['io_time']
-            if 'bb_rd_time' in rec:
-                rec['bb_rd_bandwidth_gbps'] = rec['io_size_gb'] / rec['bb_rd_time']
-                rec['bb_rd_bandwidth'] = rec['io_size'] / rec['bb_rd_time']
-            if 'pfs_wr_time' in rec:
-                rec['pfs_wrbandwidth_gbps'] = rec['io_size_gb'] / rec['pfs_wr_time']
-                rec['pfs_wrbandwidth'] = rec['io_size'] / rec['pfs_wr_time']
-        if rec['method'] == 'mpi_flush':
-            if 'bb_rd_indep' not in rec:
-                rec['bb_rd_indep'] = 0
     
+    for rec in recs:
+        if 'total_time' in rec and 'total_io_size' in rec:
+            rec['total_bandwidth'] = rec['total_io_size'] / rec['total_time'] / 1024
+        if 'total_time' in rec and 'total_io_size' in rec:
+            rec['total_bandwidth'] = rec['total_io_size'] / rec['total_time'] / 1024
+
     with open('result.csv', 'w') as fout:
-        filter = {'method': 'dw_staging'}
-        plot(fout, recs, filter, 'io_size_gb', 'method', 'io_time')
-        plot(fout, recs, filter, 'io_size_gb', 'method', 'bandwidth_gbps', True)
-        filter = {'io_size_gb': 128, 'n_nodes': 32, 'bb_rd_indep': 0}
-        plot1d(fout, recs, filter, 'n_proc', ['bb_rd_time', 'pfs_wr_time', 'io_time', 'bb_rd_bandwidth_gbps', 'pfs_wrbandwidth_gbps', 'bandwidth_gbps'])
-        filter = {'io_size_gb': 128, 'n_nodes': 32, 'bb_rd_indep': 1}
-        plot1d(fout, recs, filter, 'n_proc', ['bb_rd_time', 'pfs_wr_time', 'io_time', 'bb_rd_bandwidth_gbps', 'pfs_wrbandwidth_gbps', 'bandwidth_gbps'])
-        filter = {'io_size_gb': 128, 'n_nodes': 64, 'bb_rd_indep': 0}
-        plot1d(fout, recs, filter, 'n_proc', ['bb_rd_time', 'pfs_wr_time', 'io_time', 'bb_rd_bandwidth_gbps', 'pfs_wrbandwidth_gbps', 'bandwidth_gbps'])
-        filter = {'io_size_gb': 128, 'n_nodes': 64, 'bb_rd_indep': 1}
-        plot1d(fout, recs, filter, 'n_proc', ['bb_rd_time', 'pfs_wr_time', 'io_time', 'bb_rd_bandwidth_gbps', 'pfs_wrbandwidth_gbps', 'bandwidth_gbps'])
-
-
+        filter = {'io_driver': 'ncmpi'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
+        filter = {'io_driver': 'bb'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
+        filter = {'io_driver': 'stage'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
 if __name__=='__main__':
     main(sys.argv)
