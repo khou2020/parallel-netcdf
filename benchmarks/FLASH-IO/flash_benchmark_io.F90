@@ -42,6 +42,7 @@
       MasterPE = 0
       verbose = .TRUE.
       use_indep_io = .FALSE.
+      use_nonblocking_io = .TRUE.
 
       ! root process reads command-line arguments
       if (MyPE .EQ. MasterPE) then
@@ -50,14 +51,14 @@
             call getarg(0, executable)
             call getarg(1, basenm)
 
-            if (argc .GT. 2) then
+            if (argc .GT. 1) then
                   call getarg(2, tmp)
                   if (TRIM(tmp) .EQ. 'blocking') then
                         use_nonblocking_io = .FALSE.
                   endif
             endif
 
-            if (argc .GT. 3) then
+            if (argc .GT. 2) then
                   call getarg(3, tmp)
                   if (TRIM(tmp) .EQ. 'indep') then
                         use_indep_io = .TRUE.
