@@ -66,6 +66,10 @@
             endif
       endif
 
+      ! Bcast io mode
+      call MPI_Bcast(use_nonblocking_io, 1, MPI_LOGICAL, MasterPE, MPI_COMM_WORLD, ierr)
+      call MPI_Bcast(use_indep_io, 1, MPI_LOGICAL, MasterPE, MPI_COMM_WORLD, ierr)
+
       ! broadcast if command-line arguments are valid
       call MPI_Bcast(isArgvRight, 1, MPI_LOGICAL, MasterPE, &
                      MPI_COMM_WORLD, ierr)
