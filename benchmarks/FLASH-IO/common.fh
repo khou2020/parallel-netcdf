@@ -53,10 +53,10 @@
         logical use_nonblocking_io
         logical use_indep_io
 
-        double precision chk_t(3), corner_t(3), nocorner_t(3)
+        double precision chk_t(3), corner_t(3), nocorner_t(3), barr_time
         integer(kind=MPI_OFFSET_KIND) bb_data, bb_meta, bb_buffer
         double precision bb_api, bb_wr, bb_rd, bb_replay, bb_put, bb_flush, bb_stage
-        common /timers/ chk_t, corner_t, nocorner_t, info_used, use_nonblocking_io, use_indep_io
+        common /timers/ chk_t, corner_t, nocorner_t, barr_time, info_used, use_nonblocking_io, use_indep_io
         common /timings/ bb_api, bb_wr, bb_rd, bb_replay, bb_put, bb_flush, bb_stage, bb_data, bb_meta, bb_buffer
 
 

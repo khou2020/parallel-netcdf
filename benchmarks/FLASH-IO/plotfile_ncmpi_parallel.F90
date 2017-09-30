@@ -206,7 +206,7 @@
       integer block_no
       integer i, j, k, ivar, i_store, j_store, k_store
       integer ngid 
-      integer err
+      integer err, ierr
 
       integer n_to_left(0:16383)  ! must extend from 0 to NumPEs-1
 
@@ -749,8 +749,20 @@
       err = nfmpi_inq_bb_size(ncid, bbdata, bbmeta, bbbuffer)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_size")
 
+      barr_time =  MPI_Wtime()
+      if (.NOT. use_indep_io) then
+            call MPI_Barrier(MPI_COMM_WORLD, ierr)
+      endif
+      barr_time = MPI_Wtime() - barr_time
+
       err = nfmpi_close(ncid)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_close_file sp")
+
+      if (corners) then
+         corner_t(3) = MPI_Wtime() - corner_t(3) - barr_time
+      else
+         nocorner_t(3) = MPI_Wtime() - nocorner_t(3) - barr_time
+      endif
 
       bb_api = bb_api + bbapi
       bb_put = bb_put + bbput
@@ -761,12 +773,6 @@
       bb_data  = bb_data + bbdata
       bb_meta = bb_meta + bbmeta
       bb_buffer = bb_buffer + bbbuffer
-
-      if (corners) then
-         corner_t(3) = MPI_Wtime() - corner_t(3)
-      else
-         nocorner_t(3) = MPI_Wtime() - nocorner_t(3)
-      endif
 
       plotfile_ncmpi_par = put_size
 

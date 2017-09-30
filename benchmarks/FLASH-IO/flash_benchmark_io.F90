@@ -121,21 +121,21 @@
 ! netCDF checkpoint file
 !---------------------------------------------------------------------------
       time_begin = MPI_Wtime()
-      chk_io = checkpoint_wr_ncmpi_par(0,0.e0)
+      chk_io = checkpoint_wr_ncmpi_par(0,0.e0) - barr_time
       time_io(1) = MPI_Wtime() - time_begin
 
 !---------------------------------------------------------------------------
 ! netCDF plotfile -- no corners
 !---------------------------------------------------------------------------
       time_begin = MPI_Wtime()
-      nocorner_io = plotfile_ncmpi_par(0,0.e0,.false.)
+      nocorner_io = plotfile_ncmpi_par(0,0.e0,.false.) - barr_time
       time_io(2) = MPI_Wtime() - time_begin
     
 !---------------------------------------------------------------------------
 ! netCDF plotfile -- corners
 !---------------------------------------------------------------------------
       time_begin = MPI_Wtime()
-      corner_io = plotfile_ncmpi_par(0,0.e0,.true.)
+      corner_io = plotfile_ncmpi_par(0,0.e0,.true.) - barr_time
       time_io(3) = MPI_Wtime() - time_begin
     
       call report_io_performance(verbose, local_blocks, time_io, chk_io, &

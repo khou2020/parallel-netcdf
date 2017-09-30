@@ -21,6 +21,7 @@ do
     for v in coll indep
     do
         # Ncmpi
+        if [ "x${v}" = "xcoll" ]; then
         for i in 1 2 3
         do
             echo "rm -f ${OUTDIR}/*"
@@ -40,27 +41,29 @@ do
         echo '--++---+----+++-----++++---+++--+-++--+---'
 
         # Bb
-        export PNETCDF_HINTS="pnetcdf_bb=enable;pnetcdf_bb_del_on_close=disable;pnetcdf_bb_overwrite=enable;pnetcdf_bb_dirname=${BBDIR}"
-        for i in 1 2 3
-        do
-            echo "rm -f ${OUTDIR}/*"
-            rm -f ${OUTDIR}/*
-            echo "rm -f ${BBDIR}/*"
-            rm -f ${BBDIR}/*
-            
-            srun -n ${NP} ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
+        if [ "x${u}" = "xblocking" ] && [ "x${v}" = "xcoll" ]; then
+            export PNETCDF_HINTS="pnetcdf_bb=enable;pnetcdf_bb_del_on_close=disable;pnetcdf_bb_overwrite=enable;pnetcdf_bb_dirname=${BBDIR}"
+            for i in 1 2 3
+            do
+                echo "rm -f ${OUTDIR}/*"
+                rm -f ${OUTDIR}/*
+                echo "rm -f ${BBDIR}/*"
+                rm -f ${BBDIR}/*
+                
+                srun -n ${NP} ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
 
-            echo "#%$: io_driver: bb"
-            echo "#%$: number_of_nodes: ${NN}"
-            echo "#%$: io_mode: ${u}_${v}"
+                echo "#%$: io_driver: bb"
+                echo "#%$: number_of_nodes: ${NN}"
+                echo "#%$: io_mode: ${u}_${v}"
 
-            echo "ls -lah ${OUTDIR}"
-            ls -lah ${OUTDIR}
-                        
-            echo '-----+-----++------------+++++++++--+---'
-        done
-        unset PNETCDF_HINTS
-        echo '--++---+----+++-----++++---+++--+-++--+---'
+                echo "ls -lah ${OUTDIR}"
+                ls -lah ${OUTDIR}
+                            
+                echo '-----+-----++------------+++++++++--+---'
+            done
+            unset PNETCDF_HINTS
+            echo '--++---+----+++-----++++---+++--+-++--+---'
+        fi
 
         # Staging
         export stageout_bb_path="${BBDIR}"

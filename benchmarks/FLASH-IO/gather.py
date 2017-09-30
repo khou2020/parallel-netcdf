@@ -128,8 +128,6 @@ def main(argv:list):
     for rec in recs:
         if 'total_time' in rec and 'total_io_size' in rec:
             rec['total_bandwidth'] = rec['total_io_size'] / rec['total_time'] / 1024
-        if 'total_time' in rec and 'total_io_size' in rec:
-            rec['total_bandwidth'] = rec['total_io_size'] / rec['total_time'] / 1024
 
     with open('result.csv', 'w') as fout:
         filter = {'io_driver': 'ncmpi'}
@@ -138,5 +136,7 @@ def main(argv:list):
         plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
         filter = {'io_driver': 'stage'}
         plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
+
+        
 if __name__=='__main__':
     main(sys.argv)

@@ -203,7 +203,7 @@
       integer block_no
       integer i, j
       integer ngid 
-      integer err
+      integer err, ierr
 
       integer n_to_left(0:16383)  ! must extend from 0 to NumPEs-1
 
@@ -697,10 +697,16 @@
       err = nfmpi_inq_bb_size(ncid, bbdata, bbmeta, bbbuffer)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_size")
 
+      barr_time =  MPI_Wtime()
+      if (.NOT. use_indep_io) then
+            call MPI_Barrier(MPI_COMM_WORLD, ierr)
+      endif
+      barr_time = MPI_Wtime() - barr_time
+
       err = nfmpi_close(ncid);
       if (err .NE. NF_NOERR) call check(err, "nfmpi_close")
 
-      chk_t(3) = MPI_Wtime() - chk_t(3)
+      chk_t(3) = MPI_Wtime() - chk_t(3) - barr_time
 
       bb_api = bb_api + bbapi
       bb_put = bb_put + bbput
