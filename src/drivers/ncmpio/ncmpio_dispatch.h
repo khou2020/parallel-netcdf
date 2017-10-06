@@ -55,7 +55,8 @@ ncmpii_inq_misc(void *ncdp, int *pathlen, char *path, int *num_fix_varsp,
 
 extern int
 ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, 
-                double *api_time, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime);
+                double *api_time, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime, 
+                double *datawrtime, double *metawrtime, double *countwrtime);
                 
 
 extern int

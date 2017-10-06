@@ -16,7 +16,7 @@ def gather(dir:str):
                         bestrec = None
                     elif (line[:40] == '-----+-----++------------+++++++++--+---'):
                         if (not drop):
-                            if (bestrec == None or bestrec['total_time'] < rec['total_time']):
+                            if (bestrec == None or bestrec['total_time'] > rec['total_time']):
                                 bestrec = rec
                         rec = {}
                         drop = False
@@ -131,11 +131,27 @@ def main(argv:list):
 
     with open('result.csv', 'w') as fout:
         filter = {'io_driver': 'ncmpi'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_time')
+        filter = {'io_driver': 'bb'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_time')
+        filter = {'io_driver': 'stage'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_time')
+        filter = {'io_driver': 'ncmpi'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_io_size')
+        filter = {'io_driver': 'bb'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_io_size')
+        filter = {'io_driver': 'stage'}
+        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_io_size')
+        filter = {'io_driver': 'ncmpi'}
         plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
         filter = {'io_driver': 'bb'}
         plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
         filter = {'io_driver': 'stage'}
         plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
+        filter = {'io_driver': 'bb'}
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_time', 'bb_wr_time', 'bb_flush_time', 'bb_rd_time', 'bb_replay_time'])
+        filter = {'io_driver': 'stage'}
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
 
         
 if __name__=='__main__':

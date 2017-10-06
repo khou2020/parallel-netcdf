@@ -418,7 +418,8 @@ ncmpii_inq_misc(void       *ncdp,
 }
 
 int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, 
-    double *apitime, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime)
+    double *apitime, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime, 
+    double *datawrtime, double *metawrtime, double *countwrtime)
 {
     NC *ncp=(NC*)ncdp;
     NC_Log *nclogp = ncp->nclogp;
@@ -461,7 +462,7 @@ int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Of
 
     if (puttime != NULL){
         if (nclogp != NULL){
-            *puttime = nclogp->log_write_time;
+            *puttime = nclogp->log_total_time;
         }
         else{
             *puttime = 0;
@@ -470,7 +471,7 @@ int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Of
 
     if (bbwrtime != NULL){
         if (nclogp != NULL){
-            *bbwrtime = nclogp->flush_read_time;
+            *bbwrtime = nclogp->log_write_time;
         }
         else{
             *bbwrtime = 0;
@@ -506,6 +507,33 @@ int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Of
 
     if (stagingtime != NULL){
         *stagingtime = ncp->stagetime;
+    }
+
+    if (datawrtime != NULL){
+        if (nclogp != NULL){
+            *datawrtime = nclogp->log_write_data_time;
+        }
+        else{
+            *datawrtime = 0;
+        }
+    }
+
+    if (metawrtime != NULL){
+        if (nclogp != NULL){
+            *metawrtime = nclogp->log_write_meta_time;
+        }
+        else{
+            *metawrtime = 0;
+        }
+    }
+
+    if (countwrtime != NULL){
+        if (nclogp != NULL){
+            *countwrtime = nclogp->log_write_count_time;
+        }
+        else{
+            *countwrtime = 0;
+        }
     }
 
     return NC_NOERR;

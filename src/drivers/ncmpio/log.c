@@ -147,6 +147,9 @@ int ncmpii_log_create(NC* ncp) {
     nclogp->flush_replay_time = 0;
     nclogp->flush_total_time = 0;
     nclogp->log_write_time = 0;
+    nclogp->log_write_data_time = 0;
+    nclogp->log_write_meta_time = 0;
+    nclogp->log_write_count_time = 0;
     nclogp->log_total_time = 0;
     nclogp->total_time = 0;
 
@@ -444,7 +447,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     int err, varid, dim;
     int itype;    /* Type used in log file */
     char *buffer;
-    double t1, t2, t3, t4; 
+    double t1, t2, t3, t4, t5, t6, t7; 
     MPI_Offset esize, dataoff, recsize;
     MPI_Offset *Start, *Count, *Stride;
     ssize_t ioret;
@@ -454,11 +457,6 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     
     t1 = MPI_Wtime();
 
-    /* Enddef must be called at least once */
-    if (nclogp->metalog_fd < 0){
-        DEBUG_RETURN_ERROR(NC_ELOGNOTINIT);        
-    }
-    
     /* Get variable id and dimension */
     dim = varp->ndims;
     varid = varp->varid;
@@ -586,6 +584,8 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     if (ioret != packedsize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
+
+    t3 = MPI_Wtime();
        
     /* Seek to the head of metadata
      * Note: EOF may not be the place for next entry after a flush
@@ -608,7 +608,8 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     if (ioret != esize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
-    t3 = MPI_Wtime();
+
+    t4 = MPI_Wtime();
 
     /* Increase number of entry
      * This must be the final step of a log record
@@ -618,6 +619,9 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     /* Increase num_entries in the metadata buffer */
     headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
     headerp->num_entries++;
+
+    t5 = MPI_Wtime();
+
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
@@ -640,13 +644,18 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
+    t6 = MPI_Wtime();
+
     /* Record data size */
     ncmpii_log_sizearray_append(&nclogp->entrydatasize, entryp->data_len);
     
-    t4 = MPI_Wtime();
-    nclogp->log_total_time += t4 - t1;
-    nclogp->log_write_time += t3 - t2;
-    nclogp->total_time += t4 - t1;
+    t7 = MPI_Wtime();
+    nclogp->log_total_time += t7 - t1;
+    nclogp->log_write_time += t4 - t2 + t6 - t5;
+    nclogp->log_write_data_time += t3 - t2;
+    nclogp->log_write_meta_time += t4 - t3;  
+    nclogp->log_write_count_time += t6 - t5;
+    nclogp->total_time += t7 - t1;
  
     nclogp->total_data += packedsize;
     nclogp->total_meta += esize;

@@ -232,6 +232,15 @@ function nf90mpi_inq_bb_time(ncid, apitime, puttime, bbwrtime, flushtime, bbrdti
   nf90mpi_inq_bb_time = nfmpi_inq_bb_time(ncid, apitime, puttime, bbwrtime, flushtime, bbrdtime, replaytime, stagingtime)
 end function nf90mpi_inq_bb_time
 
+function nf90mpi_inq_bb_time_ex(ncid, datawrtime, metawrtime, countwrtime)
+  integer,                          intent( in) :: ncid
+  DOUBLE PRECISION ,                intent(out) :: datawrtime
+  DOUBLE PRECISION ,                intent(out) :: metawrtime
+  DOUBLE PRECISION ,                intent(out) :: countwrtime
+  integer                                       :: nf90mpi_inq_bb_time_ex
+  nf90mpi_inq_bb_time_ex = nfmpi_inq_bb_time_ex(ncid, datawrtime, metawrtime, countwrtime)
+end function nf90mpi_inq_bb_time_ex
+
 ! -------
 function nf90mpi_inq_bb_size(ncid, datasize, metasize, buffersize)
   integer,                          intent( in) :: ncid

@@ -108,6 +108,9 @@ typedef struct NC_Log {
     double flush_replay_time;
     double flush_total_time;
     double log_write_time;
+    double log_write_data_time;
+    double log_write_meta_time;
+    double log_write_count_time;
     double log_total_time;
     double total_time;
 } NC_Log;

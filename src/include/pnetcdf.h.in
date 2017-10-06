@@ -803,6 +803,9 @@ extern int
 ncmpi_inq_bb_time(int ncid, double *apitime, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime);
 
 extern int
+ncmpi_inq_bb_time_ex(int ncid, double *datawrtime, double *metawrtime, double *countwrtime);
+
+extern int
 ncmpi_inq_bb_size(int ncid, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize);
 
 extern int

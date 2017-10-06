@@ -116,6 +116,9 @@
       bb_data  = 0
       bb_meta = 0
       bb_buffer = 0
+      data_wr = 0
+      meta_wr = 0
+      count_wr = 0
 
 !---------------------------------------------------------------------------
 ! netCDF checkpoint file
@@ -339,6 +342,9 @@
             print 1008,' bb_api_time       ', bb_api
             print 1008,' bb_put_time       ', bb_put
             print 1008,' bb_wr_time       ', bb_wr
+            print 1008,' bb_data_wr_time       ', data_wr
+            print 1008,' bb_meta_wr_time       ', meta_wr
+            print 1008,' bb_count_wr_time       ', count_wr
             print 1008,' bb_flush_time       ', bb_flush
             print 1008,' bb_rd_time       ', bb_rd
             print 1008,' bb_replay_time       ', bb_replay

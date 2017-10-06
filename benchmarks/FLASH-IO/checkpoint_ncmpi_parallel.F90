@@ -249,6 +249,7 @@
       integer(kind=MPI_OFFSET_KIND) starts(5), counts(4), put_size
       integer(kind=MPI_OFFSET_KIND) bbdata, bbmeta, bbbuffer
       double precision bbapi,  bbwr, bbrd, bbreplay, bbput, bbflush, bbstage
+      double precision datawr, metawr, countwr
       integer gsizes(5), subsizes(5), gstarts(5)
       integer buftype, reqs(nvar+6), stats(nvar+6)
 
@@ -694,6 +695,9 @@
       err = nfmpi_inq_bb_time(ncid, bbapi, bbput, bbwr, bbflush, bbrd, bbreplay, bbstage)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_time")
 
+      err = nfmpi_inq_bb_time_ex(ncid, datawr, metawr, countwr)
+      if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_time_ex")
+
       err = nfmpi_inq_bb_size(ncid, bbdata, bbmeta, bbbuffer)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_size")
 
@@ -717,6 +721,9 @@
       bb_data  = bb_data + bbdata
       bb_meta = bb_meta + bbmeta
       bb_buffer = bb_buffer + bbbuffer
+      data_wr = data_wr + datawr
+      meta_wr = meta_wr + metawr
+      count_wr = count_wr + countwr
 
       checkpoint_wr_ncmpi_par = put_size
 

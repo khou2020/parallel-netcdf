@@ -1092,7 +1092,23 @@ ncmpi_inq_bb_time(int ncid, double *apitime, double *puttime, double *bbwrtime, 
     if (err != NC_NOERR) return err;
 
     /* calling the subroutine that implements ncmpi_inq_path() */
-    return pncp->dispatch->inq_bb(pncp->ncp, NULL, NULL, NULL, apitime, puttime, bbwrtime, flushtime, bbrdtime, replaytime, stagingtime);
+    return pncp->dispatch->inq_bb(pncp->ncp, NULL, NULL, NULL, apitime, puttime, bbwrtime, flushtime, bbrdtime, replaytime, stagingtime, NULL, NULL, NULL);
+}
+
+/*----< ncmpi_inq_buffer_size() >--------------------------------------------*/
+/* This is an independent subroutine. */
+int
+ncmpi_inq_bb_time_ex(int ncid, double *datawrtime, double *metawrtime, double *countwrtime)
+{
+    int err;
+    PNC *pncp;
+
+    /* check if ncid is valid */
+    err = PNC_check_id(ncid, &pncp);
+    if (err != NC_NOERR) return err;
+
+    /* calling the subroutine that implements ncmpi_inq_path() */
+    return pncp->dispatch->inq_bb(pncp->ncp, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, datawrtime, metawrtime, countwrtime);
 }
 
 /*----< ncmpi_inq_buffer_size() >--------------------------------------------*/
@@ -1108,7 +1124,7 @@ ncmpi_inq_bb_size(int ncid, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offs
     if (err != NC_NOERR) return err;
 
     /* calling the subroutine that implements ncmpi_inq_path() */
-    return pncp->dispatch->inq_bb(pncp->ncp, datasize, metasize, buffersize, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+    return pncp->dispatch->inq_bb(pncp->ncp, datasize, metasize, buffersize, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 /*----< ncmpi_buffer_attach() >-----------------------------------------------*/

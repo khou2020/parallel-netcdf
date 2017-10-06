@@ -249,6 +249,14 @@ INTERFACE
                      DOUBLE PRECISION,              INTENT(OUT) :: stagingtime
     END     FUNCTION nfmpi_inq_bb_time
 
+    INTEGER FUNCTION nfmpi_inq_bb_time_ex(ncid, datawrtime, metawrtime, countwrtime)
+                     use mpi, only: MPI_OFFSET_KIND
+                     INTEGER,                       INTENT(IN)  :: ncid
+                     DOUBLE PRECISION,              INTENT(OUT) :: datawrtime
+                     DOUBLE PRECISION,              INTENT(OUT) :: metawrtime
+                     DOUBLE PRECISION,              INTENT(OUT) :: countwrtime
+    END     FUNCTION nfmpi_inq_bb_time_ex
+    
     INTEGER FUNCTION nfmpi_inq_bb_size(ncid, datasize, metasize, buffersize)
                      @USE_MPIF_HEADER@
                      INTEGER,                       INTENT(IN)  :: ncid
