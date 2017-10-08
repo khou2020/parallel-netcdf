@@ -42,7 +42,8 @@ ncmpii_nc2mpitype(nc_type xtype)
 /*----< ncmpii_xlen_nc_type() >----------------------------------------------*/
 /* return the length of external NC data type */
 int
-ncmpii_xlen_nc_type(nc_type xtype, int *size) {
+ncmpii_xlen_nc_type(nc_type xtype, int *size)
+{
     switch(xtype) {
         case NC_BYTE:
         case NC_CHAR:

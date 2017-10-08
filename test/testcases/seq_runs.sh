@@ -22,5 +22,3 @@ diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
 
 ${TESTSEQRUN} ${VALIDATOR} -q ${TESTOUTDIR}/testfile.nc
 
-${TESTSEQRUN} ./tst_open_cdf5 ${srcdir}/bad_begin.nc5
-

@@ -71,9 +71,11 @@ ncmpio_new_NC_var(char *name, int ndims)
     varp->name     = name;         /* name has been malloc-ed */
     varp->name_len = strlen(name); /* name has been NULL checked */
     varp->ndims    = ndims;
+#if 0
     varp->xsz      = 0;
     varp->len      = 0;
     varp->begin    = 0;
+#endif
 
     return varp;
 }
@@ -288,7 +290,9 @@ ncmpio_NC_var_shape64(NC_var            *varp,
 
     /* determine shape[] of the variable */
     for (i=0; i<varp->ndims; i++) {
-        /* varp->dimids[i] has been checked */
+        /* For file create, varp->dimids[i] has been checked in ncmpi_def_var()
+         * in dispatchers/variable.c. For file open, it has been checked in
+         * hdr_get_NC_var() in ncmpio_header_get.c */
 
         varp->shape[i] = dims->value[varp->dimids[i]]->size;
 
@@ -299,7 +303,7 @@ ncmpio_NC_var_shape64(NC_var            *varp,
     }
 
     /*
-     * compute dsizes[], the right to left product of shape
+     * compute dsizes[], from right to left product of shape
      */
     product = 1;
     if (varp->ndims == 1) {
@@ -422,7 +426,7 @@ ncmpio_def_var(void       *ncdp,
         }
     }
 
-    varp->varid = (int)ncp->vars.ndefined; /* varid */
+    varp->varid = ncp->vars.ndefined; /* varid */
 
     /* Add a new handle to the end of an array of handles */
     ncp->vars.value[ncp->vars.ndefined] = varp;
@@ -519,7 +523,7 @@ ncmpio_inq_var(void       *ncdp,
     if (varid == NC_GLOBAL) {
         /* in this case, all other pointer arguments must be NULLs */
         if (nattsp != NULL)
-            *nattsp = (int) ncp->attrs.ndefined;
+            *nattsp = ncp->attrs.ndefined;
         return NC_NOERR;
     }
 
@@ -555,7 +559,7 @@ ncmpio_inq_var(void       *ncdp,
 #endif
             memcpy(dimids, varp->dimids, (size_t)varp->ndims * SIZEOF_INT);
     }
-    if (nattsp != NULL) *nattsp = (int) varp->attrs.ndefined;
+    if (nattsp != NULL) *nattsp = varp->attrs.ndefined;
 
     if (offsetp != NULL) *offsetp = varp->begin;
 

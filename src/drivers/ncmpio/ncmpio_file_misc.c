@@ -41,6 +41,7 @@ dup_NC(const NC *ref)
     ncp = (NC *) NCI_Calloc(1, sizeof(NC));
     if (ncp == NULL) return NULL;
 
+    /* copy most of the NC members over */
     *ncp = *ref;
 
     if (ncmpio_dup_NC_dimarray(&ncp->dims,   &ref->dims)  != NC_NOERR ||
@@ -146,7 +147,7 @@ ncmpio_begin_indep_data(void *ncdp)
      */
     if (ncp->independent_fh == MPI_FILE_NULL) {
         int mpireturn;
-        TRACE_IO(MPI_File_open)(MPI_COMM_SELF, (char*)ncp->path,
+        TRACE_IO(MPI_File_open)(MPI_COMM_SELF, ncp->path,
                                 ncp->mpiomode, ncp->mpiinfo,
                                 &ncp->independent_fh);
         if (mpireturn != MPI_SUCCESS)
@@ -381,7 +382,7 @@ ncmpio_inq_misc(void       *ncdp,
         sprintf(value, "%lld", ncp->r_align);
         MPI_Info_set(*info_used, "nc_record_align_size", value);
 
-        sprintf(value, "%lld", ncp->chunk);
+        sprintf(value, "%d", ncp->chunk);
         MPI_Info_set(*info_used, "nc_header_read_chunk_size", value);
 
 #ifdef ENABLE_SUBFILING
