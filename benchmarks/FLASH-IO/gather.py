@@ -149,7 +149,7 @@ def main(argv:list):
         filter = {'io_driver': 'stage'}
         plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
         filter = {'io_driver': 'bb'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_time', 'bb_wr_time', 'bb_flush_time', 'bb_rd_time', 'bb_replay_time'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_time', 'bb_wr_time', 'bb_flush_time', 'bb_rd_time', 'bb_replay_time', 'bb_api_time', 'total_time'])
         filter = {'io_driver': 'stage'}
         plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
 
