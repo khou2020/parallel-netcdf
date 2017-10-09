@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <mpi.h>
 
-int ncmpii_log_check_header(NC* ncp, int num_entries){
+int ncbbio_log_check_header(NC* ncp, int num_entries){
     int i, err, np, rank, max_ndims;
     int data_fd, meta_fd;
     ssize_t ioret;
@@ -163,7 +163,7 @@ int ncmpii_log_check_header(NC* ncp, int num_entries){
     return NC_NOERR;
 }
 
-int ncmpii_log_check_put(NC* ncp, int varid, int api_kind, int itype, int packedsize, MPI_Offset *start, MPI_Offset *count, MPI_Offset *stride, int num_entries){
+int ncbbio_log_check_put(NC* ncp, int varid, int api_kind, int itype, int packedsize, MPI_Offset *start, MPI_Offset *count, MPI_Offset *stride, int num_entries){
     int i, err;
     int meta_fd, data_fd;
     ssize_t ioret;

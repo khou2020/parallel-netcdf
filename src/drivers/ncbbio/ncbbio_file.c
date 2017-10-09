@@ -75,23 +75,22 @@ ncbbio_create(MPI_Comm     comm,
         DEBUG_RETURN_ERROR(NC_ENOMEM)
     }
     strcpy(ncbbp->path, path);
-    ncbbp->mode       = cmode;
-    ncbbp->ncmpio_driver     = driver;
-    ncbbp->flag       = 0;
+    ncbbp->mode = cmode;
+    ncbbp->ncmpio_driver = driver;
+    ncbbp->flag = 0;
     ncbbp->ncid = ncid;
     ncbbp->curreqid = -1;
     ncbbp->niget = 0;
     ncbbp->isindep = 0;
-    ncbbp->ncp        = ncp;
+    ncbbp->ncp = ncp;
+    ncbbp->recdimsize = 0;
+    ncbbp->recdimid = -1;
+    ncbbp->max_ndims = 0;
     MPI_Comm_dup(comm, &ncbbp->comm);
+    MPI_Info_dup(info, &ncbbp->info);
     
-    /* Init log structure */
-    err = ncmpii_log_create(ncbbp, info);
-    if (err != NC_NOERR) {
-        NCI_Free(ncbbp);
-        return err;
-    }
-    ncbbp->inited = 1;
+    /* Log init delaied to enddef */
+    ncbbp->inited = 0;
     
     *ncpp = ncbbp;
 
@@ -135,18 +134,22 @@ ncbbio_open(MPI_Comm     comm,
         DEBUG_RETURN_ERROR(NC_ENOMEM)
     }
     strcpy(ncbbp->path, path);
-    ncbbp->mode       = omode;
-    ncbbp->ncmpio_driver     = driver;
-    ncbbp->flag       = 0;
+    ncbbp->mode = omode;
+    ncbbp->ncmpio_driver = driver;
+    ncbbp->flag = 0;
     ncbbp->ncid = ncid;
     ncbbp->curreqid = -1;
     ncbbp->niget = 0;
     ncbbp->isindep = 0;
-    ncbbp->ncp        = ncp;
+    ncbbp->ncp = ncp;
+    ncbbp->recdimsize = 0;
+    ncbbp->recdimid = -1;
+    ncbbp->max_ndims = 0;
     MPI_Comm_dup(comm, &ncbbp->comm);
+    MPI_Info_dup(info, &ncbbp->info);
 
     /* Init log structure */
-    err = ncmpii_log_create(ncbbp, info);
+    err = ncbbio_log_create(ncbbp, info);
     if (err != NC_NOERR) {
         NCI_Free(ncbbp);
         return err;
@@ -166,9 +169,15 @@ ncbbio_close(void *ncdp)
 
     if (ncbbp == NULL) DEBUG_RETURN_ERROR(NC_EBADID)
     
-    err = ncmpii_log_close(ncbbp);
-    if (status == NC_NOERR) {
-        status = err;
+    /* 
+     * Close log files
+     * Log is only created after enddef
+     */
+    if (ncbbp->inited){
+        err = ncbbio_log_close(ncbbp);
+        if (status == NC_NOERR) {
+            status = err;
+        }
     }
 
     err = ncbbp->ncmpio_driver->close(ncbbp->ncp);
@@ -177,6 +186,7 @@ ncbbio_close(void *ncdp)
     }
 
     MPI_Comm_free(&ncbbp->comm);
+    MPI_Info_free(&ncbbp->info);
     NCI_Free(ncbbp->path);
     NCI_Free(ncbbp);
 
@@ -192,8 +202,21 @@ ncbbio_enddef(void *ncdp)
     err = ncbbp->ncmpio_driver->enddef(ncbbp->ncp);
     if (err != NC_NOERR) return err;
 
-    err = ncmpii_log_enddef(ncbbp);
-    if (err != NC_NOERR) return err;
+    /* Init or update log structure */
+    if (ncbbp->inited){
+        /* Update log with new information */
+        err = ncbbio_log_enddef(ncbbp);
+        if (err != NC_NOERR) return err;
+    }
+    else {
+        /* Init log structure */
+        err = ncbbio_log_create(ncbbp, ncbbp->info);
+        if (err != NC_NOERR) {
+            NCI_Free(ncbbp);
+            return err;
+        }
+        ncbbp->inited = 1;
+    }
 
     return NC_NOERR;
 }
@@ -212,8 +235,21 @@ ncbbio__enddef(void       *ncdp,
                                r_align);
     if (err != NC_NOERR) return err;
 
-    err = ncmpii_log_enddef(ncbbp);
-    if (err != NC_NOERR) return err;
+    /* Init or update log structure */
+    if (ncbbp->inited){
+        /* Update log with new information */
+        err = ncbbio_log_enddef(ncbbp);
+        if (err != NC_NOERR) return err;
+    }
+    else {
+        /* Init log structure */
+        err = ncbbio_log_create(ncbbp, ncbbp->info);
+        if (err != NC_NOERR) {
+            NCI_Free(ncbbp);
+            return err;
+        }
+        ncbbp->inited = 1;
+    }
 
     return NC_NOERR;
 }
@@ -224,7 +260,11 @@ ncbbio_redef(void *ncdp)
     int err;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
-    err = ncmpii_log_flush(ncbbp);
+    /* 
+     * Flush on redefine 
+     * Due to structure changes, log entries will not be valid after redef 
+     */
+    err = ncbbio_log_flush(ncbbp);
     if (err != NC_NOERR) return err;
     
     err = ncbbp->ncmpio_driver->redef(ncbbp->ncp);
@@ -242,6 +282,7 @@ ncbbio_begin_indep_data(void *ncdp)
     err = ncbbp->ncmpio_driver->begin_indep_data(ncbbp->ncp);
     if (err != NC_NOERR) return err;
 
+    /* Independent mode */
     ncbbp->isindep = 1;
 
     return NC_NOERR;
@@ -256,6 +297,7 @@ ncbbio_end_indep_data(void *ncdp)
     err = ncbbp->ncmpio_driver->end_indep_data(ncbbp->ncp);
     if (err != NC_NOERR) return err;
 
+    /* Collective mode */
     ncbbp->isindep = 0;
 
     return NC_NOERR;
@@ -321,13 +363,23 @@ ncbbio_inq_misc(void       *ncdp,
                                 get_size, info_used, nreqs, usage, buf_size);
     if (err != NC_NOERR) return err;
     
+    /* Add the size of data log to reflect pending put in the log */
     if (put_size != NULL){
-        err = ncmpii_log_inq_put_size(ncbbp, put_size);
-        if (err != NC_NOERR) return err;
+        *put_size += (MPI_Offset)ncbbp->datalogsize - 8;
     }
 
+    /* Export bb related settings */
     if (info_used != NULL){
         MPI_Info_set(*info_used, "nc_bb_driver", "enable");
+        if (ncbbp->hints & NC_LOG_HINT_LOG_OVERWRITE) {
+            MPI_Info_set(*info_used, "nc_bb_overwrite", "enable");
+        }
+        if (ncbbp->hints & NC_LOG_HINT_DEL_ON_CLOSE) {
+            MPI_Info_set(*info_used, "nc_bb_del_on_close", "enable");
+        }
+        if (strcmp(ncbbp->logbase, ".") != 0) {
+            MPI_Info_set(*info_used, "nc_bb_dirname", ncbbp->logbase);
+        }
     }
 
     return NC_NOERR;
@@ -359,26 +411,41 @@ ncbbio_wait(void *ncdp,
     int *ids = req_ids, *stats = statuses;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
+    /*
+     * Nonblocking put is reserved for log flush
+     * We pick out negative ids for put
+     * Forward only positive ids (get oepration) to ncmpio
+     * For put operation, we always return success
+     */
     if (req_ids != NULL && num_reqs > 0){
         ids = NCI_Malloc(sizeof(int) * num_reqs);
         stats = NCI_Malloc(sizeof(int) * num_reqs);
         numreq = 0;
         for (i = 0; i < num_reqs; i++){
             if (req_ids[i] >= 0){
+                /* Keep only get operation */
                 ids[numreq++] = req_ids[i];
             }
         }
 
+        /* 
+         * Flush the log if there is any get operation
+         * If there are ids of get in req_ids
+         */
         if (numreq > 0){
-            err = ncmpii_log_flush(ncbbp);
+            err = ncbbio_log_flush(ncbbp);
             if (status == NC_NOERR){
                 status = err;
             }
         }
     }
 
+    /* 
+     * Flush the log if there is any get operation
+     * Using REQ_ALL
+     */
     if (numreq == NC_REQ_ALL || numreq == NC_GET_REQ_ALL){
-        err = ncmpii_log_flush(ncbbp);
+        err = ncbbio_log_flush(ncbbp);
         if (status == NC_NOERR){
             status = err;
         }
@@ -390,7 +457,7 @@ ncbbio_wait(void *ncdp,
         status = err;
     }
  
-
+    /* Fill up the status with results from ncmpio */
     if (ids != req_ids){
         ncbbp->niget -= numreq;
         if (statuses != NULL){
@@ -407,11 +474,6 @@ ncbbio_wait(void *ncdp,
         NCI_Free(stats);
     }
  
-    /*
-    err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, num_reqs, req_ids, statuses, reqMode);
-    if (err != NC_NOERR) return err;
-    */
-
     return err;
 }
 
@@ -476,7 +538,8 @@ ncbbio_sync(void *ncdp)
     int err;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
-    err = ncmpii_log_flush(ncbbp);
+    /* Flush on sync */
+    err = ncbbio_log_flush(ncbbp);
     if (err != NC_NOERR) return err;
     
     err = ncbbp->ncmpio_driver->sync(ncbbp->ncp);

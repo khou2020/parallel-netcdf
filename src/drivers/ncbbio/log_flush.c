@@ -544,8 +544,6 @@ int log_flush(NC_bb *ncbbp) {
     /* Free the data buffer */ 
     NCI_Free(databuffer);
     
-    /* Flusg complete. Turn off the flushing flag, enable logging on non-blocking call */
-    ncbbp->isflushing = 0;
 
     t2 = MPI_Wtime();
     ncbbp->flush_total_time += t2 - t1;

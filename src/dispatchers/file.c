@@ -398,7 +398,7 @@ ncmpi_open(MPI_Comm    comm,
            MPI_Info    info,
            int        *ncidp)  /* OUT */
 {
-    int i, nalloc, rank, format, msg[2], status=NC_NOERR, err;
+    int i, nalloc, rank, format, msg[2], status=NC_NOERR, err, enable_bb_driver = 0;
     int safe_mode=0, mpireturn, root_omode, enable_foo_driver=0;
     char *env_str;
     MPI_Info combined_info;
@@ -480,6 +480,11 @@ ncmpi_open(MPI_Comm    comm,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
+
+        MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
+            value, &flag);
+        if (flag && strcasecmp(value, "enable") == 0)
+            enable_bb_driver = 1;
     }
 
     /* TODO: currently we only have ncmpio driver. Need to add other
@@ -493,7 +498,13 @@ ncmpi_open(MPI_Comm    comm,
         if (format == NC_FORMAT_CLASSIC ||
             format == NC_FORMAT_CDF2 ||
             format == NC_FORMAT_CDF5) {
-        driver = ncmpio_inq_driver();
+            if (enable_bb_driver){
+                driver = ncbbio_inq_driver();
+            }
+            else {
+                /* default is ncmpio driver */
+                driver = ncmpio_inq_driver();
+            }
     }
     else if (format == NC_FORMAT_NETCDF4_CLASSIC) {
         fprintf(stderr,"NC_FORMAT_NETCDF4_CLASSIC is not yet supported\n");

@@ -127,7 +127,8 @@ typedef struct NC_bb {
     NC_bb_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
     NC_bb_sizearray entrydatasize;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
-    
+    MPI_Offset max_ndims;
+
     /* Accounting */
     MPI_Offset total_data;
     MPI_Offset total_meta;
@@ -145,22 +146,23 @@ typedef struct NC_bb {
     int                ncid;
     char              *path;        /* path name */
     MPI_Comm           comm;        /* MPI communicator */
+    MPI_Info           info;
     void              *ncp;         /* pointer to driver's internal object */
     struct PNC_driver *ncmpio_driver;
 } NC_bb;
 
-int ncmpii_log_buffer_init(NC_bb_buffer * bp);
-void ncmpii_log_buffer_free(NC_bb_buffer * bp);
-char* ncmpii_log_buffer_alloc(NC_bb_buffer *bp, size_t size);
-int ncmpii_log_sizearray_init(NC_bb_sizearray *sp);
-void ncmpii_log_sizearray_free(NC_bb_sizearray *sp);
-int ncmpii_log_sizearray_append(NC_bb_sizearray *sp, size_t size);
+int ncbbio_log_buffer_init(NC_bb_buffer * bp);
+void ncbbio_log_buffer_free(NC_bb_buffer * bp);
+char* ncbbio_log_buffer_alloc(NC_bb_buffer *bp, size_t size);
+int ncbbio_log_sizearray_init(NC_bb_sizearray *sp);
+void ncbbio_log_sizearray_free(NC_bb_sizearray *sp);
+int ncbbio_log_sizearray_append(NC_bb_sizearray *sp, size_t size);
 int log_flush(NC_bb *ncbbp);
-int ncmpii_log_create(NC_bb *ncbbp, MPI_Info info);
-int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset *putsize);
-int ncmpii_log_close(NC_bb *ncbbp);
-int ncmpii_log_flush(NC_bb *ncbbp);
-int ncmpii_log_enddef(NC_bb *ncbbp);
+int ncbbio_log_create(NC_bb *ncbbp, MPI_Info info);
+int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset *putsize);
+int ncbbio_log_close(NC_bb *ncbbp);
+int ncbbio_log_flush(NC_bb *ncbbp);
+int ncbbio_log_enddef(NC_bb *ncbbp);
 
 
 extern int
