@@ -80,6 +80,8 @@ ncbbio_create(MPI_Comm     comm,
     ncbbp->flag       = 0;
     ncbbp->ncid = ncid;
     ncbbp->curreqid = -1;
+    ncbbp->niget = 0;
+    ncbbp->isindep = 0;
     ncbbp->ncp        = ncp;
     MPI_Comm_dup(comm, &ncbbp->comm);
     
@@ -138,6 +140,8 @@ ncbbio_open(MPI_Comm     comm,
     ncbbp->flag       = 0;
     ncbbp->ncid = ncid;
     ncbbp->curreqid = -1;
+    ncbbp->niget = 0;
+    ncbbp->isindep = 0;
     ncbbp->ncp        = ncp;
     MPI_Comm_dup(comm, &ncbbp->comm);
 
@@ -220,12 +224,12 @@ ncbbio_redef(void *ncdp)
     int err;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
-    err = ncbbp->ncmpio_driver->redef(ncbbp->ncp);
-    if (err != NC_NOERR) return err;
-
     err = ncmpii_log_flush(ncbbp);
     if (err != NC_NOERR) return err;
-
+    
+    err = ncbbp->ncmpio_driver->redef(ncbbp->ncp);
+    if (err != NC_NOERR) return err;
+    
     return NC_NOERR;
 }
 
@@ -317,9 +321,15 @@ ncbbio_inq_misc(void       *ncdp,
                                 get_size, info_used, nreqs, usage, buf_size);
     if (err != NC_NOERR) return err;
     
-    err = ncmpii_log_inq_put_size(ncbbp, put_size);
-    if (err != NC_NOERR) return err;
-    
+    if (put_size != NULL){
+        err = ncmpii_log_inq_put_size(ncbbp, put_size);
+        if (err != NC_NOERR) return err;
+    }
+
+    if (info_used != NULL){
+        MPI_Info_set(*info_used, "nc_bb_driver", "enable");
+    }
+
     return NC_NOERR;
 }
 
@@ -345,7 +355,7 @@ ncbbio_wait(void *ncdp,
            int  *statuses,
            int   reqMode)
 {
-    int i, j, err, numreq = num_reqs;
+    int i, j, err, status = NC_NOERR, numreq = num_reqs;
     int *ids = req_ids, *stats = statuses;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
@@ -358,10 +368,31 @@ ncbbio_wait(void *ncdp,
                 ids[numreq++] = req_ids[i];
             }
         }
+
+        if (numreq > 0){
+            err = ncmpii_log_flush(ncbbp);
+            if (status == NC_NOERR){
+                status = err;
+            }
+        }
+    }
+
+    if (numreq == NC_REQ_ALL || numreq == NC_GET_REQ_ALL){
+        err = ncmpii_log_flush(ncbbp);
+        if (status == NC_NOERR){
+            status = err;
+        }
+        ncbbp->niget = 0;
     }
 
     err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, numreq, ids, stats, reqMode);
+    if (status == NC_NOERR){
+        status = err;
+    }
+ 
+
     if (ids != req_ids){
+        ncbbp->niget -= numreq;
         if (statuses != NULL){
             for (i = j = 0; i < num_reqs; i++){
                 if (req_ids[i] >= 0){
@@ -445,7 +476,7 @@ ncbbio_sync(void *ncdp)
     int err;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
-    err = ncmpii_log_enddef(ncbbp);
+    err = ncmpii_log_flush(ncbbp);
     if (err != NC_NOERR) return err;
     
     err = ncbbp->ncmpio_driver->sync(ncbbp->ncp);

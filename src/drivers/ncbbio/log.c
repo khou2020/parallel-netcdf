@@ -154,7 +154,7 @@ int ncmpii_log_create(NC_bb* ncbbp, MPI_Info info) {
 
     /* Misc */
     ncbbp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
-    ncbbp->numrecs = 0;
+    ncbbp->recdimsize = 0;
     ncbbp->rank = rank;
     ncbbp->np = np;
 
@@ -305,7 +305,7 @@ int ncmpii_log_enddef(NC_bb *ncbbp){
     }
     if (ncbbp->recdimid != recdimid){
         ncbbp->recdimid = recdimid;
-        ncbbp->numrecs = 0;
+        ncbbp->recdimsize = 0;
     }
     */
  
@@ -452,6 +452,7 @@ int ncmpii_log_close(NC_bb *ncbbp) {
 int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset *putsize){
     int err, i, dim, elsize;
     int itype;    /* Type used in log file */
+    int *dimids;
     char *buffer;
     double t1, t2, t3, t4; 
     MPI_Offset esize, dataoff, recsize;
@@ -471,28 +472,37 @@ int ncmpii_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     /* Get variable info */
     err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, &dim, 
                                         NULL, NULL, NULL, NULL, NULL);
+    if (err != NC_NOERR){
+        return err;
+    }
+    dimids = NCI_Malloc(sizeof(int) * dim);
+    /* Get variable info */
+    err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, NULL, 
+                                        dimids, NULL, NULL, NULL, NULL);
+    if (err != NC_NOERR){
+        return err;
+    }
+
     MPI_Type_size(buftype, &elsize);
     size = (MPI_Offset)elsize;
     for(i = 0; i < dim; i++){
         size *= count[i];
     }
 
-    /* Update numrecs */
-    /*
-     * Dropped
-     *
-    if (dim > 0 && varp->dimids[0] == ncbbp->recdimid) {
+    /* Update recdimsize */
+    if (dim > 0 && dimids[0] == ncbbp->recdimid) {
         if (stride == NULL) {
             recsize = start[0] + count[0];
         }
         else {
             recsize = start[0] + (count[0] - 1) * stride[0] + 1;
         }
-        if (recsize > ncbbp->numrecs) {
-            ncbbp->numrecs = recsize;
+        if (recsize > ncbbp->recdimsize) {
+            ncbbp->recdimsize = recsize;
         }
     }
-    */
+
+    NCI_Free(dimids);
 
     /* Convert to log types 
      * Log spec has different enum of types than MPI
@@ -820,8 +830,8 @@ int ncmpii_log_inq_put_size(NC_bb *ncbbp, MPI_Offset *putsize){
     return NC_NOERR;
 }
 
-int ncmpii_log_inq_num_recs(NC_bb *ncbbp, MPI_Offset *numrecs){
-    *numrecs = ncbbp->numrecs;
+int ncmpii_log_inq_num_recs(NC_bb *ncbbp, MPI_Offset *recdimsize){
+    *recdimsize = ncbbp->recdimsize;
     return NC_NOERR;
 }
 

@@ -122,6 +122,7 @@ typedef struct NC_bb {
     int hints;
     int isindep;
     int curreqid;
+    int niget;
     size_t datalogsize;
     NC_bb_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
     NC_bb_sizearray entrydatasize;    /* Array of metadata entries */
@@ -130,7 +131,7 @@ typedef struct NC_bb {
     /* Accounting */
     MPI_Offset total_data;
     MPI_Offset total_meta;
-    MPI_Offset numrecs;
+    MPI_Offset recdimsize;
     MPI_Offset logflushbuffersize;
     double flush_read_time;
     double flush_replay_time;

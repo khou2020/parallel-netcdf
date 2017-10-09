@@ -37,6 +37,11 @@ ncbbio_def_dim(void       *ncdp,
     
     err = ncbbp->ncmpio_driver->def_dim(ncbbp->ncp, name, size, dimidp);
     if (err != NC_NOERR) return err;
+    
+    // Note: Assume only 1 rec dim
+    if (size == NC_UNLIMITED){
+        ncbbp->recdimid = *dimidp;
+    }
 
     return NC_NOERR;
 }
@@ -66,6 +71,13 @@ ncbbio_inq_dim(void       *ncdp,
     
     err = ncbbp->ncmpio_driver->inq_dim(ncbbp->ncp, dimid, name, sizep);
     if (err != NC_NOERR) return err;
+    
+    // Note: Assume only 1 rec dim
+    if (dimid == ncbbp->recdimid){
+        if (*sizep < ncbbp->recdimsize){
+            *sizep = ncbbp->recdimsize;
+        }
+    }
 
     return NC_NOERR;
 }

@@ -65,12 +65,14 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                mix_collectives \
                large_var_cdf5 \
                tst_max_var_dims \
-			   debug
+			   iput_all_kinds
 
-M4_SRCS  = put_all_kinds.m4 erange_fill.m4
+M4_SRCS  = put_all_kinds.m4 erange_fill.m4 iput_all_kinds.m4
 
-TESTPROGRAMS += put_all_kinds
-nodist_put_all_kinds_SOURCES = put_all_kinds.c
+TESTPROGRAMS += put_all_kinds \
+				iput_all_kinds
+nodist_put_all_kinds_SOURCES = put_all_kinds.c 
+nodist_iput_all_kinds_SOURCES = iput_all_kinds.c
 nodist_erange_fill_SOURCES = erange_fill.c
 
 if ENABLE_ERANGE_FILL
