@@ -1,0 +1,16 @@
+extern double ncmpii_log_flush_replay_time;
+extern double ncmpii_log_flush_data_rd_time;
+extern double ncmpii_log_flush_put_time;
+extern double ncmpii_log_flush_wait_time;
+extern double ncmpii_log_flush_time;
+extern double ncmpii_log_put_data_wr_time;
+extern double ncmpii_log_put_meta_wr_time;
+extern double ncmpii_log_put_num_wr_time;
+extern double ncmpii_log_put_time;
+extern double ncmpii_log_create_time;
+extern double ncmpii_log_enddef_time;
+extern double ncmpii_log_close_time;
+extern double ncmpii_log_total_time;
+extern MPI_Offset ncmpii_log_total_data;
+extern MPI_Offset ncmpii_log_total_meta;
+extern MPI_Offset ncmpii_log_max_buffer;
