@@ -28,6 +28,7 @@ dnl
 #include <string.h>
 #include <pnc_debug.h>
 #include <common.h>
+#include <accounting.h>
 #include <pnetcdf.h>
 #include <log.h>
 #include <stdio.h>
@@ -114,12 +115,13 @@ define(`FLUSHBATCH',dnl
                 DEBUG_RETURN_ERROR(NC_EBADLOG);
             }
             t3 = MPI_Wtime();
-            nclogp->flush_read_time += t3 - t2;
+            //nclogp->flush_read_time += t3 - t2;
+            ncmpii_log_flush_data_rd_time += t3 - t2;
 
             for(; j < i; j++){
                 PREPAREPARAM   
                 
-                t2 = MPI_Wtime();
+                t4 = MPI_Wtime();
                 
                 /* Replay event with non-blocking call */
                 err = ncmpii_igetput_varm(ncp, varp, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, WRITE_REQ, 0, 0);
@@ -127,14 +129,15 @@ define(`FLUSHBATCH',dnl
                     status = err;
                 }
                 
-                t3 = MPI_Wtime();
-                nclogp->flush_replay_time += t3 - t2;
-     
+                t5 = MPI_Wtime();
+                //nclogp->flush_replay_time += t3 - t2;
+                ncmpii_log_flush_put_time += t5 - t4;
+
                 /* Move to next position */
                 entryp = (NC_Log_metadataentry*)(((char*)entryp) + entryp->esize);
             }
 
-            t2 = MPI_Wtime();
+            t6 = MPI_Wtime();
             
             /* 
              * Wait must be called first or previous data will be corrupted
@@ -152,8 +155,9 @@ define(`FLUSHBATCH',dnl
                 }
             }
             
-            t3 = MPI_Wtime();
-            nclogp->flush_replay_time += t3 - t2;
+            t7 = MPI_Wtime();
+            //nclogp->flush_replay_time += t3 - t2;
+            ncmpii_log_flush_wait_time += t7 - t6;
 
             /* Update batch status */
             databufferidx += databufferused;
@@ -174,7 +178,7 @@ int split_iput(NC *ncp, NC_var *varp, MPI_Offset *start, MPI_Offset *count, MPI_
     /* Flush when buffer is enough to fit */
     if (buffersize >= datalen){
         NC_Log *nclogp = ncp->nclogp;
-        double t1, t2, t3;
+        double t1, t2, t3, t4;
         ssize_t ioret;
         
         t1 = MPI_Wtime();
@@ -193,7 +197,8 @@ int split_iput(NC *ncp, NC_var *varp, MPI_Offset *start, MPI_Offset *count, MPI_
         }
         
         t2 = MPI_Wtime();
-        nclogp->flush_read_time += t2 - t1;
+        //nclogp->flush_read_time += t2 - t1;
+        ncmpii_log_flush_data_rd_time += t2 - t1;
 
         /* 
          * Replay event with non-blocking call 
@@ -205,6 +210,9 @@ int split_iput(NC *ncp, NC_var *varp, MPI_Offset *start, MPI_Offset *count, MPI_
             return err;
         }
         
+        t3 = MPI_Wtime();
+        ncmpii_log_flush_put_time += t3 - t2;
+
         /* Wait for request */ 
         if (NC_indep(ncp)) {
             err = ncmpii_wait(ncp, NC_PUT_REQ_ALL, NULL, NULL, INDEP_IO);
@@ -219,8 +227,9 @@ int split_iput(NC *ncp, NC_var *varp, MPI_Offset *start, MPI_Offset *count, MPI_
             }
         }
 
-        t3 = MPI_Wtime();
-        nclogp->flush_read_time += t3 - t2;
+        t4 = MPI_Wtime();
+        //nclogp->flush_read_time += t3 - t2;
+        ncmpii_log_flush_wait_time += t4 - t3;
     }
     else{
         for (i = 0; i < varp->ndims; i++) {
@@ -276,7 +285,7 @@ int split_iput(NC *ncp, NC_var *varp, MPI_Offset *start, MPI_Offset *count, MPI_
  */
 int log_flush(NC *ncp) {
     int i, j, err, fd, status = NC_NOERR;
-    double t1, t2, t3;
+    double t1, t2, t3, t4, t5, t6, t7, t8;
     size_t databufferused, databuffersize, databufferidx;
     ssize_t ioret;
     NC_Log_metadataentry *entryp;
@@ -302,8 +311,13 @@ int log_flush(NC *ncp) {
     if (ncp->logflushbuffersize > 0 && databuffersize > ncp->logflushbuffersize){
         databuffersize = ncp->logflushbuffersize;
     }
+    /*
     if (nclogp->max_buffer < databuffersize){
         nclogp->max_buffer = databuffersize;
+    }
+    */
+    if (ncmpii_log_max_buffer < databuffersize){
+        ncmpii_log_max_buffer = databuffersize;
     }
 
     /* Allocate buffer */
@@ -378,8 +392,9 @@ FLUSHBATCH
     /* Flusg complete. Turn off the flushing flag, enable logging on non-blocking call */
     nclogp->isflushing = 0;
 
-    t2 = MPI_Wtime();
-    nclogp->flush_total_time += t2 - t1;
+    t8 = MPI_Wtime();
+    //nclogp->flush_total_time += t2 - t1;
+    ncmpii_log_flush_replay_time += t8 - t1;
     
     return status;
 }

@@ -17,6 +17,7 @@
 #include <string.h>
 #include <pnc_debug.h>
 #include <common.h>
+#include <accounting.h>
 #include <pnetcdf.h>
 #include <log.h>
 #include <stdlib.h>
@@ -56,6 +57,8 @@ int ncmpii_log_create(NC* ncp) {
     size_t ioret, headersize;
     NC_Log_metadataheader *headerp;
     NC_Log *nclogp;
+
+    ncmpii_reset_bb_counter();
     
     t1 = MPI_Wtime();
 
@@ -140,18 +143,24 @@ int ncmpii_log_create(NC* ncp) {
     nclogp->metalog_fd = -1;
 
     /* Performance counters */
+    /*
     nclogp->total_data = 0;
     nclogp->total_meta = 0;
     nclogp->max_buffer = 0;
     nclogp->flush_read_time = 0;
+    nclogp->flush_put_time = 0;
+    nclogp->flush_wait_time = 0;
     nclogp->flush_replay_time = 0;
-    nclogp->flush_total_time = 0;
-    nclogp->log_write_time = 0;
-    nclogp->log_write_data_time = 0;
-    nclogp->log_write_meta_time = 0;
-    nclogp->log_write_count_time = 0;
-    nclogp->log_total_time = 0;
+    nclogp->put_write_data_time = 0;
+    nclogp->put_write_meta_time = 0;
+    nclogp->put_write_num_time = 0;
+    nclogp->create_time = 0;
+    nclogp->enddef_time = 0;
+    nclogp->put_time = 0;
+    nclogp->flush_time = 0;
+    nclogp->close_time = 0;
     nclogp->total_time = 0;
+    */
 
     /* Misc */
     nclogp->isflushing = 0;   /* Flushing flag, set to 1 when flushing is in progress, 0 otherwise */
@@ -257,10 +266,15 @@ ERROR:;
     }
 
     t2 = MPI_Wtime();
+    /*
     nclogp->total_time += t2 - t1;
+    nclogp->create_time += t2 - t1;
 
     nclogp->total_meta += headersize;
     nclogp->total_data += 8;
+    */
+    ncmpii_log_total_time += t2 - t1;
+    ncmpii_log_create_time += t2 - t1;
 
 #ifdef PNETCDF_DEBUG 
     if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
@@ -341,7 +355,12 @@ int ncmpii_log_enddef(NC *ncp){
     }
     
     t2 = MPI_Wtime();
+    /*
     nclogp->total_time += t2 - t1;
+    nclogp->enddef_time += t2 - t1;
+    */
+    ncmpii_log_total_time += t2 - t1;
+    ncmpii_log_enddef_time += t2 - t1;
 
     return NC_NOERR;
 }
@@ -395,10 +414,20 @@ int ncmpii_log_close(NC *ncp) {
     /* Free meta data buffer and metadata offset list*/
     ncmpii_log_buffer_free(&nclogp->metadata);
     ncmpii_log_sizearray_free(&nclogp->entrydatasize);
-    
+
+    /* Delete log structure */
+    NCI_Free(nclogp);
+
     t2 = MPI_Wtime();
+    /*
     nclogp->total_time += t2 - t1;
-    
+    nclogp->close_time += t2 - t1;
+    */
+    ncmpii_log_total_time += t2 - t1;
+    ncmpii_log_close_time += t2 - t1;
+
+    ncmpii_update_bb_counter();
+
     /*
     MPI_Reduce(&nclogp->total_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
     MPI_Reduce(&nclogp->flush_read_time, &flush_read_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncp->comm);
@@ -425,9 +454,6 @@ int ncmpii_log_close(NC *ncp) {
     }
     */
 
-    /* Delete log structure */
-    NCI_Free(nclogp);
-
     return NC_NOERR;
 }
 
@@ -447,7 +473,7 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     int err, varid, dim;
     int itype;    /* Type used in log file */
     char *buffer;
-    double t1, t2, t3, t4, t5, t6, t7; 
+    double t1, t2, t3, t4, t5; 
     MPI_Offset esize, dataoff, recsize;
     MPI_Offset *Start, *Count, *Stride;
     ssize_t ioret;
@@ -561,7 +587,19 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
     if(stride != NULL){
         memcpy(Stride, stride, dim * SIZEOF_MPI_OFFSET);
     }
- 
+
+    /* Increase number of entry
+     * This must be the final step of a log record
+     * Increasing num_entries marks the completion of the record
+     */
+
+    /* Increase num_entries in the metadata buffer */
+    headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
+    headerp->num_entries++;
+
+    /* Record data size */
+    ncmpii_log_sizearray_append(&nclogp->entrydatasize, entryp->data_len);
+    
     t2 = MPI_Wtime();
     
     /* Writing to data log
@@ -611,17 +649,6 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
 
     t4 = MPI_Wtime();
 
-    /* Increase number of entry
-     * This must be the final step of a log record
-     * Increasing num_entries marks the completion of the record
-     */
-
-    /* Increase num_entries in the metadata buffer */
-    headerp = (NC_Log_metadataheader*)nclogp->metadata.buffer;
-    headerp->num_entries++;
-
-    t5 = MPI_Wtime();
-
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
@@ -644,21 +671,25 @@ int ncmpii_log_put_var(NC *ncp, NC_var *varp, const MPI_Offset start[], const MP
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
 
-    t6 = MPI_Wtime();
-
-    /* Record data size */
-    ncmpii_log_sizearray_append(&nclogp->entrydatasize, entryp->data_len);
-    
-    t7 = MPI_Wtime();
-    nclogp->log_total_time += t7 - t1;
-    nclogp->log_write_time += t4 - t2 + t6 - t5;
-    nclogp->log_write_data_time += t3 - t2;
-    nclogp->log_write_meta_time += t4 - t3;  
-    nclogp->log_write_count_time += t6 - t5;
-    nclogp->total_time += t7 - t1;
+    t5 = MPI_Wtime();
+    /*
+    nclogp->put_time += t5 - t1;
+    nclogp->put_write_data_time += t3 - t2;
+    nclogp->put_write_meta_time += t4 - t3;  
+    nclogp->put_write_count_time += t5 - t4;
+    nclogp->total_time += t5 - t1;
  
     nclogp->total_data += packedsize;
     nclogp->total_meta += esize;
+    */
+    ncmpii_log_total_time += t5 - t1;
+    ncmpii_log_put_time += t5 - t1;
+    ncmpii_log_put_data_wr_time += t3 - t2;
+    ncmpii_log_put_meta_wr_time += t4 - t3;
+    ncmpii_log_put_num_wr_time += t5 - t4;
+
+    ncmpii_log_total_data += packedsize;
+    ncmpii_log_total_meta += esize;
 
 #ifdef PNETCDF_DEBUG
     if (ncp->loghints & NC_LOG_HINT_LOG_CHECK) {
@@ -792,7 +823,12 @@ int ncmpii_log_flush(NC* ncp) {
 #endif
 
     t2 = MPI_Wtime();
+    /*
     nclogp->total_time += t2 - t1;
+    nclogp->flush_time += t2 - t1;
+    */
+    ncmpii_log_total_time += t2 - t1;
+    ncmpii_log_flush_time += t2 - t1;
 
     return status;
 }

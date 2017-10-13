@@ -800,13 +800,19 @@ extern int
 ncmpi_inq_put_size(int ncid, MPI_Offset *size);
 
 extern int
-ncmpi_inq_bb_time(int ncid, double *apitime, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime);
+ncmpi_inq_bb_time(double *log_total_time, double *log_create_time, double *log_enddef_time, double *log_put_time, double *log_flush_time, double *log_close_time);
 
 extern int
-ncmpi_inq_bb_time_ex(int ncid, double *datawrtime, double *metawrtime, double *countwrtime);
+ncmpi_inq_bb_time_put(double *put_data_wr_time, double *put_meta_wr_time, double *put_num_wr_time);
 
 extern int
-ncmpi_inq_bb_size(int ncid, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize);
+ncmpi_inq_bb_time_flush(double *flush_replay_time, double *flush_data_rd_time, double *flush_put_time, double *flush_wait_time);
+
+extern int
+ncmpi_inq_bb_size(MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize);
+
+extern int
+ncmpi_bb_flush(int ncid);
 
 extern int
 ncmpi_inq_get_size(int ncid, MPI_Offset *size);

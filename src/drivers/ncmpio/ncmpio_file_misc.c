@@ -417,123 +417,82 @@ ncmpii_inq_misc(void       *ncdp,
     return NC_NOERR;
 }
 
-int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, 
-    double *apitime, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime, 
-    double *datawrtime, double *metawrtime, double *countwrtime)
+/*
+int ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, double *stagingtime,
+    double *log_total_time, double *log_create_time, double *log_enddef_time, double *log_put_time, double *log_flush_time, 
+    double *put_data_wr_time, double *put_meta_wr_time, double *put_num_wr_time,
+    double *flush_replay_time, double *flush_data_rd_time, double *flush_put_time, double *flush_wait_time)
 {
     NC *ncp=(NC*)ncdp;
     NC_Log *nclogp = ncp->nclogp;
 
+    // Size
     if (datasize != NULL){
-        if (nclogp != NULL){
-            *datasize = nclogp->total_data;
-        }
-        else{
-            *datasize = 0;
-        }
+        *datasize = nclogp == NULL ? 0 : nclogp->total_data;
     }
-
     if (metasize != NULL){
-        if (nclogp != NULL){
-            *metasize = nclogp->total_meta;
-        }
-        else{
-            *metasize = 0;
-        }
+        *metasize = nclogp == NULL ? 0 : nclogp->total_meta;
     }
-
     if (buffersize != NULL){
-        if (nclogp != NULL){
-            *buffersize = nclogp->max_buffer;
-        }
-        else{
-            *buffersize = 0;
-        }
+        *buffersize = nclogp == NULL ? 0 : nclogp->max_buffer;
     }
 
-    if (apitime != NULL){
-        if (nclogp != NULL){
-            *apitime = nclogp->total_time;
-        }
-        else{
-            *apitime = 0;
-        }
-    }
-
-    if (puttime != NULL){
-        if (nclogp != NULL){
-            *puttime = nclogp->log_total_time;
-        }
-        else{
-            *puttime = 0;
-        }
-    }
-
-    if (bbwrtime != NULL){
-        if (nclogp != NULL){
-            *bbwrtime = nclogp->log_write_time;
-        }
-        else{
-            *bbwrtime = 0;
-        }
-    }
-
-    if (flushtime != NULL){
-        if (nclogp != NULL){
-            *flushtime = nclogp->flush_total_time;
-        }
-        else{
-            *flushtime = 0;
-        }
-    }
-
-    if (bbrdtime != NULL){
-        if (nclogp != NULL){
-            *bbrdtime = nclogp->flush_read_time;
-        }
-        else{
-            *bbrdtime = 0;
-        }
-    }
-
-    if (replaytime != NULL){
-        if (nclogp != NULL){
-            *replaytime = nclogp->flush_replay_time;
-        }
-        else{
-            *replaytime = 0;
-        }
-    }
-
+    // Time
     if (stagingtime != NULL){
         *stagingtime = ncp->stagetime;
     }
-
-    if (datawrtime != NULL){
-        if (nclogp != NULL){
-            *datawrtime = nclogp->log_write_data_time;
-        }
-        else{
-            *datawrtime = 0;
-        }
+    if (log_total_time != NULL){
+        *log_total_time = nclogp == NULL ? 0 : nclogp->total_time;
+    }
+    if (log_create_time != NULL){
+        *log_create_time = nclogp == NULL ? 0 : nclogp->create_time;
+    }
+    if (log_enddef_time != NULL){
+        *log_enddef_time = nclogp == NULL ? 0 : nclogp->enddef_time;
+    }
+    if (log_put_time != NULL){
+        *log_put_time = nclogp == NULL ? 0 : nclogp->put_time;
+    }
+    if (log_flush_time != NULL){
+        *log_flush_time = nclogp == NULL ? 0 : nclogp->flush_time;
     }
 
-    if (metawrtime != NULL){
-        if (nclogp != NULL){
-            *metawrtime = nclogp->log_write_meta_time;
-        }
-        else{
-            *metawrtime = 0;
-        }
+    // Put time 
+    if (put_data_wr_time != NULL){
+        *put_data_wr_time = nclogp == NULL ? 0 : nclogp->put_data_wr_time;
+    }
+    if (put_meta_wr_time != NULL){
+        *put_meta_wr_time = nclogp == NULL ? 0 : nclogp->put_meta_wr_time;
+    }
+    if (put_num_wr_time != NULL){
+        *put_num_wr_time = nclogp == NULL ? 0 : nclogp->put_num_wr_time;
     }
 
-    if (countwrtime != NULL){
-        if (nclogp != NULL){
-            *countwrtime = nclogp->log_write_count_time;
-        }
-        else{
-            *countwrtime = 0;
-        }
+    // Flush time 
+    if (flush_replay_time != NULL){
+        *flush_replay_time = nclogp == NULL ? 0 : nclogp->flush_replay_time;
+    }
+    if (flush_data_rd_time != NULL){
+        *flush_data_rd_time = nclogp == NULL ? 0 : nclogp->flush_data_rd_time;
+    }
+    if (flush_put_time != NULL){
+        *flush_put_time = nclogp == NULL ? 0 : nclogp->flush_put_time;
+    }
+    if (flush_wait_time != NULL){
+        *flush_wait_time = nclogp == NULL ? 0 : nclogp->flush_wait_time;
+    }
+
+    return NC_NOERR;
+}
+*/
+
+int ncmpii_flush(void *ncdp)
+{
+    NC *ncp=(NC*)ncdp;
+    NC_Log *nclogp = ncp->nclogp;
+
+    if (nclogp != NULL){
+        return ncmpii_log_flush(ncp);
     }
 
     return NC_NOERR;

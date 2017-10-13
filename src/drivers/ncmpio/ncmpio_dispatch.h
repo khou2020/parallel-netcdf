@@ -52,12 +52,21 @@ ncmpii_inq_misc(void *ncdp, int *pathlen, char *path, int *num_fix_varsp,
                 MPI_Info *info_used, int *nreqs, MPI_Offset *usage,
                 MPI_Offset *buf_size);
 
+/*
 
 extern int
-ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize, 
-                double *api_time, double *puttime, double *bbwrtime, double *flushtime, double *bbrdtime, double *replaytime, double *stagingtime, 
-                double *datawrtime, double *metawrtime, double *countwrtime);
-                
+ncmpii_inq_bb(void *ncdp, MPI_Offset *datasize, MPI_Offset *metasize, 
+    MPI_Offset *buffersize, double *stagingtime,
+    double *log_total_time, double *log_create_time, double *log_enddef_time,
+    double *log_put_time, double *log_flush_time, 
+    double *put_data_wr_time, double *put_meta_wr_time, double *put_num_wr_time,
+    double *flush_replay_time, double *flush_data_rd_time,
+    double *flush_put_time, double *flush_wait_time);
+
+*/
+
+extern int
+ncmpii_flush(void *ncdp);
 
 extern int
 ncmpii_sync_numrecs(void *ncdp);

@@ -100,19 +100,25 @@ typedef struct NC_Log {
     NC_Log_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
     NC_Log_sizearray entrydatasize;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
+    MPI_Offset numrecs;
+    /*
     MPI_Offset total_data;
     MPI_Offset total_meta;
     MPI_Offset max_buffer;
-    MPI_Offset numrecs;
     double flush_read_time;
+    double flush_put_time;
+    double flush_wait_time;
     double flush_replay_time;
-    double flush_total_time;
-    double log_write_time;
-    double log_write_data_time;
-    double log_write_meta_time;
-    double log_write_count_time;
-    double log_total_time;
+    double put_write_data_time;
+    double put_write_meta_time;
+    double put_write_num_time;
+    double create_time;
+    double enddef_time;
+    double put_time;
+    double flush_time;
+    double close_time;
     double total_time;
+    */
 } NC_Log;
 
 int ncmpii_log_buffer_init(NC_Log_buffer * bp);

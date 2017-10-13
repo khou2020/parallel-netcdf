@@ -1428,7 +1428,8 @@
       integer  nfmpi_inq_buffer_size
       integer  nfmpi_inq_put_size
       integer  nfmpi_inq_bb_time
-      integer  nfmpi_inq_bb_time_ex
+      integer  nfmpi_inq_bb_time_put
+      integer  nfmpi_inq_bb_time_flush
       integer  nfmpi_inq_bb_size
       integer  nfmpi_inq_get_size
       integer  nfmpi_inq_header_size
@@ -1443,7 +1444,8 @@
       external nfmpi_inq_buffer_size
       external nfmpi_inq_put_size
       external nfmpi_inq_bb_time
-      external nfmpi_inq_bb_time_ex
+      external nfmpi_inq_bb_time_put
+      external nfmpi_inq_bb_time_flush
       external nfmpi_inq_bb_size
       external nfmpi_inq_get_size
       external nfmpi_inq_header_size

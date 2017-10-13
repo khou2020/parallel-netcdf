@@ -23,7 +23,8 @@ H_SRCS = utf8proc_data.h
 C_SRCS = utf8proc.c \
          mem_alloc.c \
 		 logfile.c \
-         stageout.c
+         stageout.c \
+         accounting.c
 
 libcommon_la_SOURCES = $(C_SRCS) $(H_SRCS)
 

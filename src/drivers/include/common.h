@@ -44,4 +44,10 @@ ncmpii_inq_malloc_max_size(size_t *size);
 extern int
 ncmpii_inq_malloc_list(void);
 
+extern void 
+ncmpii_reset_bb_counter();
+
+extern void 
+ncmpii_update_bb_counter();
+
 #endif
