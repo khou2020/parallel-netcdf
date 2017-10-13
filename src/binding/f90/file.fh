@@ -254,7 +254,6 @@ function nf90mpi_inq_bb_size(datasize, metasize, buffersize)
   integer (kind = MPI_OFFSET_KIND), intent(out) :: metasize
   integer (kind = MPI_OFFSET_KIND), intent(out) :: buffersize
   integer                                       :: nf90mpi_inq_bb_size
-
   nf90mpi_inq_bb_size = nfmpi_inq_bb_size(datasize, metasize, buffersize)
 end function nf90mpi_inq_bb_size
 

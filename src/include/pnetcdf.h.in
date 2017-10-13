@@ -812,9 +812,6 @@ extern int
 ncmpi_inq_bb_size(MPI_Offset *datasize, MPI_Offset *metasize, MPI_Offset *buffersize);
 
 extern int
-ncmpi_bb_flush(int ncid);
-
-extern int
 ncmpi_inq_get_size(int ncid, MPI_Offset *size);
 
 extern int

@@ -247,9 +247,6 @@
 
       integer ncid, cmode, file_info
       integer(kind=MPI_OFFSET_KIND) starts(5), counts(4), put_size
-      integer(kind=MPI_OFFSET_KIND) bbdata, bbmeta, bbbuffer
-      double precision bbapi,  bbwr, bbrd, bbreplay, bbput, bbflush, bbstage
-      double precision datawr, metawr, countwr
       integer gsizes(5), subsizes(5), gstarts(5)
       integer buftype, reqs(nvar+6), stats(nvar+6)
 
@@ -686,20 +683,8 @@
       chk_t(3) = MPI_Wtime()
       chk_t(2) = chk_t(3) - chk_t(2)
 
-      err = nfmpi_sync(ncid)
-      if (err .NE. NF_NOERR) call check(err, "nfmpi_sync")
-
       err = nfmpi_inq_put_size(ncid, put_size)
       if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_put_size")
-
-      err = nfmpi_inq_bb_time(ncid, bbapi, bbput, bbwr, bbflush, bbrd, bbreplay, bbstage)
-      if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_time")
-
-      err = nfmpi_inq_bb_time_ex(ncid, datawr, metawr, countwr)
-      if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_time_ex")
-
-      err = nfmpi_inq_bb_size(ncid, bbdata, bbmeta, bbbuffer)
-      if (err .NE. NF_NOERR) call check(err, "nfmpi_inq_bb_size")
 
       barr_time =  MPI_Wtime()
       if (.NOT. use_indep_io) then
@@ -711,19 +696,6 @@
       if (err .NE. NF_NOERR) call check(err, "nfmpi_close")
 
       chk_t(3) = MPI_Wtime() - chk_t(3) - barr_time
-
-      bb_api = bb_api + bbapi
-      bb_put = bb_put + bbput
-      bb_wr = bb_wr + bbwr
-      bb_flush = bb_flush + bbflush
-      bb_rd = bb_rd + bbrd
-      bb_replay = bb_replay + bbreplay
-      bb_data  = bb_data + bbdata
-      bb_meta = bb_meta + bbmeta
-      bb_buffer = bb_buffer + bbbuffer
-      data_wr = data_wr + datawr
-      meta_wr = meta_wr + metawr
-      count_wr = count_wr + countwr
 
       checkpoint_wr_ncmpi_par = put_size
 
