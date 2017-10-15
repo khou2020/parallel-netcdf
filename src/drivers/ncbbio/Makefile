@@ -106,7 +106,8 @@ CONFIG_CLEAN_VPATH_FILES =
 LTLIBRARIES = $(noinst_LTLIBRARIES)
 libncbbio_la_LIBADD =
 am__objects_1 = ncbbio_attr.lo ncbbio_dim.lo ncbbio_driver.lo \
-	ncbbio_file.lo ncbbio_var.lo ncbbio_log.lo ncbbio_mem.lo
+	ncbbio_file.lo ncbbio_var.lo ncbbio_log.lo ncbbio_mem.lo \
+	ncbbio_nonblocking.lo
 am__objects_2 =
 am_libncbbio_la_OBJECTS = $(am__objects_1) $(am__objects_2)
 am__objects_3 = ncbbio_log_flush.lo
@@ -390,7 +391,8 @@ C_SRCS = ncbbio_attr.c \
          ncbbio_file.c \
          ncbbio_var.c \
 		 ncbbio_log.c \
-		 ncbbio_mem.c 
+		 ncbbio_mem.c \
+         ncbbio_nonblocking.c
 
 libncbbio_la_SOURCES = $(C_SRCS) $(H_SRCS)
 nodist_libncbbio_la_SOURCES = $(M4_SRCS:.m4=.c)
@@ -464,6 +466,7 @@ include ./$(DEPDIR)/ncbbio_file.Plo
 include ./$(DEPDIR)/ncbbio_log.Plo
 include ./$(DEPDIR)/ncbbio_log_flush.Plo
 include ./$(DEPDIR)/ncbbio_mem.Plo
+include ./$(DEPDIR)/ncbbio_nonblocking.Plo
 include ./$(DEPDIR)/ncbbio_var.Plo
 
 .c.o:

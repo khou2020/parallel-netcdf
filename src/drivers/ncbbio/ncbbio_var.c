@@ -253,15 +253,23 @@ ncbbio_iput_var(void             *ncdp,
                int               reqMode)
 {
     int err;
+    int id;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
+    ncbbio_put_list_add(ncbbp, &id, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
+    if (reqid != NULL){
+        *reqid = -id;
+    }
+
+    /*
     err = ncbbio_put_var(ncdp, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
     if (err == NC_NOERR){
         if (reqid != NULL){
-            /* Use negative number as dummy id for iput */
+            // Use negative number as dummy id for iput 
             *reqid = ncbbp->curreqid--;
         }
     }
+    */
     
     return err;
 }

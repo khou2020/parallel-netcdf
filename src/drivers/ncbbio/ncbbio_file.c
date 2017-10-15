@@ -86,6 +86,7 @@ ncbbio_create(MPI_Comm     comm,
     ncbbp->recdimsize = 0;
     ncbbp->recdimid = -1;
     ncbbp->max_ndims = 0;
+    ncbbio_put_list_init(ncbbp);
     MPI_Comm_dup(comm, &ncbbp->comm);
     MPI_Info_dup(info, &ncbbp->info);
     
@@ -150,6 +151,7 @@ ncbbio_open(MPI_Comm     comm,
 
     /* Init log structure if not read only */
     if (omode != NC_NOWRITE ){
+        ncbbio_put_list_init(ncbbp);
         err = ncbbio_log_create(ncbbp, info);
         if (err != NC_NOERR) {
             NCI_Free(ncbbp);
@@ -192,6 +194,7 @@ ncbbio_close(void *ncdp)
     MPI_Comm_free(&ncbbp->comm);
     MPI_Info_free(&ncbbp->info);
     NCI_Free(ncbbp->path);
+    ncbbio_put_list_free(ncbbp);
     NCI_Free(ncbbp);
 
     return status;
@@ -417,7 +420,7 @@ ncbbio_wait(void *ncdp,
     
     /*
      * Nonblocking put is reserved for log flush
-     * We pick out negative ids for put
+     * We pick negative ids for put
      * Forward only positive ids (get oepration) to ncmpio
      * For put operation, we always return success
      */
@@ -430,6 +433,12 @@ ncbbio_wait(void *ncdp,
                 /* Keep only get operation */
                 ids[numreq++] = req_ids[i];
             }
+            else{
+                err = ncbbio_handle_put_req(ncbbp, -req_ids[i]);
+                if (statuses != NULL){
+                    statuses[i] = err;
+                }
+            }
         }
 
         /* 
@@ -441,6 +450,14 @@ ncbbio_wait(void *ncdp,
             if (status == NC_NOERR){
                 status = err;
             }
+        }
+    }
+
+    /* Process put req */
+    if (numreq == NC_REQ_ALL || numreq == NC_PUT_REQ_ALL) {
+        err = ncbbio_handle_all_put_req(ncbbp);
+        if (status == NC_NOERR){
+            status = err;
         }
     }
 
@@ -468,9 +485,6 @@ ncbbio_wait(void *ncdp,
             for (i = j = 0; i < num_reqs; i++){
                 if (req_ids[i] >= 0){
                     statuses[i] = stats[j++];
-                }
-                else{
-                    statuses[i] = NC_NOERR;
                 }
             }
         }
