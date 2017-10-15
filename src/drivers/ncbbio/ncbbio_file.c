@@ -148,14 +148,18 @@ ncbbio_open(MPI_Comm     comm,
     MPI_Comm_dup(comm, &ncbbp->comm);
     MPI_Info_dup(info, &ncbbp->info);
 
-    /* Init log structure */
-    err = ncbbio_log_create(ncbbp, info);
-    if (err != NC_NOERR) {
-        NCI_Free(ncbbp);
-        return err;
+    /* Init log structure if not read only */
+    if (omode != NC_NOWRITE ){
+        err = ncbbio_log_create(ncbbp, info);
+        if (err != NC_NOERR) {
+            NCI_Free(ncbbp);
+            return err;
+        }
+        ncbbp->inited = 1;
     }
-    ncbbp->inited = 1;
-
+    else{
+        ncbbp->inited = 0;
+    }
     *ncpp = ncbbp;
 
     return NC_NOERR;

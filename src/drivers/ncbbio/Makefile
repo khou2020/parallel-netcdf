@@ -193,7 +193,7 @@ CC = /usr/bin/mpicc
 CCDEPMODE = depmode=gcc3
 CFLAGS = -g  -O0
 CONFIGURE_ARGS_CLEAN = --prefix=/home/khl7265/local/ncmpi_bb --disable-shared --enable-debug --disable-fortran --no-create --no-recursion
-CONFIG_DATE = Sun Oct  8 21:52:27 DST 2017
+CONFIG_DATE = Sat Oct 14 22:47:09 DST 2017
 CPP = /usr/bin/mpicc -E
 CPPFLAGS = 
 CXX = /usr/bin/mpicxx

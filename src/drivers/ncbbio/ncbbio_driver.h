@@ -102,11 +102,26 @@ typedef struct NC_bb_buffer {
 } NC_bb_buffer;
 
 /* Vector structure */
-typedef struct NC_bb_sizearray {
+typedef struct NC_bb_sizevector {
     size_t nalloc;
     size_t nused;
     size_t* values;
-} NC_bb_sizearray;
+} NC_bb_sizevector;
+
+/* Put_req structure */
+typedef struct NC_bb_put_req {
+    int id;
+    int status;
+} NC_bb_put_req;
+
+/* Put_req structure */
+typedef struct NC_bb_put_list {
+    NC_bb_put_req * list;
+    int *id;
+    int nalloc;
+    int nused;
+    int nissued;
+} NC_bb_put_list;
 
 /* Log structure */
 typedef struct NC_bb {
@@ -125,10 +140,10 @@ typedef struct NC_bb {
     int niget;
     size_t datalogsize;
     NC_bb_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
-    NC_bb_sizearray entrydatasize;    /* Array of metadata entries */
+    NC_bb_sizevector entrydatasize;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
     MPI_Offset max_ndims;
-
+    NC_bb_put_list putlist;
     /* Accounting */
     MPI_Offset total_data;
     MPI_Offset total_meta;
@@ -154,9 +169,9 @@ typedef struct NC_bb {
 int ncbbio_log_buffer_init(NC_bb_buffer * bp);
 void ncbbio_log_buffer_free(NC_bb_buffer * bp);
 char* ncbbio_log_buffer_alloc(NC_bb_buffer *bp, size_t size);
-int ncbbio_log_sizearray_init(NC_bb_sizearray *sp);
-void ncbbio_log_sizearray_free(NC_bb_sizearray *sp);
-int ncbbio_log_sizearray_append(NC_bb_sizearray *sp, size_t size);
+int ncbbio_log_sizearray_init(NC_bb_sizevector *sp);
+void ncbbio_log_sizearray_free(NC_bb_sizevector *sp);
+int ncbbio_log_sizearray_append(NC_bb_sizevector *sp, size_t size);
 int log_flush(NC_bb *ncbbp);
 int ncbbio_log_create(NC_bb *ncbbp, MPI_Info info);
 int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset *putsize);
