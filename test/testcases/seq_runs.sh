@@ -28,7 +28,7 @@ diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
 ./put_all_kinds ${TESTOUTDIR}/blocking
 ./iput_all_kinds ${TESTOUTDIR}/nonblocking
 
-export PNETCDF_HINTS="nc_bb_driver=enable;pnetcdf_bb_check=enable;pnetcdf_bb_overwrite=enable"
+export PNETCDF_HINTS="nc_bb_driver=enable;nc_bb_overwrite=enable"
 
 for i in $TESTPROGRAMS; do { 
     $TESTSEQRUN ./$i $TESTOUTDIR/testfile.nc ;

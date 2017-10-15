@@ -257,13 +257,13 @@ ncbbio_iput_var(void             *ncdp,
     int err;
     int id;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    
+ 
+    /*
     ncbbio_put_list_add1(ncbbp, &id, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
     if (reqid != NULL){
         *reqid = -id - 1;
     }
-
-    /*
+    */
     err = ncbbio_put_var(ncdp, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
     if (err == NC_NOERR){
         if (reqid != NULL){
@@ -271,8 +271,7 @@ ncbbio_iput_var(void             *ncdp,
             *reqid = ncbbp->curreqid--;
         }
     }
-    */
-    
+
     return NC_NOERR;
 }
 
@@ -444,21 +443,19 @@ ncbbio_iput_varn(void               *ncdp,
 {
     int err, id;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    
+    /*
     ncbbio_put_list_addn(ncbbp, &id, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
     if (reqid != NULL){
         *reqid = -id - 1;
     }
-
-/*
+    */
     err = ncbbio_put_varn(ncdp, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
     if (err == NC_NOERR){
         if (reqid != NULL){
-            /* Use negative number as dummy id for iput *
+            // Use negative number as dummy id for iput *
             *reqid = ncbbp->curreqid--;
         }
-    }
-    */
+    } 
     return NC_NOERR;
 }
 
