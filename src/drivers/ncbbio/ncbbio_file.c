@@ -150,7 +150,6 @@ ncbbio_open(MPI_Comm     comm,
 
     /* Init log structure if not read only */
     if (omode != NC_NOWRITE ){
-    //if (1 ){
         err = ncbbio_log_create(ncbbp, info);
         if (err != NC_NOERR) {
             NCI_Free(ncbbp);
@@ -376,7 +375,9 @@ ncbbio_inq_misc(void       *ncdp,
     
     /* Add the size of data log to reflect pending put in the log */
     if (put_size != NULL){
-        *put_size += (MPI_Offset)ncbbp->datalogsize - 8;
+        if (ncbbp->inited) {
+            *put_size += (MPI_Offset)ncbbp->datalogsize - 8;
+        }
     }
 
     /* Export bb related settings */
