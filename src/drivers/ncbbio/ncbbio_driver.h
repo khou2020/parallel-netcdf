@@ -113,12 +113,15 @@ typedef struct NC_bb_put_req {
     int id;
     int idx;
     int valid;
-    int               varid;
-    const MPI_Offset *start;
-    const MPI_Offset *count;
-    const MPI_Offset *stride;
-    const MPI_Offset *imap;
-    const void       *buf;
+    int varid;
+    int num;
+    MPI_Offset *start;
+    MPI_Offset *count;
+    MPI_Offset **starts;
+    MPI_Offset **counts;
+    MPI_Offset *stride;
+    MPI_Offset *imap;
+    void       *buf;
     MPI_Offset        bufcount;
     MPI_Datatype      buftype;
     int               reqMode;
@@ -193,11 +196,15 @@ int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid);
 int ncbbio_put_list_init(NC_bb *ncbbp);
 int ncbbio_put_list_resize(NC_bb *ncbbp);
 int ncbbio_put_list_free(NC_bb *ncbbp);
-int ncbbio_put_list_add(NC_bb *ncbbp, int *reqid, int varid, 
+int ncbbio_put_list_add1(NC_bb *ncbbp, int *reqid, int varid, 
                         const MPI_Offset *start, const MPI_Offset *count, 
                         const MPI_Offset *stride, const MPI_Offset *imap, 
                         const void *buf, MPI_Offset bufcount,
-                        MPI_Datatype buftype, int reqMode) ;
+                        MPI_Datatype buftype, int reqMode);
+int ncbbio_put_list_addn(NC_bb *ncbbp, int *reqid, int varid, int num, 
+                        MPI_Offset* const  *starts, MPI_Offset* const  *counts, 
+                        const void *buf, MPI_Offset bufcount,
+                        MPI_Datatype buftype, int reqMode);
 int ncbbio_put_list_remove(NC_bb *ncbbp, int reqid);
 int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid);
 int ncbbio_handle_all_put_req(NC_bb *ncbbp);

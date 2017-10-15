@@ -142,9 +142,11 @@ ncbbio_get_var(void             *ncdp,
     NC_bb *ncbbp = (NC_bb*)ncdp;
 
     /* Flush on read */
-    err = ncbbio_log_flush(ncbbp);
-    if (status == NC_NOERR){
-        status = err;
+    if(ncbbp->inited){
+        err = ncbbio_log_flush(ncbbp);
+        if (status == NC_NOERR){
+            status = err;
+        }
     }
 
     err = ncbbp->ncmpio_driver->get_var(ncbbp->ncp, varid, start, count, stride, imap,
@@ -256,9 +258,9 @@ ncbbio_iput_var(void             *ncdp,
     int id;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
-    ncbbio_put_list_add(ncbbp, &id, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
+    ncbbio_put_list_add1(ncbbp, &id, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
     if (reqid != NULL){
-        *reqid = -id;
+        *reqid = -id - 1;
     }
 
     /*
@@ -271,7 +273,7 @@ ncbbio_iput_var(void             *ncdp,
     }
     */
     
-    return err;
+    return NC_NOERR;
 }
 
 int
@@ -337,9 +339,11 @@ ncbbio_get_varn(void              *ncdp,
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
     /* Flush on read */
-    err = ncbbio_log_flush(ncbbp);
-    if (status == NC_NOERR){
-        status = err;
+    if(ncbbp->inited){
+        err = ncbbio_log_flush(ncbbp);
+        if (status == NC_NOERR){
+            status = err;
+        }
     }
  
     err = ncbbp->ncmpio_driver->get_varn(ncbbp->ncp, varid, num, starts, counts, buf,
@@ -438,17 +442,24 @@ ncbbio_iput_varn(void               *ncdp,
                 int                *reqid,
                 int                 reqMode)
 {
-    int err;
+    int err, id;
     NC_bb *ncbbp = (NC_bb*)ncdp;
+    
+    ncbbio_put_list_addn(ncbbp, &id, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
+    if (reqid != NULL){
+        *reqid = -id - 1;
+    }
 
+/*
     err = ncbbio_put_varn(ncdp, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
     if (err == NC_NOERR){
         if (reqid != NULL){
-            /* Use negative number as dummy id for iput */
+            /* Use negative number as dummy id for iput *
             *reqid = ncbbp->curreqid--;
         }
     }
-    return err;
+    */
+    return NC_NOERR;
 }
 
 int
@@ -487,9 +498,11 @@ ncbbio_get_vard(void         *ncdp,
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
     /* Flush on read */
-    err = ncbbio_log_flush(ncbbp);
-    if (status == NC_NOERR){
-        status = err;
+    if(ncbbp->inited){
+        err = ncbbio_log_flush(ncbbp);
+        if (status == NC_NOERR){
+            status = err;
+        }
     }
     
     err = ncbbp->ncmpio_driver->get_vard(ncbbp->ncp, varid, filetype, buf, bufcount,

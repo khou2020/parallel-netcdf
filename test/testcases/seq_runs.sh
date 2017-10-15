@@ -14,10 +14,15 @@ for j in 0 1 ; do { \
 NCMPIGEN=../../src/utils/ncmpigen/ncmpigen
 NCMPIDIFF=../../src/utils/ncmpidiff/ncmpidiff
 
+echo "rm -f ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc"
 rm -f ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
+echo "${TESTSEQRUN} ${NCMPIGEN} -v 2 -o ${TESTOUTDIR}/redef1.nc ${srcdir}/redef-good.ncdump"
 ${TESTSEQRUN} ${NCMPIGEN} -v 2 -o ${TESTOUTDIR}/redef1.nc ${srcdir}/redef-good.ncdump
+echo "${TESTSEQRUN} ./redef1 ${TESTOUTDIR}/testfile.nc"
 ${TESTSEQRUN} ./redef1 ${TESTOUTDIR}/testfile.nc
+echo "${TESTSEQRUN} ${NCMPIDIFF} -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc"
 ${TESTSEQRUN} ${NCMPIDIFF} -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
+echo "diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc"
 diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
 
 ./put_all_kinds ${TESTOUTDIR}/blocking
