@@ -121,11 +121,36 @@ define(`FLUSHBATCH',dnl
                 t2 = MPI_Wtime();
                 
                 /* Replay event with non-blocking call */
+                /*
+                if (ncbbp->isindep) {
+                    err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL | NC_REQ_INDEP);
+                }
+                else{
+                    err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL | NC_REQ_COLL);
+                }
+                */
                 err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
                 //err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL |NC_REQ_COLL);
                 if (status == NC_NOERR) {
                     status = err;
                 }
+                if (err != NC_NOERR){
+                    printf("Error flushing: j = %d\n, err = %d", j, err);
+                }
+                /*
+                if (ncbbp->isindep) {
+                    err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_INDEP); 
+                }
+                else{
+                    err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_COLL);
+                }
+                if (status == NC_NOERR) {
+                    status = err;
+                }
+                if (err != NC_NOERR){
+                    printf("Error flushing: j = %d\n, err = %d", j, err);
+                }
+                */
                 
                 t3 = MPI_Wtime();
                 ncbbp->flush_replay_time += t3 - t2;
@@ -148,6 +173,7 @@ define(`FLUSHBATCH',dnl
             if (status == NC_NOERR) {
                 status = err;
             }
+            
  
             t3 = MPI_Wtime();
             ncbbp->flush_replay_time += t3 - t2;
