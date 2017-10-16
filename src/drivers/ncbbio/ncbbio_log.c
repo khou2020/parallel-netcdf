@@ -76,7 +76,9 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         err = ncmpii_error_mpi2nc(err, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(err);
     }
-    
+    // TODO: Add buffersize hints
+    ncbbp->logflushbuffersize = 0;
+   
     /* Initialize log structure */
     
     /* Determine log file name

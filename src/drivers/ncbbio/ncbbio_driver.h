@@ -110,8 +110,6 @@ typedef struct NC_bb_sizevector {
 
 /* Put_req structure */
 typedef struct NC_bb_put_req {
-    int id;
-    int idx;
     int valid;
     int varid;
     int num;
@@ -208,8 +206,7 @@ int ncbbio_put_list_addn(NC_bb *ncbbp, int *reqid, int varid, int num,
 int ncbbio_put_list_remove(NC_bb *ncbbp, int reqid);
 int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid);
 int ncbbio_handle_all_put_req(NC_bb *ncbbp);
-
-
+int ncbbio_remove_all_put_req(NC_bb *ncbbp);
 
 
 extern int

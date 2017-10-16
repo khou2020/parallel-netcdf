@@ -134,10 +134,10 @@ define(`FLUSHBATCH',dnl
                 if (status == NC_NOERR) {
                     status = err;
                 }
+                /*
                 if (err != NC_NOERR){
                     printf("Error flushing: j = %d\n, err = %d", j, err);
                 }
-                /*
                 if (ncbbp->isindep) {
                     err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_INDEP); 
                 }
