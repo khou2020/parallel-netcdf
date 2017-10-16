@@ -184,6 +184,7 @@ int test_erange_put_$1_$2(char* filename) {
     else{
         log_enabled = 0;
     }
+    MPI_Info_free(&infoused);
 
     err = ncmpi_set_fill(ncid, NC_FILL, NULL); CHECK_ERR
     err = ncmpi_def_dim(ncid, "X", LEN, &dimid); CHECK_ERR

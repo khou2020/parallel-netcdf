@@ -57,6 +57,7 @@ int test_cdf2(char *filename)
     else{
         log_enabled = 0;
     }
+    MPI_Info_free(&infoused);
 
     /* for CDF-1 and CDF-2, a special case is made: there is no NC_ERANGE
      * error can occur converting between NC_BYTE and unsigned char.
@@ -165,6 +166,7 @@ int test_cdf5(char *filename)
     else{
         log_enabled = 0;
     }
+    MPI_Info_free(&infoused);
 
     /* CDF-5 considers NC_BYTE a signed 1-byte integer and NC_UBYTE an
      * unsigned 1-byte integer. The special case in CDF-2 for skipping

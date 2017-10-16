@@ -15,7 +15,7 @@
 #include <ncbbio_driver.h>
 
 #define PUT_ARRAY_SIZE 128 /* Size of initial put list */    
-#define SIZE_MULTIPLIER 2    /* When metadata buffer is full, we'll reallocate it to META_BUFFER_MULTIPLIER times the original size*/
+#define SIZE_MULTIPLIER 2    /* When metadata buffer is full, we'll NCI_Reallocate it to META_BUFFER_MULTIPLIER times the original size*/
 
 int ncbbio_put_list_init(NC_bb *ncbbp){
     int i;
@@ -23,8 +23,8 @@ int ncbbio_put_list_init(NC_bb *ncbbp){
     
     lp->nused = 0;
     lp->nalloc = PUT_ARRAY_SIZE;
-    lp->list = (NC_bb_put_req*)malloc(lp->nalloc * sizeof(NC_bb_put_req));
-    lp->ids = (int*)malloc(lp->nalloc * sizeof(int));
+    lp->list = (NC_bb_put_req*)NCI_Malloc(lp->nalloc * sizeof(NC_bb_put_req));
+    lp->ids = (int*)NCI_Malloc(lp->nalloc * sizeof(int));
     if (lp->list == NULL || lp->ids == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -48,13 +48,13 @@ int ncbbio_put_list_resize(NC_bb *ncbbp){
     nsize = lp->nalloc * SIZE_MULTIPLIER;
     
     /* Realloc list */
-    ptr = realloc(lp->list, 
+    ptr = NCI_Realloc(lp->list, 
                             nsize * sizeof(NC_bb_put_req));
     if (ptr = NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     lp->list = (NC_bb_put_req*)ptr;
-    ptr = realloc(lp->ids, nsize * sizeof(int));
+    ptr = NCI_Realloc(lp->ids, nsize * sizeof(int));
     if (ptr = NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -74,8 +74,8 @@ int ncbbio_put_list_resize(NC_bb *ncbbp){
 int ncbbio_put_list_free(NC_bb *ncbbp){
     NC_bb_put_list *lp = &(ncbbp->putlist);
     
-    free(lp->list);
-    free(lp->ids);
+    NCI_Free(lp->list);
+    NCI_Free(lp->ids);
     
     return 0;
 }
@@ -109,28 +109,28 @@ int ncbbio_put_list_remove(NC_bb *ncbbp, int reqid){
     req = lp->list + reqid;
     req->valid = 0;
     if (req->start != NULL) {
-        free(req->start);
+        NCI_Free(req->start);
     }
     if (req->count != NULL) {
-        free(req->count);
+        NCI_Free(req->count);
     }
     if (req->stride != NULL) {
-        free(req->stride);
+        NCI_Free(req->stride);
     }
     if (req->imap != NULL) {
-        free(req->imap);
+        NCI_Free(req->imap);
     }
     if (req->starts != NULL) {
         for(i = 0; i < req->num; i++){
-            free(req->starts[i]);
+            NCI_Free(req->starts[i]);
         }
-        free(req->starts);
+        NCI_Free(req->starts);
     }
     if (req->counts != NULL) {
         for(i = 0; i < req->num; i++){
-            free(req->counts[i]);
+            NCI_Free(req->counts[i]);
         }
-        free(req->counts);
+        NCI_Free(req->counts);
     }
     
     /* Return id to the list */
@@ -174,14 +174,14 @@ int ncbbio_put_list_add1(NC_bb *ncbbp, int *reqid, int varid,
     lp->list[id].counts = NULL;
     
     // Start
-    lp->list[id].start = (MPI_Offset*)malloc(asize);
+    lp->list[id].start = (MPI_Offset*)NCI_Malloc(asize);
     if (lp->list[id].start == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     memcpy(lp->list[id].start, start, asize);
     
     // Count
-    lp->list[id].count = (MPI_Offset*)malloc(asize);
+    lp->list[id].count = (MPI_Offset*)NCI_Malloc(asize);
     if (lp->list[id].count == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -189,7 +189,7 @@ int ncbbio_put_list_add1(NC_bb *ncbbp, int *reqid, int varid,
     
     // Stride
     if (stride != NULL){
-        lp->list[id].stride = (MPI_Offset*)malloc(asize);
+        lp->list[id].stride = (MPI_Offset*)NCI_Malloc(asize);
         if (lp->list[id].stride == NULL){
             DEBUG_RETURN_ERROR(NC_ENOMEM);
         }
@@ -201,7 +201,7 @@ int ncbbio_put_list_add1(NC_bb *ncbbp, int *reqid, int varid,
 
     // imap
     if (imap != NULL){
-        lp->list[id].imap = (MPI_Offset*)malloc(asize);
+        lp->list[id].imap = (MPI_Offset*)NCI_Malloc(asize);
         if (lp->list[id].imap == NULL){
             DEBUG_RETURN_ERROR(NC_ENOMEM);
         }
@@ -254,12 +254,12 @@ int ncbbio_put_list_addn(NC_bb *ncbbp, int *reqid, int varid, int num,
     lp->list[id].imap = NULL;
  
     // Starts
-    lp->list[id].starts = (MPI_Offset**)malloc(sizeof(MPI_Offset*) * num);
+    lp->list[id].starts = (MPI_Offset**)NCI_Malloc(sizeof(MPI_Offset*) * num);
     if (lp->list[id].starts == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     for(i = 0; i < num; i++){
-        lp->list[id].starts[i] = (MPI_Offset*)malloc(asize);
+        lp->list[id].starts[i] = (MPI_Offset*)NCI_Malloc(asize);
         if (lp->list[id].starts[i] == NULL){
             DEBUG_RETURN_ERROR(NC_ENOMEM);
         }
@@ -267,12 +267,12 @@ int ncbbio_put_list_addn(NC_bb *ncbbp, int *reqid, int varid, int num,
     }
 
     // Counts
-    lp->list[id].counts = (MPI_Offset**)malloc(sizeof(MPI_Offset*) * num);
+    lp->list[id].counts = (MPI_Offset**)NCI_Malloc(sizeof(MPI_Offset*) * num);
     if (lp->list[id].counts == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     for(i = 0; i < num; i++){
-        lp->list[id].counts[i] = (MPI_Offset*)malloc(asize);
+        lp->list[id].counts[i] = (MPI_Offset*)NCI_Malloc(asize);
         if (lp->list[id].counts[i] == NULL){
             DEBUG_RETURN_ERROR(NC_ENOMEM);
         }
