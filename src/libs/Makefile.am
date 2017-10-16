@@ -7,7 +7,11 @@
 # @configure_input@
 
 lib_LTLIBRARIES = libpnetcdf.la
-libpnetcdf_la_LDFLAGS = $(ABIVERSIONFLAGS)
+
+# Using libpnetcdf_la_LDFLAGS = $(ABIVERSIONFLAGS) does NOT seem to work,
+# because libpnetcdf_la_LINK is explicitly set below to deal with cross
+# language link.
+AM_LDFLAGS = $(ABIVERSIONFLAGS)
 
 libpnetcdf_la_SOURCES =
 libpnetcdf_la_LIBADD  = ../dispatchers/libdispatchers.la
