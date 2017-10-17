@@ -86,9 +86,10 @@ ncbbio_create(MPI_Comm     comm,
     ncbbp->recdimsize = 0;
     ncbbp->recdimid = -1;
     ncbbp->max_ndims = 0;
-    MPI_Comm_dup(comm, &ncbbp->comm);
-    MPI_Info_dup(info, &ncbbp->info);
-    
+    MPI_Comm_dup(comm, &(ncbbp->comm));
+    MPI_Info_dup(info, &(ncbbp->info));
+    ncbbio_extract_hint(ncbbp, info);
+
     /* Log init delaied to enddef */
     ncbbp->inited = 0;
     
@@ -145,8 +146,9 @@ ncbbio_open(MPI_Comm     comm,
     ncbbp->recdimsize = 0;
     ncbbp->recdimid = -1;
     ncbbp->max_ndims = 0;
-    MPI_Comm_dup(comm, &ncbbp->comm);
-    MPI_Info_dup(info, &ncbbp->info);
+    MPI_Comm_dup(comm, &(ncbbp->comm));
+    MPI_Info_dup(info, &(ncbbp->info));
+    ncbbio_extract_hint(ncbbp, info);
 
     /* Init log structure if not read only */
     if (omode != NC_NOWRITE ){
@@ -191,8 +193,8 @@ ncbbio_close(void *ncdp)
         status = err;
     }
 
-    MPI_Comm_free(&ncbbp->comm);
-    MPI_Info_free(&ncbbp->info);
+    MPI_Comm_free(&(ncbbp->comm));
+    MPI_Info_free(&(ncbbp->info));
     NCI_Free(ncbbp->path);
     NCI_Free(ncbbp);
 
@@ -323,7 +325,7 @@ ncbbio_abort(void *ncdp)
 
     err = ncbbp->ncmpio_driver->abort(ncbbp->ncp);
 
-    MPI_Comm_free(&ncbbp->comm);
+    MPI_Comm_free(&(ncbbp->comm));
     NCI_Free(ncbbp->path);
     NCI_Free(ncbbp);
 

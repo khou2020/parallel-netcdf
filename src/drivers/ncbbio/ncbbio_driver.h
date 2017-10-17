@@ -98,14 +98,14 @@ typedef struct NC_bb_metadataentry {
 typedef struct NC_bb_buffer {
     size_t nalloc;
     size_t nused;
-    void* buffer;
+    void *buffer;
 } NC_bb_buffer;
 
 /* Vector structure */
 typedef struct NC_bb_sizevector {
     size_t nalloc;
     size_t nused;
-    size_t* values;
+    size_t *values;
 } NC_bb_sizevector;
 
 /* Put_req structure */

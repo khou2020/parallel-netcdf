@@ -9,16 +9,14 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdint.h>
-#include <pnetcdf.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <pnc_debug.h>
 #include <common.h>
 #include <pnetcdf.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <ncbbio_driver.h>
 
 /*
@@ -38,33 +36,6 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     
     t1 = MPI_Wtime();
     
-    /* Extract hints */
-    ncbbp->hints = NC_LOG_HINT_DEL_ON_CLOSE | NC_LOG_HINT_FLUSH_ON_READ | 
-                    NC_LOG_HINT_FLUSH_ON_SYNC;
-    MPI_Info_get(info, "nc_bb_dirname", MPI_MAX_INFO_VAL - 1,
-                 value, &flag);
-    if (flag) {
-        strncpy(ncbbp->logbase, value, PATH_MAX);
-    }
-    else {
-        strncpy(ncbbp->logbase, ".", PATH_MAX);    
-    }
-    MPI_Info_get(info, "nc_bb_overwrite", MPI_MAX_INFO_VAL - 1, 
-                 value, &flag);
-    if (flag && strcasecmp(value, "enable") == 0){
-        ncbbp->hints |= NC_LOG_HINT_LOG_OVERWRITE;
-    }
-    MPI_Info_get(info, "nc_bb_check", MPI_MAX_INFO_VAL - 1, 
-                 value, &flag);
-    if (flag && strcasecmp(value, "enable") == 0){
-        ncbbp->hints |= NC_LOG_HINT_LOG_CHECK;
-    }
-    MPI_Info_get(info, "nc_bb_del_on_close", MPI_MAX_INFO_VAL - 1, 
-                 value, &flag);
-    if (flag && strcasecmp(value, "disable") == 0){
-        ncbbp->hints ^= NC_LOG_HINT_DEL_ON_CLOSE;
-    }
-
     /* Get rank and number of processes */
     err = MPI_Comm_rank(ncbbp->comm, &rank);
     if (err != MPI_SUCCESS) {
@@ -127,13 +98,13 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     sprintf(ncbbp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncbbp->ncid, rank);
      
     /* Initialize metadata buffer */
-    err = ncbbio_log_buffer_init(&ncbbp->metadata);
+    err = ncbbio_log_buffer_init(&(ncbbp->metadata));
     if (err != NC_NOERR){
         return err;
     }
        
     /* Initialize metadata entry array */
-    err = ncbbio_log_sizearray_init(&ncbbp->entrydatasize);
+    err = ncbbio_log_sizearray_init(&(ncbbp->entrydatasize));
     if (err != NC_NOERR){
         return err;
     }
@@ -166,7 +137,8 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (headersize % 4 != 0){
         headersize += 4 - (headersize % 4);
     }
-    headerp = (NC_bb_metadataheader*)ncbbio_log_buffer_alloc(&ncbbp->metadata, headersize);
+    headerp = (NC_bb_metadataheader*)ncbbio_log_buffer_alloc(&(ncbbp->metadata), headersize);
+    memset(headerp, 0, headersize);
 
     /* Fill up the metadata log header */
     memcpy(headerp->magic, NC_LOG_MAGIC, sizeof(headerp->magic));
@@ -334,22 +306,22 @@ int ncbbio_log_close(NC_bb *ncbbp) {
     }
 
     /* Free meta data buffer and metadata offset list*/
-    ncbbio_log_buffer_free(&ncbbp->metadata);
-    ncbbio_log_sizearray_free(&ncbbp->entrydatasize);
+    ncbbio_log_buffer_free(&(ncbbp->metadata));
+    ncbbio_log_sizearray_free(&(ncbbp->entrydatasize));
     
     t2 = MPI_Wtime();
     ncbbp->total_time += t2 - t1;
 
     /* Print accounting info in debug build */
 #ifdef PNETCDF_DEBUG
-    MPI_Reduce(&ncbbp->total_time, &total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
-    MPI_Reduce(&ncbbp->flush_read_time, &flush_read_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
-    MPI_Reduce(&ncbbp->flush_replay_time, &flush_replay_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
-    MPI_Reduce(&ncbbp->flush_total_time, &flush_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
-    MPI_Reduce(&ncbbp->log_write_time, &log_write_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
-    MPI_Reduce(&ncbbp->log_total_time, &log_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
-    MPI_Reduce(&ncbbp->total_meta, &total_meta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->comm);
-    MPI_Reduce(&ncbbp->total_data, &total_data, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->total_time), &total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->flush_read_time), &flush_read_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->flush_replay_time), &flush_replay_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->flush_total_time), &flush_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->log_write_time), &log_write_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->log_total_time), &log_total_time, 1, MPI_DOUBLE, MPI_MAX, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->total_meta), &total_meta, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->comm);
+    MPI_Reduce(&(ncbbp->total_data), &total_data, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ncbbp->comm);
     
     if (ncbbp->rank == 0){ 
         printf("==========================================================\n");
@@ -488,7 +460,7 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
      */
     esize = sizeof(NC_bb_metadataentry) + dim * 3 * SIZEOF_MPI_OFFSET;
     /* Allocate space for metadata entry header */
-    buffer = (char*)ncbbio_log_buffer_alloc(&ncbbp->metadata, esize);
+    buffer = (char*)ncbbio_log_buffer_alloc(&(ncbbp->metadata), esize);
     entryp = (NC_bb_metadataentry*)buffer;
     entryp->esize = esize; /* Entry size */
     entryp->itype = itype; /* Variable type */
@@ -518,6 +490,9 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     memcpy(Count, count, dim * SIZEOF_MPI_OFFSET);
     if(stride != NULL){
         memcpy(Stride, stride, dim * SIZEOF_MPI_OFFSET);
+    }
+    else{
+        memset(Stride, 0, dim * SIZEOF_MPI_OFFSET);
     }
  
     t2 = MPI_Wtime();
@@ -597,7 +572,7 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     }
 
     /* Record data size */
-    ncbbio_log_sizearray_append(&ncbbp->entrydatasize, entryp->data_len);
+    ncbbio_log_sizearray_append(&(ncbbp->entrydatasize), entryp->data_len);
     
     t4 = MPI_Wtime();
     ncbbp->log_total_time += t4 - t1;

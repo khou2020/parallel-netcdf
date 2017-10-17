@@ -21,7 +21,7 @@
  * Initialize a variable sized buffer
  * IN   bp: buffer structure to be initialized
  */
-int ncbbio_log_buffer_init(NC_bb_buffer * bp){
+int ncbbio_log_buffer_init(NC_bb_buffer *bp){
     bp->buffer = NCI_Malloc(LOG_BUFFER_SIZE);
     if (bp->buffer == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
