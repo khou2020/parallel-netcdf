@@ -1,63 +1,47 @@
 language: c
 
-env:
-  global:
-   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
-   #   via the "travis encrypt" command using the project repo's public key
-   - secure: "HHLwrxtmKjvYyqF9Kllq9EwyGA2isxluPOfOgQjGkuk8duItPlmYHBwuozKlsRAvgf9G/nsnGfn/m0s1Amj6jCf/AtAwPs4Gd9p52/EYvFmVOT5Fp6wq3LiZWGvvuyeWRFuyNFhdsbu3vREjyTFGtw4brjeZf8TW7ePqpgY7xYBhijpOAzhsH43oFylQbPqUzEvw7Z5haY7RBmeRWpv3eGGhMSSAnBQ4kgScEd6yyc2TL6QeEBfz4DGWD/0JNnZEfTKwCaOJreaWyzhRfN7jwZYAJljrfPiyBdmncLeQZ4En2NyiwgCoKXwne+EKjvZ/uz+E5npMdc/UtiTVlmGeAxr0ep5Y2bZyg1Fje/hGvqPx1namPTHQzhkQa8zAr2Jdp36l5NGynNDhqwzMLH2POQ238vEwUtJ8GPoxYctCtPBd70d91ToqAhjjbsC+Umb0DbWOGZbHeOFxpY38Ccr30Kyp3K7H0BvGwNryB48ATbxJc/YdeFZ79oJmuDoM5omMLFo6PgoRONt9UeHHFM+ayWxiubsF/6taGg+/PNz3BgbjH5DPd+r0skoplnogyJj6zV+RPg2yd1tgoJ+OBiaZj5UyGqOM7uB+OqS7UGTCMA9yrVzJ/fdMgetlUqyRhZMoQeBNPkbmCj8UcYVdfFYP3orPy+jkhUIAq3DSRMGhe/U="
-
-addons:
-  coverity_scan:
-    project:
-      name: "wkliao/parallel-netcdf"
-      description: "PnetCDF nightly build submitted via Travis CI"
-    build_command_prepend: ./configure
-    notification_email: wkliao@eecs.northwestern.edu
-    build_command: make -s V=1 LIBTOOLFLAGS=--silent tests
-    branch_pattern: master
-
 before_install:
-  - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-  - test -n $CC && unset CC
-  # apt-package-whitelist can be found in
-  # https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
-  - sudo add-apt-repository ppa:dns/gnu -y
-  - sudo apt-get update -qq
-  - sudo apt-get install -y gfortran
-  - sudo apt-get install -y mpich2
-  - sudo apt-get install --only-upgrade autoconf
-  - sudo apt-get install --only-upgrade automake
-  - sudo apt-get install --only-upgrade libtool
-  - autoconf --version
-  - automake --version
-  - libtool --version
-  - autoreconf -i
-  # string substitute for SVN keyword LastChangedDate
-  # Below is for Redhat
-  # - DateStr=`stat -f "%Sm" -t "%F %T %z (%a, %d %b %Y)" configure.ac` ; sed -e "s/LastChangedDate/LastChangedDate: $DateStr /g" -i "" configure
-  # Below is for Ubuntu
-  # - DateStr=`date -r configure.ac +"%F %T %z (%a, %d %b %Y)"` ; sed -e "s/LastChangedDate/LastChangedDate $DateStr /g" -i configure
+    - test -n $CC && unset CC
+    # apt-package-whitelist can be found in
+    # https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
+    - sudo add-apt-repository ppa:dns/gnu -y
+    - sudo apt-get update -qq
+    - sudo apt-get install -y gfortran
+    - sudo apt-get install -y mpich2
+    - sudo apt-get install --only-upgrade autoconf
+    - sudo apt-get install --only-upgrade automake
+    - sudo apt-get install --only-upgrade libtool
+    # string substitute for SVN keyword LastChangedDate
+    # Below is for Redhat
+    # - DateStr=`stat -f "%Sm" -t "%F %T %z (%a, %d %b %Y)" configure.ac` ; sed -e "s/LastChangedDate/LastChangedDate: $DateStr /g" -i "" configure
+    # Below is for Ubuntu
+    # - DateStr=`date -r configure.ac +"%F %T %z (%a, %d %b %Y)"` ; sed -e "s/LastChangedDate/LastChangedDate $DateStr /g" -i configure
+
+install:
+    - autoconf --version
+    - automake --version
+    - libtool --version
+    - autoreconf -if
 
 script:
-  # dump the Coverity Scan SCM log file
-  # - cat /home/travis/build/wkliao/parallel-netcdf/cov-int/scm_log.txt
-  # continue the above "build_command" for static library only (default)
-  - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS=--silent
-  - make -s distclean
-  # build both static and shared libraries
-  - ./configure --silent --enable-shared LDFLAGS="-Wl,--allow-shlib-undefined"
-  - make -s V=1 LIBTOOLFLAGS=--silent tests
-  - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS="--silent --enable-shared LDFLAGS='-Wl,--allow-shlib-undefined'"
-  - make -s distclean
-  # build shared library only
-  # - ./configure --silent --enable-shared --disable-static LDFLAGS="-Wl,--allow-shlib-undefined"
-  # - make -s V=1 LIBTOOLFLAGS=--silent tests
-  # - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS="--silent --enable-shared --disable-static LDFLAGS='-Wl,--allow-shlib-undefined'"
-  # - make -s distclean
+    # continue the above "build_command" for static library only (default)
+    - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS=--silent
+    - make -s distclean
+    # build both static and shared libraries
+    - ./configure --silent --enable-shared LDFLAGS="-Wl,--allow-shlib-undefined"
+    - make -s V=1 LIBTOOLFLAGS=--silent tests
+    - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS="--silent --enable-shared LDFLAGS='-Wl,--allow-shlib-undefined'"
+    - make -s distclean
+    # build shared library only
+    # - ./configure --silent --enable-shared --disable-static LDFLAGS="-Wl,--allow-shlib-undefined"
+    # - make -s V=1 LIBTOOLFLAGS=--silent tests
+    # - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS="--silent --enable-shared --disable-static LDFLAGS='-Wl,--allow-shlib-undefined'"
+    # - make -s distclean
 
 after_failure:
-  - cat /home/travis/build/wkliao/parallel-netcdf/cov-int/build-log.txt
-  - cat ./config.log
+    - cat /home/travis/build/wkliao/parallel-netcdf/cov-int/build-log.txt
+    - cat ./config.log
 
 notifications:
-  email: false
+    email: 
+        - kai-yuanhou2020@u.northwestern.edu
