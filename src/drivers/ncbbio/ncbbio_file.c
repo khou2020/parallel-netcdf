@@ -158,6 +158,7 @@ ncbbio_open(MPI_Comm     comm,
             return err;
         }
         ncbbio_put_list_init(ncbbp);
+        ncbbio_metaidx_init(ncbbp);
         ncbbp->inited = 1;
     }
     else{
@@ -186,6 +187,7 @@ ncbbio_close(void *ncdp)
             status = err;
         }
         ncbbio_put_list_free(ncbbp);
+        ncbbio_metaidx_free(ncbbp);
     }
 
     err = ncbbp->ncmpio_driver->close(ncbbp->ncp);
@@ -224,6 +226,7 @@ ncbbio_enddef(void *ncdp)
             return err;
         }
         ncbbio_put_list_init(ncbbp);
+        ncbbio_metaidx_init(ncbbp);
         ncbbp->inited = 1;
     }
 
@@ -258,6 +261,7 @@ ncbbio__enddef(void       *ncdp,
             return err;
         }
         ncbbio_put_list_init(ncbbp);
+        ncbbio_metaidx_init(ncbbp);
         ncbbp->inited = 1;
     }
 
@@ -505,7 +509,7 @@ ncbbio_wait(void *ncdp,
            int  *statuses,
            int   reqMode)
 {
-    int i, j, err, status = NC_NOERR, numreq = num_reqs;
+    int i, j, err, status = NC_NOERR, numreq = num_reqs, stat;
     int *ids = req_ids, *stats = statuses;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
@@ -525,9 +529,12 @@ ncbbio_wait(void *ncdp,
                 ids[numreq++] = req_ids[i];
             }
             else{
-                err = ncbbio_handle_put_req(ncbbp, -(req_ids[i] + 1));
+                err = ncbbio_handle_put_req(ncbbp, -(req_ids[i] + 1), &stat);
+                if (status == NC_NOERR){
+                    status = err;
+                }
                 if (statuses != NULL){
-                    statuses[i] = err;
+                    statuses[i] = stat;
                 }
             }
         }

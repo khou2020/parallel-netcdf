@@ -139,3 +139,38 @@ int ncbbio_log_sizearray_append(NC_bb_sizevector *sp, size_t size) {
     return NC_NOERR;
 }
 
+int ncbbio_metaidx_init(NC_bb *ncbbp) {
+    NC_bb_metadataidx *ip = &(ncbbp->metaidx);
+    
+    ip->nalloc = LOG_ARRAY_SIZE;
+    ip->nused = 0;
+    ip->entries = (NC_bb_metadataptr*)NCI_Malloc(sizeof(NC_bb_metadataptr) * ip->nalloc);
+    
+    return NC_NOERR;
+}
+
+int ncbbio_metaidx_add(NC_bb *ncbbp, NC_bb_metadataentry *ptr) {
+    NC_bb_metadataidx *ip = &(ncbbp->metaidx);
+    NC_bb_metadataptr *tmp;
+    
+    if (ip->nused == ip->nalloc) {
+        ip->nalloc *= SIZE_MULTIPLIER;
+        tmp = (NC_bb_metadataptr*)NCI_Realloc(ip->entries, sizeof(NC_bb_metadataptr) * ip->nalloc);
+        ip->entries = tmp;
+    }
+
+    ip->entries[ip->nused].ptr = ptr;
+    ip->entries[ip->nused].valid = 1;
+    ip->entries[ip->nused++].reqid = -1;
+    
+    return NC_NOERR;
+}
+
+int ncbbio_metaidx_free(NC_bb *ncbbp) {
+    NC_bb_metadataidx *ip = &(ncbbp->metaidx);
+   
+    NCI_Free(ip->entries);
+
+    return NC_NOERR;
+}
+

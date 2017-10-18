@@ -115,45 +115,24 @@ define(`FLUSHBATCH',dnl
             t3 = MPI_Wtime();
             ncbbp->flush_read_time += t3 - t2;
 
-            for(; j < i; j++){
-                PREPAREPARAM   
+            for(i = lb; i < ub; i++){
                 
-                t2 = MPI_Wtime();
+                ip = ncbbp->metaidx.entries + i;
                 
-                /* Replay event with non-blocking call */
-                /*
-                if (ncbbp->isindep) {
-                    err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL | NC_REQ_INDEP);
+                if (ip->valid) {
+                    PREPAREPARAM   
+                    
+                    t2 = MPI_Wtime();
+                    
+                    /* Replay event with non-blocking call */
+                    err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, reqids + i, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
+                    if (status == NC_NOERR) {
+                        status = err;
+                    }
+                                    
+                    t3 = MPI_Wtime();
+                    ncbbp->flush_replay_time += t3 - t2;
                 }
-                else{
-                    err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL | NC_REQ_COLL);
-                }
-                */
-                err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NULL, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
-                //err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databuffer + entryp->data_off - databufferidx), -1, buftype, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL |NC_REQ_COLL);
-                if (status == NC_NOERR) {
-                    status = err;
-                }
-                /*
-                if (err != NC_NOERR){
-                    printf("Error flushing: j = %d\n, err = %d", j, err);
-                }
-                if (ncbbp->isindep) {
-                    err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_INDEP); 
-                }
-                else{
-                    err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_COLL);
-                }
-                if (status == NC_NOERR) {
-                    status = err;
-                }
-                if (err != NC_NOERR){
-                    printf("Error flushing: j = %d\n, err = %d", j, err);
-                }
-                */
-                
-                t3 = MPI_Wtime();
-                ncbbp->flush_replay_time += t3 - t2;
      
                 /* Move to next position */
                 entryp = (NC_bb_metadataentry*)(((char*)entryp) + entryp->esize);
@@ -165,15 +144,25 @@ define(`FLUSHBATCH',dnl
              * Wait must be called first or previous data will be corrupted
              */
             if (ncbbp->isindep) {
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_INDEP); 
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, ub - lb, reqids + lb, stats + lb, NC_REQ_INDEP); 
             }
             else{
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, NC_PUT_REQ_ALL, NULL, NULL, NC_REQ_COLL);
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, ub - lb, reqids + lb, stats + lb, NC_REQ_COLL);
             }
             if (status == NC_NOERR) {
                 status = err;
             }
             
+            for(i = lb; i < ub; i++){
+                ip = ncbbp->metaidx.entries + i;
+                
+                if (ip->valid) {
+                    if (ip->reqid >= 0){
+                        ncbbp->putlist.list[ip->reqid].status = stats[i];
+                        ncbbp->putlist.list[ip->reqid].ready = 1;
+                    }
+                }
+            }
  
             t3 = MPI_Wtime();
             ncbbp->flush_replay_time += t3 - t2;
@@ -308,7 +297,8 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
  * IN    ncbbp:    log structure
  */
 int log_flush(NC_bb *ncbbp) {
-    int i, j, err, fd, status = NC_NOERR;
+    int i, j, lb, ub, err, fd, status = NC_NOERR;
+    int *reqids, *stats;
     double t1, t2, t3;
     size_t databufferused, databuffersize, databufferidx;
     ssize_t ioret;
@@ -316,7 +306,8 @@ int log_flush(NC_bb *ncbbp) {
     MPI_Offset *start, *count, *stride;
     MPI_Datatype buftype;
     char *databuffer;
-    NC_bb_metadataheader* headerp;
+    NC_bb_metadataheader *headerp;
+    NC_bb_metadataptr *ip;
 
     t1 = MPI_Wtime();
     
@@ -348,6 +339,9 @@ int log_flush(NC_bb *ncbbp) {
     databufferidx = 8;
     databufferused = 0;
 
+    reqids = (int*)NCI_Malloc(ncbbp->entrydatasize.nused * sizeof(int));
+    stats = (int*)NCI_Malloc(ncbbp->entrydatasize.nused * sizeof(int));
+
     /* 
      * Iterate through meta log entries
      * i is entries scaned for size
@@ -355,11 +349,12 @@ int log_flush(NC_bb *ncbbp) {
      */
     headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
     entryp = (NC_bb_metadataentry*)(ncbbp->metadata.buffer + headerp->entry_begin);
-    for (i = j = 0; i < ncbbp->entrydatasize.nused; i++){
+    for (lb = ub = 0; ub < ncbbp->entrydatasize.nused; ub++){
             
         /* Process current batch if data buffer can not accomodate next one */
-        if(databufferused + ncbbp->entrydatasize.values[i] >= databuffersize){
+        if(databufferused + ncbbp->entrydatasize.values[ub] >= databuffersize){
 FLUSHBATCH
+            lb = ub;
         }
                
         /* 
@@ -367,29 +362,39 @@ FLUSHBATCH
          * An oversized entry must have triggered a flush on current batch, so entire buffer is free to use
          * We must have entryp points to current entry
          */
-        if (ncbbp->entrydatasize.values[i] > databuffersize){
-            PREPAREPARAM
-                       
-            /* Replay event in parts */
-            err = split_iput(ncbbp, entryp->varid, entryp->ndims, start, count, stride, buftype, entryp->data_off, entryp->data_len, databuffersize, databuffer);
-            if (status == NC_NOERR) {
-                status = err;
-            }
-                       
-            /* Update batch status */
-            databufferidx += entryp->data_len;
-            databufferused = 0;
+        if (ncbbp->entrydatasize.values[ub] > databuffersize){
+            ip = ncbbp->metaidx.entries + ub;
+            
+            if (ip->valid){
+                PREPAREPARAM
+                           
+                /* Replay event in parts */
+                err = split_iput(ncbbp, entryp->varid, entryp->ndims, start, count, stride, buftype, entryp->data_off, entryp->data_len, databuffersize, databuffer);
+                if (status == NC_NOERR) {
+                    status = err;
+                }
+                
+                if (ip->reqid >= 0){
+                    ncbbp->putlist.list[ip->reqid].status = err;    
+                }
+                ncbbp->putlist.list[ip->reqid].ready = 1;    
 
-            /* Skip this entry on batch flush */
-            entryp = (NC_bb_metadataentry*)(((char*)entryp) + entryp->esize);
-            j++;
+                           
+                /* Update batch status */
+                databufferidx += entryp->data_len;
+                databufferused = 0;
+
+                /* Skip this entry on batch flush */
+                entryp = (NC_bb_metadataentry*)(((char*)entryp) + entryp->esize);
+                lb++;
+            }
         }
         else{
             /* 
              * Record current entry size
              * entryp is updated when replay is done, we don't have entryp here
              */
-            databufferused += ncbbp->entrydatasize.values[i];
+            databufferused += ncbbp->entrydatasize.values[ub];
         }
 
     }
@@ -401,6 +406,8 @@ FLUSHBATCH
 
     /* Free the data buffer */ 
     NCI_Free(databuffer);
+    NCI_Free(reqids);
+    NCI_Free(stats);
 
     t2 = MPI_Wtime();
     ncbbp->flush_total_time += t2 - t1;

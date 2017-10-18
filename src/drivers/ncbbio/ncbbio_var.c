@@ -254,18 +254,32 @@ ncbbio_iput_var(void             *ncdp,
                int              *reqid,
                int               reqMode)
 {
-    int err, id;
+    int i, err, id;
     NC_bb *ncbbp = (NC_bb*)ncdp;
- 
-    err = ncbbio_put_list_add1(ncbbp, &id, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
+    
+    err = ncbbio_put_list_add(ncbbp, &id);
     if (err != NC_NOERR){
         return err;
     }
-
+    
     if (reqid != NULL){
         *reqid = -id - 1;
     }
-   
+
+    ncbbp->putlist.list[id].entrystart = ncbbp->metaidx.nused;
+
+    err = ncbbio_put_var(ncdp, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
+    if (err != NC_NOERR){
+        ncbbio_put_list_remove(ncbbp, id);
+        return err;
+    }
+    
+    ncbbp->putlist.list[id].entryend = ncbbp->metaidx.nused;
+    
+    for (i = ncbbp->putlist.list[id].entrystart; i < ncbbp->putlist.list[id].entryend; i++){
+        ncbbp->metaidx.entries[i].reqid = id;
+    }
+
     return NC_NOERR;
 }
 
@@ -435,18 +449,32 @@ ncbbio_iput_varn(void               *ncdp,
                 int                *reqid,
                 int                 reqMode)
 {
-    int err, id;
+    int i, err, id;
     NC_bb *ncbbp = (NC_bb*)ncdp;
     
-    err = ncbbio_put_list_addn(ncbbp, &id, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
+    err = ncbbio_put_list_add(ncbbp, &id);
     if (err != NC_NOERR){
         return err;
     }
-
+    
     if (reqid != NULL){
         *reqid = -id - 1;
     }
     
+    ncbbp->putlist.list[id].entrystart = ncbbp->metaidx.nused;
+ 
+    err = ncbbio_put_varn(ncdp, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
+    if (err != NC_NOERR){
+        ncbbio_put_list_remove(ncbbp, id);
+        return err;
+    }
+    
+    ncbbp->putlist.list[id].entryend = ncbbp->metaidx.nused;
+    
+    for (i = ncbbp->putlist.list[id].entrystart; i < ncbbp->putlist.list[id].entryend; i++){
+        ncbbp->metaidx.entries[i].reqid = id;
+    }
+ 
     return NC_NOERR;
 }
 

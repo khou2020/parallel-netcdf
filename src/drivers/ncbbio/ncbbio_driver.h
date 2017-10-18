@@ -94,6 +94,18 @@ typedef struct NC_bb_metadataentry {
     MPI_Offset data_len;
 } NC_bb_metadataentry;
 
+typedef struct NC_bb_metadataptr {
+    NC_bb_metadataentry *ptr;
+    int valid;
+    int reqid;
+} NC_bb_metadataptr;
+
+typedef struct NC_bb_metadataidx {
+    NC_bb_metadataptr *entries;
+    int nused;
+    int nalloc;
+} NC_bb_metadataidx;
+
 /* Buffer structure */
 typedef struct NC_bb_buffer {
     size_t nalloc;
@@ -111,23 +123,15 @@ typedef struct NC_bb_sizevector {
 /* Put_req structure */
 typedef struct NC_bb_put_req {
     int valid;
-    int varid;
-    int num;
-    MPI_Offset *start;
-    MPI_Offset *count;
-    MPI_Offset **starts;
-    MPI_Offset **counts;
-    MPI_Offset *stride;
-    MPI_Offset *imap;
-    void       *buf;
-    MPI_Offset        bufcount;
-    MPI_Datatype      buftype;
-    int               reqMode;
+    int ready;
+    int status;
+    int entrystart;
+    int entryend;
 } NC_bb_put_req;
 
 /* Put_req structure */
 typedef struct NC_bb_put_list {
-    NC_bb_put_req * list;
+    NC_bb_put_req *list;
     int *ids;
     int nalloc;
     int nused;
@@ -150,6 +154,7 @@ typedef struct NC_bb {
     int niget;
     size_t datalogsize;
     NC_bb_buffer metadata; /* In memory metadata buffer that mirrors the metadata log */
+    NC_bb_metadataidx metaidx;
     NC_bb_sizevector entrydatasize;    /* Array of metadata entries */
     int isflushing;   /* If log is flushing */
     MPI_Offset max_ndims;
@@ -188,26 +193,17 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
 int ncbbio_log_close(NC_bb *ncbbp);
 int ncbbio_log_flush(NC_bb *ncbbp);
 int ncbbio_log_enddef(NC_bb *ncbbp);
-int ncbbio_handle_all_put_req(NC_bb *ncbbp);
-int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid);
 
 int ncbbio_put_list_init(NC_bb *ncbbp);
 int ncbbio_put_list_resize(NC_bb *ncbbp);
 int ncbbio_put_list_free(NC_bb *ncbbp);
-int ncbbio_put_list_add1(NC_bb *ncbbp, int *reqid, int varid, 
-                        const MPI_Offset *start, const MPI_Offset *count, 
-                        const MPI_Offset *stride, const MPI_Offset *imap, 
-                        const void *buf, MPI_Offset bufcount,
-                        MPI_Datatype buftype, int reqMode);
-int ncbbio_put_list_addn(NC_bb *ncbbp, int *reqid, int varid, int num, 
-                        MPI_Offset* const  *starts, MPI_Offset* const  *counts, 
-                        const void *buf, MPI_Offset bufcount,
-                        MPI_Datatype buftype, int reqMode);
 int ncbbio_put_list_remove(NC_bb *ncbbp, int reqid);
-int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid);
+int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid, int *stat);
 int ncbbio_handle_all_put_req(NC_bb *ncbbp);
 int ncbbio_remove_all_put_req(NC_bb *ncbbp);
-
+int ncbbio_metaidx_init(NC_bb *ncbbp);
+int ncbbio_metaidx_append(NC_bb *ncbbp, NC_bb_metadataentry *entry, int reqid);
+int ncbbio_metaidx_free(NC_bb *ncbbp);
 
 extern int
 ncbbio_create(MPI_Comm comm, const char *path, int cmode, int ncid, MPI_Info info, void **ncdp);

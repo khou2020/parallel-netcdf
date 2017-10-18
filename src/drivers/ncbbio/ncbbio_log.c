@@ -573,6 +573,8 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
 
     /* Record data size */
     ncbbio_log_sizearray_append(&(ncbbp->entrydatasize), entryp->data_len);
+    // Record in index
+    ncbbio_metaidx_add(ncbbp, entryp);
     
     t4 = MPI_Wtime();
     ncbbp->log_total_time += t4 - t1;
@@ -655,6 +657,7 @@ int ncbbio_log_flush(NC_bb* ncbbp) {
     /* Reset metadata buffer and entry array status */
     ncbbp->metadata.nused = headerp->entry_begin;
     ncbbp->entrydatasize.nused = 0;
+    ncbbp->metaidx.nused = 0;
 
     /* Rewind data log file descriptors and reset the size */
     ioret = lseek(ncbbp->datalog_fd, 8, SEEK_SET);
