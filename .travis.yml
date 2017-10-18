@@ -39,7 +39,7 @@ script:
     # - make -s distclean
 
 after_failure:
-    - cat /home/travis/build/wkliao/parallel-netcdf/cov-int/build-log.txt
+    - cat /home/travis/build/khou2020/parallel-netcdf/cov-int/build-log.txt
     - cat ./config.log
 
 notifications:
