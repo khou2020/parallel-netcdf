@@ -24,7 +24,7 @@ if ENABLE_ERANGE_FILL
 M4FLAGS += -DERANGE_FILL
 endif
 
-M4_SRCS = ncbbio_log_flush.m4
+M4_SRCS = #ncbbio_log_flush.m4
 
 H_SRCS = ncbbio_driver.h \
 		 bb.h
@@ -37,7 +37,9 @@ C_SRCS = ncbbio_attr.c \
 		 ncbbio_log.c \
 		 ncbbio_mem.c \
          ncbbio_nonblocking.c \
-		 ncbbio_util.c
+		 ncbbio_util.c \
+		 ncbbio_log_flush.c
+
 
 $(M4_SRCS:.m4=.c): Makefile
 
