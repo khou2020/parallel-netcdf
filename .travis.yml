@@ -41,7 +41,7 @@ before_install:
 script:
     # continue the above "build_command" for static library only (default)
     - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS=--silent
-    - ls -lah ../../../../src/utils/ncmpilogdump/ncmpilogdump.c
+    - ls -lah /home/travis/build/khou2020/parallel-netcdf/src/utils/ncmpilogdump
     - make -s distclean
     # build both static and shared libraries
     - ./configure --silent --enable-shared LDFLAGS="-Wl,--allow-shlib-undefined"
