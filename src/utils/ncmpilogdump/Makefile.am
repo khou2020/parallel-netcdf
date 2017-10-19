@@ -10,10 +10,13 @@ AM_CPPFLAGS  = -I$(top_srcdir)/src/include
 AM_CPPFLAGS += -I$(top_builddir)/src/include
 
 bin_PROGRAMS = ncmpilogdump
-ncmpilogdump_SOURCES = ncmpilogdump.c
+nodist_ncmpilogdump_SOURCES = ncmpilogdump.c
 ncmpilogdump_LDADD = $(top_builddir)/src/libs/libpnetcdf.la
 M4FLAGS += -I${top_srcdir}/m4
 M4_SRCS  = ncmpilogdump.m4
+SUFFIXES = .o .c .h .m4
+
+EXTRA_DIST = $(M4_SRCS)
 
 $(M4_SRCS:.m4=.c): Makefile
 
