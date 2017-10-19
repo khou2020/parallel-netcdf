@@ -13,7 +13,6 @@ addons:
             description: "PnetCDF bb_stable branch nightly build submitted via Travis CI"
         notification_email: khou2020@outlook.com
         build_command_prepend: ./configure
-        notification_email: wkliao@eecs.northwestern.edu
         build_command: make -s V=1 LIBTOOLFLAGS=--silent tests
         branch_pattern: bb
 
@@ -42,6 +41,7 @@ before_install:
 script:
     # continue the above "build_command" for static library only (default)
     - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS=--silent
+    - ls -lah ../../../../src/utils/ncmpilogdump/ncmpilogdump.c
     - make -s distclean
     # build both static and shared libraries
     - ./configure --silent --enable-shared LDFLAGS="-Wl,--allow-shlib-undefined"

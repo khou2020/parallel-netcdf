@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
     printf("Begin of entry record:\t\t\%lld\n", Header->entry_begin);
     printf("Number of entries:\t\t\t%lld\n", Header->num_entries);
     
-    printf("\nData log header:\n", Header->magic);
+    printf("\nData log header:%.8s\n", Header->magic);
     printf("Magic:\t\t\t\t\t\t%.8s\n", Data);
 
 
@@ -184,12 +184,12 @@ foreach(`vartype', (`text, uchar, schar, short, ushort, int, uint, float, double
             } 
             printf(" ], ");
         }
-        printf("%08x);\n", E->data_off);
+        printf("%08llx);\n", E->data_off);
         
         /* Corresponding content in data log */
         if (Data != NULL){
             for (i = 0; i < E->data_len; i+= 16) {
-                printf("%08x: ", E->data_off + i);
+                printf("%08llx: ", E->data_off + i);
                 for(k = 0; k < 16 && (i + k) < E->data_len; k++){
                     printf("%02x", (int)(Data[E->data_off + i + k]));
                     if(k & 1){
