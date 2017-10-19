@@ -15,7 +15,7 @@ addons:
         build_command_prepend: ./configure
         notification_email: wkliao@eecs.northwestern.edu
         build_command: make -s V=1 LIBTOOLFLAGS=--silent tests
-        branch_pattern: bb_stable
+        branch_pattern: bb
 
 before_install:
     - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
@@ -32,7 +32,7 @@ before_install:
     - autoconf --version
     - automake --version
     - libtool --version
-    - autoreconf -if
+    - autoreconf -i
 # string substitute for SVN keyword LastChangedDate
     # Below is for Redhat
     # - DateStr=`stat -f "%Sm" -t "%F %T %z (%a, %d %b %Y)" configure.ac` ; sed -e "s/LastChangedDate/LastChangedDate: $DateStr /g" -i "" configure
