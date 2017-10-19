@@ -11,10 +11,10 @@ addons:
         project:
             name: "khou2020/parallel-netcdf"
             description: "PnetCDF bb_stable branch nightly build submitted via Travis CI"
-        notification_email: khou2020@outlook.com
+        notification_email: kai-yuanhou2020@u.northwestern.edu
         build_command_prepend: ./configure
         build_command: make -s V=1 LIBTOOLFLAGS=--silent tests
-        branch_pattern: bb
+        branch_pattern: bb_stable
 
 before_install:
     - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
@@ -61,4 +61,7 @@ after_failure:
 notifications:
     email: 
         - kai-yuanhou2020@u.northwestern.edu
-
+branches:
+    only:
+        - master
+        - bb_stable
