@@ -28,3 +28,10 @@ $(top_builddir)/src/libs/libpnetcdf.la:
 
 tests-local: all
 
+check_PROGRAMS =
+
+dist-hook:
+	$(SED) -i "s/PNETCDF_RELEASE_VERSION/$(PNETCDF_VERSION)/" $(distdir)/ncmpilogdump.1
+	$(SED) -i "s/PNETCDF_RELEASE_DATE/`date '+%e %b %Y'`/"    $(distdir)/ncmpilogdump.1
+	$(SED) -i "s/PNETCDF_RELEASE_DATE2/`date '+%Y-%m-%d'`/"   $(distdir)/ncmpilogdump.1
+
