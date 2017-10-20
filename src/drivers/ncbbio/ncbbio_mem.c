@@ -86,7 +86,7 @@ char* ncbbio_log_buffer_alloc(NC_bb_buffer *bp, size_t size) {
  * IN   ep: array to be initialized
  */
 int ncbbio_log_sizearray_init(NC_bb_sizevector *sp){
-    sp->values = (size_t*)NCI_Malloc(LOG_ARRAY_SIZE * sizeof(NC_bb_metadataentry*));
+    sp->values = (size_t*)NCI_Malloc(LOG_ARRAY_SIZE * sizeof(size_t));
     if (sp->values == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -135,6 +135,64 @@ int ncbbio_log_sizearray_append(NC_bb_sizevector *sp, size_t size) {
     
     /* Add entry to tail */
     sp->values[sp->nused++] = size;
+
+    return NC_NOERR;
+}
+
+/* 
+ * Initialize vector
+ * IN   vp: vector to be initialized
+ */
+int ncbbio_log_intvector_init(NC_bb_intvector *vp){
+    vp->values = (int*)NCI_Malloc(LOG_ARRAY_SIZE * sizeof(int));
+    if (vp->values == NULL){
+        DEBUG_RETURN_ERROR(NC_ENOMEM);
+    }
+    vp->nalloc = LOG_ARRAY_SIZE;
+    vp->nused = 0;
+    return NC_NOERR;
+}
+
+/* 
+ * Free the vector
+ * IN   vp: vector to be freed
+ */
+void ncbbio_log_intvector_free(NC_bb_intvector *vp){
+    NCI_Free(vp->values);
+}
+
+/*
+ * Append entry to vector
+ * IN    vp:    vector structure
+ * IN    val:   value to be added
+ */
+int ncbbio_log_intvector_append(NC_bb_intvector *vp, int size) {
+    int *ret;
+
+    /* Expand array if needed 
+     * vp->nused is the size currently in use
+     * vp->nalloc is the size of internal buffer
+     * If the remaining size is less than the required size, we reallocate the buffer
+     */
+    if (vp->nalloc < vp->nused + 1) {
+        /* 
+         * Must make sure realloc successed before increasing vp->nalloc
+         * (new size) = (old size) * (META_BUFFER_MULTIPLIER) 
+         */
+        size_t newsize = vp->nalloc * SIZE_MULTIPLIER;
+        /* ret is used to temporaryly hold the allocated buffer so we don't lose ncbbp->metadata.buffer if allocation fails */
+        ret = (int*)NCI_Realloc(vp->values, newsize * sizeof(int));
+        /* If not enough memory */
+        if (ret == NULL) {
+            return NC_ENOMEM;
+        }
+        /* Point to the new buffer and update nalloc */
+        vp->values = ret;
+        vp->nalloc = newsize;
+    }
+    
+    /* Add entry to tail */
+    vp->values[vp->nused++] = size;
 
     return NC_NOERR;
 }

@@ -169,14 +169,57 @@ int ncbbio_handle_all_put_req(NC_bb *ncbbp){
     return NC_NOERR;
 }
 
-int ncbbio_remove_all_put_req(NC_bb *ncbbp){
+int ncbbio_cancel_put_req(NC_bb *ncbbp, int reqid, int *stat){
+    int i, err, status = NC_NOERR;
+    NC_bb_put_list *lp = &(ncbbp->putlist);
+    NC_bb_put_req *req;
+
+    // Filter invalid reqid
+    if (reqid > lp->nalloc) {
+        DEBUG_RETURN_ERROR(NC_EINVAL_REQUEST);
+    }
+
+    // Locate the req object
+    req = lp->list + reqid;
+    
+    // Filter invalid reqid
+    if (!req->valid){
+        DEBUG_RETURN_ERROR(NC_EINVAL_REQUEST);
+    }
+
+    if (req->ready){
+        if (stat != NULL) {
+            *stat = NC_EFLUSHED;
+        }
+    }
+    else{
+        if (stat != NULL){
+            *stat = NC_NOERR;
+        }
+        
+        // Cancel log entries
+        for(i = req->entrystart; i < req->entryend; i++) {
+            ncbbp->metaidx.entries[i].valid = 0;
+        }
+    }
+    
+    // Return req object to the pool
+    err = ncbbio_put_list_remove(ncbbp, reqid);
+    if (status == NC_NOERR){
+        status = err;
+    }
+
+    return status;
+}
+
+int ncbbio_cancel_all_put_req(NC_bb *ncbbp){
     int i, err, status = NC_NOERR;
     NC_bb_put_list *lp = &(ncbbp->putlist);
     
     // Search through req object list for valid objects */
     for(i = 0; i < lp->nalloc; i++){
         if (lp->list[i].valid){
-            err = ncbbio_put_list_remove(ncbbp, i);
+            err = ncbbio_cancel_put_req(ncbbp, i, NULL);
             if (status == NC_NOERR){
                 status = err;
             }

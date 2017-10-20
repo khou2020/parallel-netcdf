@@ -120,6 +120,13 @@ typedef struct NC_bb_sizevector {
     size_t *values;
 } NC_bb_sizevector;
 
+/* Vector structure */
+typedef struct NC_bb_intvector {
+    size_t nalloc;
+    size_t nused;
+    int *values;
+} NC_bb_intvector;
+
 /* Put_req structure */
 typedef struct NC_bb_put_req {
     int valid;
@@ -204,6 +211,9 @@ int ncbbio_remove_all_put_req(NC_bb *ncbbp);
 int ncbbio_metaidx_init(NC_bb *ncbbp);
 int ncbbio_metaidx_append(NC_bb *ncbbp, NC_bb_metadataentry *entry, int reqid);
 int ncbbio_metaidx_free(NC_bb *ncbbp);
+int ncbbio_log_intvector_init(NC_bb_intvector *vp);
+void ncbbio_log_intvector_free(NC_bb_intvector *vp);
+int ncbbio_log_intvector_append(NC_bb_intvector *vp, int size);
 
 extern int
 ncbbio_create(MPI_Comm comm, const char *path, int cmode, int ncid, MPI_Info info, void **ncdp);

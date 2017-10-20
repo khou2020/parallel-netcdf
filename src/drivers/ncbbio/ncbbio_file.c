@@ -416,88 +416,93 @@ ncbbio_cancel(void *ncdp,
              int  *req_ids,
              int  *statuses)
 {
-    int i, j, err, status = NC_NOERR, numreq = num_req;
-    int *ids = req_ids, *stats = statuses;
+    int i, j, err, status = NC_NOERR;
+    int nput, tmp, stat;
+    int *swaps;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    
-    /*
-     * Nonblocking put is reserved for log flush
-     * We pick negative ids for put
-     * Forward only positive ids (get oepration) to ncmpio
-     * For put operation, we always return success
-     */
-    if (req_ids != NULL && num_req > 0){
-        ids = NCI_Malloc(sizeof(int) * num_req);
-        stats = NCI_Malloc(sizeof(int) * num_req);
-        numreq = 0;
-        for (i = 0; i < num_req; i++){
-            if (req_ids[i] >= 0){
-                /* Keep only get operation */
-                ids[numreq++] = req_ids[i];
+   
+   /*
+    * Nonblocking put is reserved for log flush
+    * We pick negative ids for put
+    * Forward only positive ids (get oepration) to ncmpio
+    * Process put operation (negative id) only
+    */
+ 
+    if (num_req == NC_REQ_ALL || num_req == NC_PUT_REQ_ALL || num_req == NC_GET_REQ_ALL){
+        if (num_req == NC_REQ_ALL || num_req == NC_PUT_REQ_ALL){
+            err = ncbbio_cancel_all_put_req(ncbbp);
+            if (status == NC_NOERR){
+                status = err;
             }
-            else{
-                // Cleanup the req object without processing
-                err = ncbbio_put_list_remove(ncbbp, -(req_ids[i] + 1));
-                if (statuses != NULL){
-                    statuses[i] = err;
-                }
+        }
+        if (num_req == NC_REQ_ALL || num_req == NC_GET_REQ_ALL){
+            err = ncbbp->ncmpio_driver->cancel(ncbbp->ncp, num_req, NULL, NULL);
+            if (status == NC_NOERR){
+                status = err;
             }
         }
 
+        return status;
+    }
+        
+    swaps = (int*)NCI_Malloc(sizeof(int) * num_req);
+
+    nput = 0;
+    for(i = 0; i < num_req; i++){
+        if (req_ids[i] < 0){
+            swaps[nput] = i;
+            tmp = req_ids[i];
+            req_ids[i] = req_ids[nput];
+            req_ids[nput++] = tmp;
+        }
+    }
+    
+    if (nput > 0){
+        for(i = 0; i < nput; i++){
+            err = ncbbio_cancel_put_req(ncbbp, -(req_ids[i] + 1), &stat);
+            if (status == NC_NOERR){
+                status = err;
+            }
+            if (statuses != NULL){
+                statuses[i] = stat;
+            }
+        }
+    }
+
+    if (num_req > nput){
         /* 
          * Flush the log if there is any get operation
          * If there are ids of get in req_ids
          */
-        if (numreq > 0){
-            if (ncbbp->inited){
-                err = ncbbio_log_flush(ncbbp);
-                if (status == NC_NOERR){
-                    status = err;
-                }
-            }
-        }
-    }
-
-    /* Cleanup put req */
-    if (numreq == NC_REQ_ALL || numreq == NC_PUT_REQ_ALL) {
-        err = ncbbio_remove_all_put_req(ncbbp);
-        if (status == NC_NOERR){
-            status = err;
-        }
-    }
-
-    /* 
-     * Flush the log if there is any get operation
-     * Using REQ_ALL
-     */
-    if (numreq == NC_REQ_ALL || numreq == NC_GET_REQ_ALL){
         if (ncbbp->inited){
             err = ncbbio_log_flush(ncbbp);
             if (status == NC_NOERR){
                 status = err;
             }
         }
-        ncbbp->niget = 0;
+        err = ncbbp->ncmpio_driver->cancel(ncbbp->ncp, num_req - nput, req_ids + nput, statuses + nput);
+        if (status == NC_NOERR){
+            status = err;
+        }
+    }
+    
+    for(i = nput - 1; i > -1; i--){
+        j = swaps[i];
+        tmp = req_ids[i];
+        req_ids[i] = req_ids[j];
+        req_ids[j] = tmp;
     }
 
-    err = ncbbp->ncmpio_driver->cancel(ncbbp->ncp, numreq, ids, stats);
-    if (status == NC_NOERR){
-        status = err;
-    }
- 
-    /* Fill up the status with results from ncmpio */
-    if (ids != req_ids){
-        ncbbp->niget -= numreq;
-        if (statuses != NULL){
-            for (i = j = 0; i < num_req; i++){
-                if (req_ids[i] >= 0){
-                    statuses[i] = stats[j++];
-                }
-            }
+    if (statuses != NULL){
+        for(i = nput - 1; i > -1; i--){
+            j = swaps[i];
+            tmp = statuses[i];
+            statuses[i] = statuses[j];
+            statuses[j] = tmp;
         }
-        NCI_Free(ids);
-        NCI_Free(stats);
     }
+            
+    NCI_Free(swaps);
  
     return status;
 }
@@ -509,90 +514,93 @@ ncbbio_wait(void *ncdp,
            int  *statuses,
            int   reqMode)
 {
-    int i, j, err, status = NC_NOERR, numreq = num_reqs, stat;
-    int *ids = req_ids, *stats = statuses;
+    int i, j, err, status = NC_NOERR;
+    int nput, tmp, stat;
+    int *swaps;
     NC_bb *ncbbp = (NC_bb*)ncdp;
-    
-    /*
-     * Nonblocking put is reserved for log flush
-     * We pick negative ids for put
-     * Forward only positive ids (get oepration) to ncmpio
-     * For put operation, we always return success
-     */
-    if (req_ids != NULL && num_reqs > 0){
-        ids = NCI_Malloc(sizeof(int) * num_reqs);
-        stats = NCI_Malloc(sizeof(int) * num_reqs);
-        numreq = 0;
-        for (i = 0; i < num_reqs; i++){
-            if (req_ids[i] >= 0){
-                /* Keep only get operation */
-                ids[numreq++] = req_ids[i];
+   
+   /*
+    * Nonblocking put is reserved for log flush
+    * We pick negative ids for put
+    * Forward only positive ids (get oepration) to ncmpio
+    * Process put operation (negative id) only
+    */
+ 
+    if (num_reqs == NC_REQ_ALL || num_reqs == NC_PUT_REQ_ALL || num_reqs == NC_GET_REQ_ALL){
+        if (num_reqs == NC_REQ_ALL || num_reqs == NC_PUT_REQ_ALL){
+            err = ncbbio_handle_all_put_req(ncbbp);
+            if (status == NC_NOERR){
+                status = err;
             }
-            else{
-                err = ncbbio_handle_put_req(ncbbp, -(req_ids[i] + 1), &stat);
-                if (status == NC_NOERR){
-                    status = err;
-                }
-                if (statuses != NULL){
-                    statuses[i] = stat;
-                }
+        }
+        if (num_reqs == NC_REQ_ALL || num_reqs == NC_GET_REQ_ALL){
+            err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, num_reqs, NULL, NULL, reqMode);
+            if (status == NC_NOERR){
+                status = err;
             }
         }
 
+        return status;
+    }
+        
+    swaps = (int*)NCI_Malloc(sizeof(int) * num_reqs);
+
+    nput = 0;
+    for(i = 0; i < num_reqs; i++){
+        if (req_ids[i] < 0){
+            swaps[nput] = i;
+            tmp = req_ids[i];
+            req_ids[i] = req_ids[nput];
+            req_ids[nput++] = tmp;
+        }
+    }
+    
+    if (nput > 0){
+        for(i = 0; i < nput; i++){
+            err = ncbbio_handle_put_req(ncbbp, -(req_ids[i] + 1), &stat);
+            if (status == NC_NOERR){
+                status = err;
+            }
+            if (statuses != NULL){
+                statuses[i] = stat;
+            }
+        }
+    }
+
+    if (num_reqs > nput){
         /* 
          * Flush the log if there is any get operation
          * If there are ids of get in req_ids
          */
-        if (numreq > 0){
-            if (ncbbp->inited){
-                err = ncbbio_log_flush(ncbbp);
-                if (status == NC_NOERR){
-                    status = err;
-                }
-            }
-        }
-    }
-
-    /* Process put req */
-    if (numreq == NC_REQ_ALL || numreq == NC_PUT_REQ_ALL) {
-        err = ncbbio_handle_all_put_req(ncbbp);
-        if (status == NC_NOERR){
-            status = err;
-        }
-    }
-
-    /* 
-     * Flush the log if there is any get operation
-     * Using REQ_ALL
-     */
-    if (numreq == NC_REQ_ALL || numreq == NC_GET_REQ_ALL){
         if (ncbbp->inited){
             err = ncbbio_log_flush(ncbbp);
             if (status == NC_NOERR){
                 status = err;
             }
         }
-        ncbbp->niget = 0;
+        err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, num_reqs - nput, req_ids + nput, statuses + nput, reqMode);
+        if (status == NC_NOERR){
+            status = err;
+        }
+    }
+    
+    for(i = nput - 1; i > -1; i--){
+        j = swaps[i];
+        tmp = req_ids[i];
+        req_ids[i] = req_ids[j];
+        req_ids[j] = tmp;
     }
 
-    err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, numreq, ids, stats, reqMode);
-    if (status == NC_NOERR){
-        status = err;
-    }
- 
-    /* Fill up the status with results from ncmpio */
-    if (ids != req_ids){
-        ncbbp->niget -= numreq;
-        if (statuses != NULL){
-            for (i = j = 0; i < num_reqs; i++){
-                if (req_ids[i] >= 0){
-                    statuses[i] = stats[j++];
-                }
-            }
+    if (statuses != NULL){
+        for(i = nput - 1; i > -1; i--){
+            j = swaps[i];
+            tmp = statuses[i];
+            statuses[i] = statuses[j];
+            statuses[j] = tmp;
         }
-        NCI_Free(ids);
-        NCI_Free(stats);
     }
+            
+    NCI_Free(swaps);
  
     return status;
 }

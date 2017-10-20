@@ -601,6 +601,7 @@ by the desired type. */
 #define NC_ENODATALOG           (-303) /**< Data log does not exist */
 #define NC_ELOGNOTINIT           (-304) /**< Log file hasn't initialized */
 #define NC_ELOGCHECK           (-305) /**< Log file check fail */
+#define NC_EFLUSHED           (-306) /**< Log file check fail */
 
 #define NC_EMULTIDEFINE_FIRST		NC_EMULTIDEFINE
 #define NC_EMULTIDEFINE_LAST		NC_EMULTIDEFINE_CMODE
