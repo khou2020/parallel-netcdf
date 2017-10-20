@@ -574,7 +574,8 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     /* Record data size */
     ncbbio_log_sizearray_append(&(ncbbp->entrydatasize), entryp->data_len);
     // Record in index
-    ncbbio_metaidx_add(ncbbp, entryp);
+    // Entry address must be relative as metadata buffer can be reallocated
+    ncbbio_metaidx_add(ncbbp, entryp - ncbbp->metadata.buffer);
     
     t4 = MPI_Wtime();
     ncbbp->log_total_time += t4 - t1;
