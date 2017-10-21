@@ -144,6 +144,19 @@ typedef struct NC_bb_put_list {
     int nused;
 } NC_bb_put_list;
 
+/* File structure */
+typedef struct NC_bb_file {
+    /*
+    MPI_File fd;
+    MPI_Offset pos;
+    */
+    int fd;
+    size_t pos;
+    char *buf;
+    size_t bused;
+    size_t bsize;
+} NC_bb_file;
+
 /* Log structure */
 typedef struct NC_bb {
     char metalogpath[PATH_MAX];    /* path of metadata log */    
@@ -151,8 +164,8 @@ typedef struct NC_bb {
     char logbase[PATH_MAX];        /* path of log files */
     int rank;
     int np;
-    int metalog_fd;    /* file handle of metadata log */
-    int datalog_fd;    /* file handle of data log */
+    NC_bb_file *metalog_fd;    /* file handle of metadata log */
+    NC_bb_file *datalog_fd;    /* file handle of data log */
     int recdimid;
     int inited;
     int hints;
@@ -214,6 +227,13 @@ int ncbbio_metaidx_free(NC_bb *ncbbp);
 int ncbbio_log_intvector_init(NC_bb_intvector *vp);
 void ncbbio_log_intvector_free(NC_bb_intvector *vp);
 int ncbbio_log_intvector_append(NC_bb_intvector *vp, int size);
+int ncbbio_file_open(char *path, int flag, NC_bb_file **fd);
+int ncbbio_file_close(NC_bb_file *f);
+int ncbbio_file_flush(NC_bb_file *f);
+int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count);
+int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count);
+int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence); 
+
 
 extern int
 ncbbio_create(MPI_Comm comm, const char *path, int cmode, int ncid, MPI_Info info, void **ncdp);

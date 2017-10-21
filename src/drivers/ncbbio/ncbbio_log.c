@@ -48,7 +48,7 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         DEBUG_RETURN_ERROR(err);
     }
     // TODO: Add buffersize hints
-    ncbbp->logflushbuffersize = 0;
+    ncbbp->flushbuffersize = 0;
    
     /* Initialize log structure */
     
@@ -110,8 +110,8 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     }
 
     /* Set log file descriptor to NULL */
-    ncbbp->datalog_fd = -1;
-    ncbbp->metalog_fd = -1;
+    //ncbbp->datalog_fd = -1;
+    //ncbbp->metalog_fd = -1;
 
     /* Performance counters */
     ncbbp->total_data = 0;
@@ -164,22 +164,24 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (!(ncbbp->hints & NC_LOG_HINT_LOG_OVERWRITE)) {
         flag |= O_EXCL;
     }
-    ncbbp->datalog_fd = ncbbp->metalog_fd = -1;
-    ncbbp->metalog_fd = open(ncbbp->metalogpath, flag, 0744);
-    if (ncbbp->metalog_fd < 0) {
-        err = ncmpii_error_posix2nc("open"); 
-        DEBUG_RETURN_ERROR(err); 
+    //ncbbp->datalog_fd = ncbbp->metalog_fd = -1;
+    err = ncbbio_file_open(ncbbp->metalogpath, flag, &ncbbp->metalog_fd);
+    if (err != NC_NOERR) {
+        return err;
     }
-    ncbbp->datalog_fd = open(ncbbp->datalogpath, flag, 0744);
-    if (ncbbp->datalog_fd < 0) {
-        err = ncmpii_error_posix2nc("open"); 
-        DEBUG_RETURN_ERROR(err); 
+    err = ncbbio_file_open(ncbbp->datalogpath, flag, &ncbbp->datalog_fd);
+    if (err != NC_NOERR) {
+        return err;
     }
    
     /* Write metadata header to file
      * Write from the memory buffer to file
      */
-    ioret = write(ncbbp->metalog_fd, headerp, headersize);
+    err = ncbbio_file_write(ncbbp->metalog_fd, headerp, headersize);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
@@ -188,11 +190,16 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (ioret != headersize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
+    */
 
     /* Write data header to file 
      * Data header consists of a fixed sized string PnetCDF0
      */
-    ioret = write(ncbbp->datalog_fd, "PnetCDF0", 8);
+    err = ncbbio_file_write(ncbbp->datalog_fd, "PnetCDF0", 8);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){ 
         err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
@@ -201,6 +208,8 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (ioret != 8){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
+    */
+
     ncbbp->datalogsize = 8;
    
 ERROR:;
@@ -236,14 +245,23 @@ int ncbbio_log_enddef(NC_bb *ncbbp){
         /* Seek to the location of maxndims 
          * Note: location need to be updated when struct change
          */
-        ioret = lseek(ncbbp->metalog_fd, sizeof(NC_bb_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries) - sizeof(headerp->max_ndims), SEEK_SET);
+        err = ncbbio_file_seek(ncbbp->metalog_fd, sizeof(NC_bb_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries) - sizeof(headerp->max_ndims), SEEK_SET);
+        if (err != NC_NOERR){
+            return err;
+        }
+        /*
         if (ioret < 0){
             DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
         }
+        */
         /* Overwrite maxndims
          * This marks the completion of the record
          */
-        ioret = write(ncbbp->metalog_fd, &headerp->max_ndims, SIZEOF_MPI_OFFSET);
+        err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->max_ndims, SIZEOF_MPI_OFFSET);
+        if (err != NC_NOERR){
+            return err;
+        }
+        /*
         if (ioret < 0){
             err = ncmpii_error_posix2nc("write");
             if (err == NC_EFILE){
@@ -256,6 +274,7 @@ int ncbbio_log_enddef(NC_bb *ncbbp){
             
             DEBUG_RETURN_ERROR(NC_EWRITE);
         }
+        */
     }
     
     t2 = MPI_Wtime();
@@ -292,8 +311,8 @@ int ncbbio_log_close(NC_bb *ncbbp) {
         }
 
         /* Close log file */
-        err = close(ncbbp->metalog_fd);
-        err |= close(ncbbp->datalog_fd);
+        err = ncbbio_file_close(ncbbp->metalog_fd);
+        err |= ncbbio_file_close(ncbbp->datalog_fd);
         if (err < 0){
             DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("close"));        
         }
@@ -328,7 +347,7 @@ int ncbbio_log_close(NC_bb *ncbbp) {
         printf("File: %s\n", ncbbp->path);
         printf("Data writen to variable: %llu\n", total_data);
         printf("Metadata generated: %llu\n", total_meta);
-        printf("Flush buffer size: %llu\n", ncbbp->logflushbuffersize);
+        printf("Flush buffer size: %llu\n", ncbbp->flushbuffersize);
         printf("Time in log: %lf\n", total_time);
         printf("\tTime recording entries: %lf\n", log_total_time);
         printf("\t\tTime writing to BB: %lf\n", log_write_time);
@@ -505,7 +524,12 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
      * Write data log
      * We only increase datalogsize by amount actually write
      */
-    ioret = write(ncbbp->datalog_fd, buf, size);
+    err = ncbbio_file_write(ncbbp->datalog_fd, buf, size);
+    if (err != NC_NOERR){
+        return err;
+    }
+    ncbbp->datalogsize += size;
+    /*
     if (ioret < 0){
         err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
@@ -513,22 +537,31 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
         }
         DEBUG_RETURN_ERROR(err);
     }
-    ncbbp->datalogsize += ioret;
     if (ioret != size){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
-       
+    */
+
     /* Seek to the head of metadata
      * Note: EOF may not be the place for next entry after a flush
      * Note: metadata size will be updated after allocating metadata buffer space, substract esize for original location 
      */
-    ioret = lseek(ncbbp->metalog_fd, ncbbp->metadata.nused - esize, SEEK_SET);   
+    err = ncbbio_file_seek(ncbbp->metalog_fd, ncbbp->metadata.nused - esize, SEEK_SET);   
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
     }
+    */
     
     /* Write meta data log */
-    ioret = write(ncbbp->metalog_fd, buffer, esize);
+    err = ncbbio_file_write(ncbbp->metalog_fd, buffer, esize);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
@@ -539,6 +572,7 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     if (ioret != esize){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
+    */
     t3 = MPI_Wtime();
 
     /* Increase number of entry
@@ -552,14 +586,23 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
-    ioret = lseek(ncbbp->metalog_fd, 56, SEEK_SET);
+    err = ncbbio_file_seek(ncbbp->metalog_fd, 56, SEEK_SET);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
     }
+    */
     /* Overwrite num_entries
      * This marks the completion of the record
      */
-    ioret = write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
+    err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
@@ -570,6 +613,7 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const 
     if (ioret != SIZEOF_MPI_OFFSET){
         DEBUG_RETURN_ERROR(NC_EWRITE);
     }
+    */
 
     /* Record data size */
     ncbbio_log_sizearray_append(&(ncbbp->entrydatasize), entryp->data_len);
@@ -629,17 +673,26 @@ int ncbbio_log_flush(NC_bb* ncbbp) {
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
-    ioret = lseek(ncbbp->metalog_fd, 56, SEEK_SET);
+    err = ncbbio_file_seek(ncbbp->metalog_fd, 56, SEEK_SET);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         err = ncmpii_error_posix2nc("lseek");
         if (status == NC_NOERR){
             DEBUG_ASSIGN_ERROR(status, err);
         }
     }
+    */
     /* Overwrite num_entries
      * This marks the completion of flush
      */
-    ioret = write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
+    err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         err = ncmpii_error_posix2nc("write");
         if (err == NC_EFILE){
@@ -654,6 +707,7 @@ int ncbbio_log_flush(NC_bb* ncbbp) {
             DEBUG_ASSIGN_ERROR(status, err);
         }
     }
+    */
 
     /* Reset metadata buffer and entry array status */
     ncbbp->metadata.nused = headerp->entry_begin;
@@ -661,13 +715,18 @@ int ncbbio_log_flush(NC_bb* ncbbp) {
     ncbbp->metaidx.nused = 0;
 
     /* Rewind data log file descriptors and reset the size */
-    ioret = lseek(ncbbp->datalog_fd, 8, SEEK_SET);
+    err = ncbbio_file_seek(ncbbp->datalog_fd, 8, SEEK_SET);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret != 8){
         err = ncmpii_error_posix2nc("lseek");
         if (status == NC_NOERR){
             DEBUG_ASSIGN_ERROR(status, err);
         }
     }
+    */
     ncbbp->datalogsize = 8;
    
     t2 = MPI_Wtime();

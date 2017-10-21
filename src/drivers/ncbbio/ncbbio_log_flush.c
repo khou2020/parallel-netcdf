@@ -43,7 +43,11 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
         t1 = MPI_Wtime();
 
         /* Read buffer into memory */
-        ioret = read(ncbbp->datalog_fd, buffer, datalen); 
+        err = ncbbio_file_read(ncbbp->datalog_fd, buffer, datalen); 
+        if (err != NC_NOERR){
+            return err;
+        }
+        /*
         if (ioret < 0) {
             ioret = ncmpii_error_posix2nc("read");
             if (ioret == NC_EFILE){
@@ -54,6 +58,7 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
         if (ioret != datalen){
             DEBUG_RETURN_ERROR(NC_EBADLOG);
         }
+        */
         
         t2 = MPI_Wtime();
         ncbbp->flush_read_time += t2 - t1;
@@ -202,8 +207,8 @@ int log_flush(NC_bb *ncbbp) {
      * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
      */
     databuffersize = ncbbp->datalogsize;
-    if (ncbbp->logflushbuffersize > 0 && databuffersize > ncbbp->logflushbuffersize){
-        databuffersize = ncbbp->logflushbuffersize;
+    if (ncbbp->flushbuffersize > 0 && databuffersize > ncbbp->flushbuffersize){
+        databuffersize = ncbbp->flushbuffersize;
     }
     /* Allocate buffer */
     databuffer = (char*)NCI_Malloc(databuffersize);
@@ -212,10 +217,15 @@ int log_flush(NC_bb *ncbbp) {
     }
 
     /* Seek to the start position of first data record */
-    ioret = lseek(ncbbp->datalog_fd, 8, SEEK_SET);
+    err = ncbbio_file_seek(ncbbp->datalog_fd, 8, SEEK_SET);
+    if (err != NC_NOERR){
+        return err;
+    }
+    /*
     if (ioret < 0){
         DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
     }
+    */
     /* Initialize buffer status */
     databufferused = 0;
     dataread = 0;
@@ -246,7 +256,11 @@ int log_flush(NC_bb *ncbbp) {
                  * We read only what needed by pending requests
                  */
                 if (dataread < databufferused){   
-                    ioret = read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
+                    err = ncbbio_file_read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
+                    if (err != NC_NOERR){
+                        return err;
+                    }
+                    /*
                     if (ioret < 0) {
                         ioret = ncmpii_error_posix2nc("read");
                         if (ioret == NC_EFILE){
@@ -257,11 +271,15 @@ int log_flush(NC_bb *ncbbp) {
                     if (ioret != databufferused - dataread){
                         DEBUG_RETURN_ERROR(NC_EBADLOG);
                     }
+                    */
                     dataread = databufferused;
                 }
 
                 // Skip canceled entry
-                lseek(ncbbp->datalog_fd, ncbbp->entrydatasize.values[ub], SEEK_CUR);
+                err = ncbbio_file_seek(ncbbp->datalog_fd, ncbbp->entrydatasize.values[ub], SEEK_CUR);
+                if (err != NC_NOERR){
+                    return err;
+                }
             }
         }
 
@@ -270,7 +288,11 @@ int log_flush(NC_bb *ncbbp) {
          * We read only what needed by pending requests
          */
         if (dataread < databufferused){   
-            ioret = read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
+            err = ncbbio_file_read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
+            if (err != NC_NOERR){
+                return err;
+            }
+            /*
             if (ioret < 0) {
                 ioret = ncmpii_error_posix2nc("read");
                 if (ioret == NC_EFILE){
@@ -281,6 +303,7 @@ int log_flush(NC_bb *ncbbp) {
             if (ioret != databufferused - dataread){
                 DEBUG_RETURN_ERROR(NC_EBADLOG);
             }
+            */
             dataread = databufferused;
         }
 
