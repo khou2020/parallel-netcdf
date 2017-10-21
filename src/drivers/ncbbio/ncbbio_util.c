@@ -41,4 +41,16 @@ void ncbbio_extract_hint(NC_bb *ncbbp, MPI_Info info){
     if (flag && strcasecmp(value, "disable") == 0){
         ncbbp->hints ^= NC_LOG_HINT_DEL_ON_CLOSE;
     }
+    MPI_Info_get(info, "nc_bb_flush_buffer_size", MPI_MAX_INFO_VAL - 1,
+                 value, &flag);
+    if (flag){
+        long int bsize = strtol(value, NULL, 0);
+        if (bsize < 0) {
+            bsize = 0;
+        }
+        ncbbp->flushbuffersize = (size_t)bsize; // Unit: byte 
+    }
+    else{
+        ncbbp->flushbuffersize = 0; // <= 0 means unlimited}
+    }
 }

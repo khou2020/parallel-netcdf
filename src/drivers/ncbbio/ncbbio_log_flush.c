@@ -339,7 +339,8 @@ int log_flush(NC_bb *ncbbp) {
 
             // Pointer points to the data of current entry
             databufferoff = databuffer;
-
+            
+            j = 0;
             for(i = lb; i < ub; i++){
                 ip = ncbbp->metaidx.entries + i;
 
@@ -363,7 +364,7 @@ int log_flush(NC_bb *ncbbp) {
                     t2 = MPI_Wtime();
                     
                     /* Replay event with non-blocking call */
-                    err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databufferoff), -1, buftype, reqids + i - lb, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
+                    err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databufferoff), -1, buftype, reqids + j, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
                     if (status == NC_NOERR) {
                         status = err;
                     }
@@ -373,6 +374,7 @@ int log_flush(NC_bb *ncbbp) {
 
                     // Move to next data location
                     databufferoff += entryp->data_len;
+                    j++;
                 }
      
                 /* Move to next position */

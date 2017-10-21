@@ -170,7 +170,7 @@ typedef struct NC_bb {
     MPI_Offset total_data;
     MPI_Offset total_meta;
     MPI_Offset recdimsize;
-    MPI_Offset logflushbuffersize;
+    MPI_Offset flushbuffersize;
     double flush_read_time;
     double flush_replay_time;
     double flush_total_time;
