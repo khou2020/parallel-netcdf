@@ -109,6 +109,7 @@ AH_TEMPLATE([NO_IEEE_FLOAT],            [Does system have IEEE FLOAT])
 AH_TEMPLATE([DISABLE_FILE_SYNC],        [Define if to disable MPI_File_sync])
 AH_TEMPLATE([DISABLE_IN_PLACE_SWAP],    [Define if to disable in-place byte swap])
 AH_TEMPLATE([ENABLE_SUBFILING],         [Define if to enable subfiling feature])
+AH_TEMPLATE([NC_BB_SHARED_LOG],         [Define if to enable bb driver shared log file feature])
 AH_TEMPLATE([PNC_MALLOC_TRACE],         [Define if to enable malloc tracing])
 AH_TEMPLATE([HAVE_FUNC_MACRO],          [Define if C++ macro __func__ is defined])
 AH_TEMPLATE([HAVE_FUNCTION_MACRO],      [Define if C++ macro __FUNCTION__ is defined])
@@ -927,6 +928,21 @@ if test "x${debug}" = xyes; then
 fi
 AC_SUBST(PNETCDF_DEBUG)
 AM_CONDITIONAL(PNETCDF_DEBUG, [test x"$PNETCDF_DEBUG" = x1])
+
+AC_ARG_ENABLE([sharedlog],
+    [AS_HELP_STRING([--enable-sharedlog],
+                    [Enable bb driver shared log file.
+                     @<:@default: disabled@:>@])],
+    [sharedlog=yes], [sharedlog=no]
+)
+
+NC_BB_SHARED_LOG=0
+if test "x${sharedlog}" = xyes; then
+   AC_DEFINE(NC_BB_SHARED_LOG)
+   NC_BB_SHARED_LOG=1
+fi
+AC_SUBST(NC_BB_SHARED_LOG)
+AM_CONDITIONAL(NC_BB_SHARED_LOG, [test x"$NC_BB_SHARED_LOG" = x1])
 
 dnl check the size of MPI_Offset. PnetCDF requires it be 8 bytes.
 AC_CHECK_TYPE([MPI_Offset], [], [], [#include <mpi.h>])

@@ -25,7 +25,7 @@
  * INOUT   ncbbp:   NC_bb object holding the log structure 
  */
 int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
-    int i, rank, np, err, flag;
+    int i, rank, np, err, flag, masterrank;
     char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX];
     char hint[NC_LOG_PATH_MAX], value[MPI_MAX_INFO_VAL];
     char *abspath, *fname;
@@ -47,6 +47,12 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         err = ncmpii_error_mpi2nc(err, "MPI_Comm_rank");
         DEBUG_RETURN_ERROR(err);
     }
+    masterrank = rank;
+#ifdef NC_BB_SHARED_LOG
+    MPI_Comm_split_type(ncbbp->comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &(ncbbp->nodecomm));
+    MPI_Bcast(&masterrank, 1, MPI_INT, 0, ncbbp->nodecomm); 
+#endif
+    
     // TODO: Add buffersize hints
     ncbbp->flushbuffersize = 0;
    
@@ -94,8 +100,8 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
      * We need to create them before we can search for usable id
      * As log file name hasn't been determined, we need to use a dummy one here
      */
-    sprintf(ncbbp->metalogpath, "%s%s_%d_%d.meta", logbase, fname, ncbbp->ncid, rank);
-    sprintf(ncbbp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncbbp->ncid, rank);
+    sprintf(ncbbp->metalogpath, "%s%s_%d_%d.meta", logbase, fname, ncbbp->ncid, masterrank);
+    sprintf(ncbbp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncbbp->ncid, masterrank);
      
     /* Initialize metadata buffer */
     err = ncbbio_log_buffer_init(&(ncbbp->metadata));
@@ -165,11 +171,11 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         flag |= O_EXCL;
     }
     //ncbbp->datalog_fd = ncbbp->metalog_fd = -1;
-    err = ncbbio_file_open(ncbbp->metalogpath, flag, &ncbbp->metalog_fd);
+    err = ncbbio_file_open(ncbbp->nodecomm, ncbbp->metalogpath, flag, &ncbbp->metalog_fd);
     if (err != NC_NOERR) {
         return err;
     }
-    err = ncbbio_file_open(ncbbp->datalogpath, flag, &ncbbp->datalog_fd);
+    err = ncbbio_file_open(ncbbp->nodecomm, ncbbp->datalogpath, flag, &ncbbp->datalog_fd);
     if (err != NC_NOERR) {
         return err;
     }

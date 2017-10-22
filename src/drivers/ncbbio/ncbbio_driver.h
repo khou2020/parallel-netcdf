@@ -146,12 +146,13 @@ typedef struct NC_bb_put_list {
 
 /* File structure */
 typedef struct NC_bb_file {
-    /*
+#ifdef NC_BB_SHARED_LOG
     MPI_File fd;
     MPI_Offset pos;
-    */
+#else
     int fd;
     size_t pos;
+#endif
     char *buf;
     size_t bused;
     size_t bsize;
@@ -196,6 +197,9 @@ typedef struct NC_bb {
     int                ncid;
     char              *path;        /* path name */
     MPI_Comm           comm;        /* MPI communicator */
+#ifdef NC_BB_SHARED_LOG
+    MPI_Comm           nodecomm;        /* MPI communicator */
+#endif
     MPI_Info           info;
     void              *ncp;         /* pointer to driver's internal object */
     struct PNC_driver *ncmpio_driver;
@@ -227,7 +231,7 @@ int ncbbio_metaidx_free(NC_bb *ncbbp);
 int ncbbio_log_intvector_init(NC_bb_intvector *vp);
 void ncbbio_log_intvector_free(NC_bb_intvector *vp);
 int ncbbio_log_intvector_append(NC_bb_intvector *vp, int size);
-int ncbbio_file_open(char *path, int flag, NC_bb_file **fd);
+int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd);
 int ncbbio_file_close(NC_bb_file *f);
 int ncbbio_file_flush(NC_bb_file *f);
 int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count);

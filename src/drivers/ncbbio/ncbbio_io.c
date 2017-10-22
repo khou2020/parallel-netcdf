@@ -16,24 +16,35 @@
 #include <fcntl.h>
 
 #define BUFSIZE 8388608
+#define BLOCKSIZE 8388608
 
-int ncbbio_file_open(char *path, int flag, NC_bb_file **fd) {
+int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
+    int err;
+    char estr[1024];
+    int elen;
+#ifdef NC_BB_SHARED_LOG
+    int rank, np;
+    MPI_Datatype ftype;
+    MPI_Datatype btype;
+#endif    
     NC_bb_file *f;
-
-/*
- * if (ncbbp->datalog_fd < 0) {
- *          err = ncmpii_error_posix2nc("open");
- *          DEBUG_RETURN_ERROR(err);
- *     }
- * */
 
     f = (NC_bb_file*)NCI_Malloc(sizeof(NC_bb_file));
     f->buf = NCI_Malloc(BUFSIZE);
     f->bsize = BUFSIZE;
     f->pos = 0;
     f->bused = 0;
-#ifdef NC_SHARED_LOG
-    MPI_File_open(MPI_COMM_SELF, path, MPI_MODE_RDWR, MPI_INFO_NULL, &f->fd);
+#ifdef NC_BB_SHARED_LOG
+    //MPI_Comm_split_type(MPI_COMM_WORLD,i MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &(f->comm));
+    MPI_Comm_rank(comm, &rank);
+    MPI_Comm_size(comm, &np);
+    err = MPI_File_open(comm, path, MPI_MODE_RDWR | MPI_MODE_CREATE, MPI_INFO_NULL, &(f->fd));
+    MPI_Error_string(err, estr, &elen);
+    MPI_Type_contiguous(BLOCKSIZE, MPI_BYTE, &btype);
+    MPI_Type_commit(&btype);
+    MPI_Type_create_resized(btype, 0, BLOCKSIZE * np, &ftype);
+    MPI_Type_commit(&ftype);
+    MPI_File_set_view(f->fd, BLOCKSIZE * rank, MPI_BYTE, ftype, "native", MPI_INFO_NULL);
 #else
     f->fd = open(path, flag, 0744);
 #endif
@@ -44,7 +55,8 @@ int ncbbio_file_open(char *path, int flag, NC_bb_file **fd) {
 int ncbbio_file_close(NC_bb_file *f) {
 
     NCI_Free(f->buf);
-#ifdef NC_SHARED_LOG
+#ifdef NC_BB_SHARED_LOG
+    MPI_File_close(&(f->fd));
 #else
     close(f->fd);
 #endif
@@ -53,8 +65,11 @@ int ncbbio_file_close(NC_bb_file *f) {
 }
 
 int ncbbio_file_flush(NC_bb_file *f){
+    
     if (f->bused > 0){
-#ifdef NC_SHARED_LOG
+#ifdef NC_BB_SHARED_LOG
+        MPI_Status stat;
+        MPI_File_write(f->fd, f->buf, f->bused, MPI_BYTE, &stat);
 #else
         write(f->fd, f->buf, f->bused);
 #endif
@@ -63,7 +78,11 @@ int ncbbio_file_flush(NC_bb_file *f){
 }
 
 int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count) {
-#ifdef NC_SHARED_LOG
+    int err;
+#ifdef NC_BB_SHARED_LOG
+    MPI_Status stat;       
+    err = MPI_File_read(f->fd, buf, count, MPI_BYTE, &stat);
+    
 #else
     read(f->fd, buf, count);
 #endif
@@ -100,7 +119,12 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
     }
     
     if (aend > astart) {
+#ifdef NC_BB_SHARED_LOG
+        MPI_Status stat;       
+        MPI_File_write(f->fd, buf + astart, aend - astart, MPI_BYTE, &stat);
+#else
         write(f->fd, buf + astart, aend - astart); 
+#endif
     }
 
     if (count > aend){
@@ -115,20 +139,28 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
 
 int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
     ncbbio_file_flush(f);
-#ifdef NC_SHARED_LOG
+#ifdef NC_BB_SHARED_LOG
+    int mpiwhence;
+    if (whence == SEEK_SET){ 
+        mpiwhence = MPI_SEEK_SET;
+    }
+    else if (whence == SEEK_CUR){
+        mpiwhence = MPI_SEEK_CUR;
+    }
+    else{
+    }
+    MPI_File_seek(f->fd, off, mpiwhence);
 #else
     lseek(f->fd, off, whence);
 #endif
-    if (whence = SEEK_SET){ 
+    if (whence == SEEK_SET){ 
         f->pos = off;
     }
-    else if (whence = SEEK_CUR){
+    else if (whence == SEEK_CUR){
         f->pos += off;
     }
-    else if (whence = SEEK_END){
-        f->pos = lseek(f->fd, 0, SEEK_CUR);
-    }
     else{
+        printf("ERROR\n");
     }
     return NC_NOERR;
 }
