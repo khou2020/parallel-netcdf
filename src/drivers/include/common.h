@@ -127,6 +127,12 @@ ncmpii_update_bb_counter();
 
 #endif
 
+extern void 
+ncmpii_update_bb_counter(double total_time, double create_time, double enddef_time, double put_time, double flush_time, double close_time,
+    double flush_replay_time, double flush_data_rd_time, double flush_put_time, double flush_wait_time,
+    double put_data_wr_time, double put_meta_wr_time, double put_num_wr_time,
+    MPI_Offset total_data, MPI_Offset total_meta, MPI_Offset max_buffer);
+
 extern int
 ncmpii_need_convert(int format, nc_type xtype, MPI_Datatype mpitype);
 
