@@ -197,9 +197,7 @@ typedef struct NC_bb {
     int                ncid;
     char              *path;        /* path name */
     MPI_Comm           comm;        /* MPI communicator */
-#ifdef NC_BB_SHARED_LOG
     MPI_Comm           nodecomm;        /* MPI communicator */
-#endif
     MPI_Info           info;
     void              *ncp;         /* pointer to driver's internal object */
     struct PNC_driver *ncmpio_driver;
