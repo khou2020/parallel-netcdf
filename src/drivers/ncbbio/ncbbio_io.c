@@ -20,10 +20,9 @@
 
 int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
     int err;
-    char estr[1024];
-    int elen;
 #ifdef NC_BB_SHARED_LOG
     int rank, np;
+    int amode = 0;
     MPI_Datatype ftype;
     MPI_Datatype btype;
 #endif    
@@ -35,10 +34,18 @@ int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
     f->pos = 0;
     f->bused = 0;
 #ifdef NC_BB_SHARED_LOG
-    //MPI_Comm_split_type(MPI_COMM_WORLD,i MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &(f->comm));
+    if (flag & O_RDWR) {
+        amode |= MPI_MODE_RDWR;
+    }
+    if (flag & O_CREAT) {
+        amode |= MPI_MODE_CREATE;
+    }
+    if (flag & O_EXCL) {
+        amode |= MPI_MODE_EXCL;
+    }
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &np);
-    err = MPI_File_open(comm, path, MPI_MODE_RDWR | MPI_MODE_CREATE, MPI_INFO_NULL, &(f->fd));
+    err = MPI_File_open(comm, path, amode, MPI_INFO_NULL, &(f->fd));
     MPI_Error_string(err, estr, &elen);
     MPI_Type_contiguous(BLOCKSIZE, MPI_BYTE, &btype);
     MPI_Type_commit(&btype);
