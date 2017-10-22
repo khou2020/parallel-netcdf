@@ -88,18 +88,26 @@ ncmpiio_new(const char *path, int ioflags)
 
 /*----< ncmpiio_extract_hints() >--------------------------------------------*/
 /* this is where the I/O hints designated to pnetcdf are extracted */
-static
+//static
 void ncmpiio_extract_hints(ncio     *nciop,
                            MPI_Info  info)
 {
     char value[MPI_MAX_INFO_VAL];
     int  flag;
+    long int bsize;
 
     /* value 0 indicates the hint is not set */
     nciop->hints.h_align                = 0;
     nciop->hints.v_align                = 0;
     nciop->hints.r_align                = 0;
     nciop->hints.header_read_chunk_size = 0;
+    nciop->hints.log_enable = 0;
+    strncpy(nciop->hints.log_base, ".", PATH_MAX);   
+    nciop->hints.log_del_on_close = 1;
+    nciop->hints.log_flush_on_wait = 0;
+    nciop->hints.log_flush_on_sync = 0;
+    nciop->hints.log_flush_on_read = 1;
+    nciop->hints.log_flush_buffer_size = 0;
 #ifdef ENABLE_SUBFILING
     nciop->hints.subfile_mode           = 1;
     nciop->hints.num_subfiles           = 0;
@@ -138,6 +146,45 @@ void ncmpiio_extract_hints(ncio     *nciop,
         errno = 0;
         nciop->hints.header_read_chunk_size = strtoll(value,NULL,10);
         if (errno != 0) nciop->hints.header_read_chunk_size = 0;
+    }
+
+    MPI_Info_get(info, "pnetcdf_log", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "1") == 0)
+        nciop->hints.log_enable = 1;
+
+    MPI_Info_get(info, "pnetcdf_log_base", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag) strncpy(nciop->hints.log_base, value, PATH_MAX);    
+
+    MPI_Info_get(info, "pnetcdf_log_del_on_close", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "0") == 0)
+        nciop->hints.log_del_on_close = 0;
+
+    MPI_Info_get(info, "pnetcdf_log_flush_on_wait", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "1") == 0)
+        nciop->hints.log_flush_on_wait = 1;
+
+    MPI_Info_get(info, "pnetcdf_log_flush_on_sync", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "1") == 0)
+        nciop->hints.log_flush_on_sync = 1;
+
+    MPI_Info_get(info, "pnetcdf_log_flush_on_read", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "0") == 0)
+        nciop->hints.log_flush_on_read = 0;
+
+    MPI_Info_get(info, "pnetcdf_log_flush_buffer_size", MPI_MAX_INFO_VAL-1,
+                 value, &flag);
+    if (flag && strcasecmp(value, "0") == 0){
+        bsize = strtol(value, NULL, 0);
+        if (bsize < 0) {
+            bsize = 0;
+        }
+        nciop->hints.log_flush_buffer_size = (size_t)bsize; /* Unit: byte */
     }
 
 #ifdef ENABLE_SUBFILING

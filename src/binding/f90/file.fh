@@ -218,6 +218,46 @@ function nf90mpi_inq_put_size(ncid, put_size)
 end function nf90mpi_inq_put_size
 
 ! -------
+function nf90mpi_inq_bb_time(ttotal, tcreate, tenddef, tput, tflush, tclose)
+  DOUBLE PRECISION ,                intent(out) :: ttotal
+  DOUBLE PRECISION ,                intent(out) :: tcreate
+  DOUBLE PRECISION ,                intent(out) :: tenddef
+  DOUBLE PRECISION ,                intent(out) :: tput
+  DOUBLE PRECISION ,                intent(out) :: tflush
+  DOUBLE PRECISION ,                intent(out) :: tclose
+  integer                                       :: nf90mpi_inq_bb_time
+  nf90mpi_inq_bb_time = nfmpi_inq_bb_time(ttotal, tcreate, tenddef, tput, tflush, tclose)
+end function nf90mpi_inq_bb_time
+
+! -------
+function nf90mpi_inq_bb_time_put(put_data_wr_time, put_meta_wr_time, put_num_wr_time)
+  DOUBLE PRECISION ,                intent(out) :: put_data_wr_time
+  DOUBLE PRECISION ,                intent(out) :: put_meta_wr_time
+  DOUBLE PRECISION ,                intent(out) :: put_num_wr_time
+  integer                                       :: nf90mpi_inq_bb_time_put
+  nf90mpi_inq_bb_time_put = nfmpi_inq_bb_time_put(put_data_wr_time, put_meta_wr_time, put_num_wr_time)
+end function nf90mpi_inq_bb_time_put
+
+! -------
+function nf90mpi_inq_bb_time_flush(treplay, trd, tput, twait)
+  DOUBLE PRECISION ,                intent(out) :: treplay
+  DOUBLE PRECISION ,                intent(out) :: trd
+  DOUBLE PRECISION ,                intent(out) :: tput
+  DOUBLE PRECISION ,                intent(out) :: twait
+  integer                                       :: nf90mpi_inq_bb_time_put
+  nf90mpi_inq_bb_time_flush = nfmpi_inq_bb_time_flush(treplay, trd, tput, twait)
+end function nf90mpi_inq_bb_time_flush
+
+! -------
+function nf90mpi_inq_bb_size(datasize, metasize, buffersize)
+  integer (kind = MPI_OFFSET_KIND), intent(out) :: datasize
+  integer (kind = MPI_OFFSET_KIND), intent(out) :: metasize
+  integer (kind = MPI_OFFSET_KIND), intent(out) :: buffersize
+  integer                                       :: nf90mpi_inq_bb_size
+  nf90mpi_inq_bb_size = nfmpi_inq_bb_size(datasize, metasize, buffersize)
+end function nf90mpi_inq_bb_size
+
+! -------
 function nf90mpi_inq_get_size(ncid, get_size)
   integer,                          intent( in) :: ncid
   integer (kind = MPI_OFFSET_KIND), intent(out) :: get_size
@@ -287,6 +327,29 @@ function nf90mpi_inq_malloc_size(size)
 
   nf90mpi_inq_malloc_size = nfmpi_inq_malloc_size(size)
 end function nf90mpi_inq_malloc_size
+
+! -------
+function nf90mpi_stageout()
+  integer                                       :: nf90mpi_stageout
+
+  nf90mpi_stageout = nfmpi_stageout()
+end function nf90mpi_stageout
+
+! -------
+function nf90mpi_stage_out(bb, pfs, iotime)
+  character (len = *), intent( in)  :: bb
+  character (len = *), intent( in)  :: pfs
+  DOUBLE PRECISION,    intent( out) :: iotime
+  integer                           :: nf90mpi_stage_out
+  nf90mpi_stage_out = nfmpi_stage_out(bb, pfs, iotime)
+end function nf90mpi_stage_out
+
+! -------
+function nf90mpi_stage_out_env(iotime)
+  DOUBLE PRECISION,    intent( out) :: iotime
+  integer                           :: nf90mpi_stage_out_env
+  nf90mpi_stage_out_env = nfmpi_stage_out_env(iotime)
+end function nf90mpi_stage_out_env
 
 ! -------
 function nf90mpi_inq_malloc_max_size(size)

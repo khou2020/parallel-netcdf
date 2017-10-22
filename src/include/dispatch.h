@@ -54,6 +54,8 @@ struct PNC_driver {
     int (*set_fill)(void*,int,int*);
     int (*inq)(void*,int*,int*,int*,int*);
     int (*inq_misc)(void*,int*,char*,int*,int*,int*,int*,MPI_Offset*,MPI_Offset*,MPI_Offset*,MPI_Offset*,MPI_Offset*,MPI_Info*,int*,MPI_Offset*,MPI_Offset*);
+    //int (*inq_bb)(void*,MPI_Offset*,MPI_Offset*,MPI_Offset*,double*,double*,double*,double*,double*,double*,double*,double*,double*,double*,double*,double*,double*);
+    int (*flush)(void*);
     int (*sync_numrecs)(void*);
     int (*begin_indep_data)(void*);
     int (*end_indep_data)(void*);

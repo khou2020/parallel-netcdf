@@ -36,7 +36,9 @@ C_SRCS    = utf8proc.c \
             error_posix2nc.c \
             check_name.c \
             pack_unpack.c \
-            utils.c
+            utils.c \
+			stageout.c \
+			accounting.c
 
 libcommon_la_SOURCES = $(C_SRCS) $(H_SRCS)
 nodist_libcommon_la_SOURCES = $(M4_SRCS:.m4=.c)

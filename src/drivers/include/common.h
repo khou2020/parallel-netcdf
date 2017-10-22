@@ -119,6 +119,12 @@ ncmpii_put_cast_swap(int format, MPI_Offset nelems, nc_type xtype,
 extern int
 ncmpii_get_cast_swap(int format, MPI_Offset nelems, nc_type xtype,
                      MPI_Datatype etype, void *buf, void *xbuf, void **ibuf);
+extern void 
+ncmpii_reset_bb_counter();
+
+extern void 
+ncmpii_update_bb_counter();
+
 #endif
 
 extern int
