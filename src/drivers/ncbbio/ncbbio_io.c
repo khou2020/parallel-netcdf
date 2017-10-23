@@ -45,8 +45,7 @@ int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
     }
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &np);
-    err = MPI_File_open(comm, path, amode, MPI_INFO_NULL, &(f->fd));
-    MPI_Error_string(err, estr, &elen);
+    MPI_File_open(comm, path, amode, MPI_INFO_NULL, &(f->fd));
     MPI_Type_contiguous(BLOCKSIZE, MPI_BYTE, &btype);
     MPI_Type_commit(&btype);
     MPI_Type_create_resized(btype, 0, BLOCKSIZE * np, &ftype);
