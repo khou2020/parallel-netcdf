@@ -43,10 +43,13 @@ int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
     if (flag & O_EXCL) {
         amode |= MPI_MODE_EXCL;
     }
+    
     MPI_Comm_rank(comm, &rank);
     MPI_Comm_size(comm, &np);
     err = MPI_File_open(comm, path, amode, MPI_INFO_NULL, &(f->fd));
-    MPI_Error_string(err, estr, &elen);
+    if (err != MPI_SUCCESS){
+        return err;
+    }
     MPI_Type_contiguous(BLOCKSIZE, MPI_BYTE, &btype);
     MPI_Type_commit(&btype);
     MPI_Type_create_resized(btype, 0, BLOCKSIZE * np, &ftype);
@@ -60,25 +63,46 @@ int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
 }
 
 int ncbbio_file_close(NC_bb_file *f) {
-
+    int err;
     NCI_Free(f->buf);
 #ifdef NC_BB_SHARED_LOG
-    MPI_File_close(&(f->fd));
+    err = MPI_File_close(&(f->fd));
+    if (err != MPI_SUCCESS){
+        return err;
+    }
 #else
-    close(f->fd);
+    err = close(f->fd);
+    if (err != 0){
+        return err;
+    }
 #endif
+
     NCI_Free(f);
     return NC_NOERR;
 }
 
 int ncbbio_file_flush(NC_bb_file *f){
-    
+    int err;
+    ssize_t ioret;
     if (f->bused > 0){
 #ifdef NC_BB_SHARED_LOG
         MPI_Status stat;
-        MPI_File_write(f->fd, f->buf, f->bused, MPI_BYTE, &stat);
+        err = MPI_File_write(f->fd, f->buf, f->bused, MPI_BYTE, &stat);
+        if (err != MPI_SUCCESS){
+            err = ncmpii_error_mpi2nc(err, "write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
 #else
-        write(f->fd, f->buf, f->bused);
+        ioret = write(f->fd, f->buf, f->bused);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != f->bused){
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
 #endif
     }
     f->bused = 0;
@@ -86,18 +110,33 @@ int ncbbio_file_flush(NC_bb_file *f){
 
 int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count) {
     int err;
+    ssize_t ioret;
 #ifdef NC_BB_SHARED_LOG
     MPI_Status stat;       
     err = MPI_File_read(f->fd, buf, count, MPI_BYTE, &stat);
-    
+    if (err != MPI_SUCCESS){
+        err = ncmpii_error_mpi2nc(err, "write");
+        if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+        DEBUG_RETURN_ERROR(err);
+    }
 #else
-    read(f->fd, buf, count);
+    ioret = read(f->fd, buf, count);
+    if (ioret < 0){
+        err = ncmpii_error_posix2nc("write");
+        if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
+        DEBUG_RETURN_ERROR(err);
+    }
+    if (ioret != f->bused){
+        DEBUG_RETURN_ERROR(NC_EREAD);
+    }
 #endif
     f->pos += count;
     return NC_NOERR;
 }
 
 int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
+    int err;
+    ssize_t ioret;
     size_t wsize;
     size_t astart, aend;
     char *cbuf = buf;
@@ -118,7 +157,10 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
         memcpy(f->buf + f->bused, cbuf, astart); 
         f->bused += astart;
         if (f->bused == f->bsize){
-            ncbbio_file_flush(f);
+            err = ncbbio_file_flush(f);
+            if (err != NC_NOERR){
+                return err;
+            }
         }
     }
     else{
@@ -128,9 +170,22 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
     if (aend > astart) {
 #ifdef NC_BB_SHARED_LOG
         MPI_Status stat;       
-        MPI_File_write(f->fd, buf + astart, aend - astart, MPI_BYTE, &stat);
+        err = MPI_File_write(f->fd, buf + astart, aend - astart, MPI_BYTE, &stat);
+        if (err != MPI_SUCCESS){
+            err = ncmpii_error_mpi2nc(err, "write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
 #else
-        write(f->fd, buf + astart, aend - astart); 
+        ioret = write(f->fd, buf + astart, aend - astart); 
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != f->bused){
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
 #endif
     }
 
