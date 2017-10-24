@@ -30,6 +30,9 @@ int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
 
     f = (NC_bb_file*)NCI_Malloc(sizeof(NC_bb_file));
     f->buf = NCI_Malloc(BUFSIZE);
+    if (f->buf == NULL){
+        DEBUG_RETURN_ERROR(NC_NOMEM);
+    }
     f->bsize = BUFSIZE;
     f->pos = 0;
     f->bused = 0;
@@ -48,15 +51,27 @@ int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
     MPI_Comm_size(comm, &np);
     err = MPI_File_open(comm, path, amode, MPI_INFO_NULL, &(f->fd));
     if (err != MPI_SUCCESS){
-        return err;
+        err = ncmpii_error_mpi2nc(err, "open");
+        free(f->buf);
+        DEBUG_RETURN_ERROR(err);
     }
     MPI_Type_contiguous(BLOCKSIZE, MPI_BYTE, &btype);
     MPI_Type_commit(&btype);
     MPI_Type_create_resized(btype, 0, BLOCKSIZE * np, &ftype);
     MPI_Type_commit(&ftype);
-    MPI_File_set_view(f->fd, BLOCKSIZE * rank, MPI_BYTE, ftype, "native", MPI_INFO_NULL);
+    err = MPI_File_set_view(f->fd, BLOCKSIZE * rank, MPI_BYTE, ftype, "native", MPI_INFO_NULL);
+    if (err != MPI_SUCCESS){
+        err = ncmpii_error_mpi2nc(err, "setview");
+        free(f->buf);
+        DEBUG_RETURN_ERROR(err);
+    }
 #else
     f->fd = open(path, flag, 0744);
+    if (f->fd < 0){
+        err = ncmpii_error_posix2nc("open");
+        free(f->buf);
+        DEBUG_RETURN_ERROR(err);
+    }
 #endif
     *fd = f;
     return NC_NOERR;
@@ -68,12 +83,14 @@ int ncbbio_file_close(NC_bb_file *f) {
 #ifdef NC_BB_SHARED_LOG
     err = MPI_File_close(&(f->fd));
     if (err != MPI_SUCCESS){
-        return err;
+        err = ncmpii_error_mpi2nc(err, "close");
+        DEBUG_RETURN_ERROR(err);
     }
 #else
     err = close(f->fd);
     if (err != 0){
-        return err;
+        err = ncmpii_error_posix2nc("write");
+        DEBUG_RETURN_ERROR(err);
     }
 #endif
 
@@ -200,7 +217,13 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
 }
 
 int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
-    ncbbio_file_flush(f);
+    int err;
+    off_t ioret;
+
+    err = ncbbio_file_flush(f);
+    if (err != NC_NOERR){
+        return err;
+    }
 #ifdef NC_BB_SHARED_LOG
     int mpiwhence;
     if (whence == SEEK_SET){ 
@@ -210,10 +233,19 @@ int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
         mpiwhence = MPI_SEEK_CUR;
     }
     else{
+        DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
     }
-    MPI_File_seek(f->fd, off, mpiwhence);
+    err = MPI_File_seek(f->fd, off, mpiwhence);
+    if (err != MPI_SUCCESS){
+        err = ncmpii_error_mpi2nc(err, "seek");
+        DEBUG_RETURN_ERROR(err);
+    }
 #else
-    lseek(f->fd, off, whence);
+    ioret = lseek(f->fd, off, whence);
+    if (ioret < 0){
+        err = ncmpii_error_posix2nc("lseek");
+        DEBUG_RETURN_ERROR(err); 
+    }
 #endif
     if (whence == SEEK_SET){ 
         f->pos = off;
@@ -222,7 +254,7 @@ int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
         f->pos += off;
     }
     else{
-        printf("ERROR\n");
+        DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
     }
     return NC_NOERR;
 }
