@@ -61,7 +61,7 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
         */
         
         t2 = MPI_Wtime();
-        ncbbp->flush_read_time += t2 - t1;
+        ncbbp->flush_data_rd_time += t2 - t1;
 
         /* 
          * Replay event with non-blocking call 
@@ -82,7 +82,7 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
         }
 
         t3 = MPI_Wtime();
-        ncbbp->flush_read_time += t3 - t2;
+        ncbbp->flush_put_time += t3 - t2;
     }
     else{
         for (i = 0; i < ndims; i++) {
@@ -186,7 +186,7 @@ inline int logtype2mpitype(int type, MPI_Datatype *buftype){
 int log_flush(NC_bb *ncbbp) {
     int i, j, lb, ub, err, fd, status = NC_NOERR;
     int *reqids, *stats;
-    double t1, t2, t3;
+    double t1, t2, t3, t4;
     size_t databufferused, databuffersize, dataread;
     ssize_t ioret;
     NC_bb_metadataentry *entryp;
@@ -195,9 +195,9 @@ int log_flush(NC_bb *ncbbp) {
     char *databuffer, *databufferoff;
     NC_bb_metadataheader *headerp;
     NC_bb_metadataptr *ip;
-
-    t1 = MPI_Wtime();
     
+    t1 = MPI_Wtime();
+
     /* Read datalog in to memory */
     /* 
      * Prepare data buffer
@@ -210,6 +210,10 @@ int log_flush(NC_bb *ncbbp) {
     if (ncbbp->flushbuffersize > 0 && databuffersize > ncbbp->flushbuffersize){
         databuffersize = ncbbp->flushbuffersize;
     }
+    if (ncbbp->max_buffer < databuffersize){
+        ncbbp->max_buffer = databuffersize;
+    }
+
     /* Allocate buffer */
     databuffer = (char*)NCI_Malloc(databuffersize);
     if(databuffer == NULL){
@@ -256,10 +260,13 @@ int log_flush(NC_bb *ncbbp) {
                  * We read only what needed by pending requests
                  */
                 if (dataread < databufferused){   
+                    t2 = MPI_Wtime();
                     err = ncbbio_file_read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
                     if (err != NC_NOERR){
                         return err;
                     }
+                    t3 = MPI_Wtime();
+                    ncbbp->flush_data_rd_time += t3 - t2;
                     /*
                     if (ioret < 0) {
                         ioret = ncmpii_error_posix2nc("read");
@@ -288,10 +295,13 @@ int log_flush(NC_bb *ncbbp) {
          * We read only what needed by pending requests
          */
         if (dataread < databufferused){   
+            t2 = MPI_Wtime();
             err = ncbbio_file_read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
             if (err != NC_NOERR){
                 return err;
             }
+            t3 = MPI_Wtime();
+            ncbbp->flush_data_rd_time += t3 - t2;
             /*
             if (ioret < 0) {
                 ioret = ncmpii_error_posix2nc("read");
@@ -354,12 +364,7 @@ int log_flush(NC_bb *ncbbp) {
             /* Skip this entry on batch flush */
             lb++;
         }
-        else{
-        
-            t2 = MPI_Wtime();
-            t3 = MPI_Wtime();
-            ncbbp->flush_read_time += t3 - t2;
-
+        else{          
             // Pointer points to the data of current entry
             databufferoff = databuffer;
             
@@ -393,7 +398,7 @@ int log_flush(NC_bb *ncbbp) {
                     }
                                     
                     t3 = MPI_Wtime();
-                    ncbbp->flush_replay_time += t3 - t2;
+                    ncbbp->flush_put_time += t3 - t2;
 
                     // Move to next data location
                     databufferoff += entryp->data_len;
@@ -418,6 +423,9 @@ int log_flush(NC_bb *ncbbp) {
             if (status == NC_NOERR) {
                 status = err;
             }
+
+            t3 = MPI_Wtime();
+            ncbbp->flush_wait_time += t3 - t2;
             
             // Fill up the status for nonblocking request
             for(i = lb; i < ub; i++){
@@ -431,10 +439,7 @@ int log_flush(NC_bb *ncbbp) {
                     j++;
                 }
             }
- 
-            t3 = MPI_Wtime();
-            ncbbp->flush_replay_time += t3 - t2;
-
+          
             /* Update batch status */
             databufferused = 0;
 
@@ -448,8 +453,8 @@ int log_flush(NC_bb *ncbbp) {
     NCI_Free(reqids);
     NCI_Free(stats);
 
-    t2 = MPI_Wtime();
-    ncbbp->flush_total_time += t2 - t1;
+    t4 = MPI_Wtime();
+    ncbbp->flush_replay_time += t4 - t1;
     
     return status;
 }
