@@ -185,12 +185,20 @@ typedef struct NC_bb {
     MPI_Offset total_meta;
     MPI_Offset recdimsize;
     MPI_Offset flushbuffersize;
-    double flush_read_time;
-    double flush_replay_time;
-    double flush_total_time;
-    double log_write_time;
-    double log_total_time;
+    MPI_Offset max_buffer;
     double total_time;
+    double create_time;
+    double enddef_time;
+    double put_time;
+    double flush_time;
+    double close_time;
+    double flush_replay_time;
+    double flush_data_rd_time;
+    double flush_put_time;
+    double flush_wait_time;
+    double put_data_wr_time;
+    double put_meta_wr_time;
+    double put_num_wr_time;
 
     int                mode;        /* file _open/_create mode */
     int                flag;        /* define/data/collective/indep mode */

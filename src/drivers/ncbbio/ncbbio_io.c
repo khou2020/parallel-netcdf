@@ -14,6 +14,7 @@
 #include <pnetcdf.h>
 #include <ncbbio_driver.h>
 #include <fcntl.h>
+#include <pnetcdf.h>
 
 #define BUFSIZE 8388608
 #define BLOCKSIZE 8388608
@@ -39,7 +40,7 @@ int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
     f = (NC_bb_file*)NCI_Malloc(sizeof(NC_bb_file));
     f->buf = NCI_Malloc(BUFSIZE);
     if (f->buf == NULL){
-        DEBUG_RETURN_ERROR(NC_NOMEM);
+        DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     // TODO: Adjustable bsize
     f->bsize = BUFSIZE;
