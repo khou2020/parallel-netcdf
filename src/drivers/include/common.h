@@ -88,7 +88,7 @@ extern int
 ncmpii_error_mpi2nc(int mpi_errorcode, char *msg);
 
 extern int 
-ncmpii_error_posix2nc(char *err_msg); 
+ncmpii_error_posix2nc(char *err_msg);
 
 extern int
 ncmpii_check_name(const char *name, int file_ver);
@@ -199,6 +199,12 @@ ncmpii_getn_NC_INT64 (const void *xbuf, void *buf, MPI_Offset nelems,
 extern int
 ncmpii_getn_NC_UINT64(const void *xbuf, void *buf, MPI_Offset nelems,
                       MPI_Datatype datatype);
+
+extern int
+ncmpii_utf8_normalize(const char *str, char **normalp);
+
+extern int
+ncmpii_utf8_validate(const char* name);
 
 #endif
 
