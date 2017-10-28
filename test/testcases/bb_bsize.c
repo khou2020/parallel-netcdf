@@ -35,7 +35,7 @@ int main(int argc, char *argv[]){
     int dimid[2];
     char filename[PATH_MAX];
     MPI_Offset start[2], count[2];
-    MPI_Info Info;
+    MPI_Info info;
       
     /* Initialize MPI */
     MPI_Init(&argc, &argv);
@@ -50,10 +50,10 @@ int main(int argc, char *argv[]){
     
     /* Determine test file name */
     if (argc > 1){
-        sprintf(filename, argv[1]);
+        snprintf(filename, PATH_MAX, "%s", argv[1]);
     }
     else{
-        sprintf(filename, "testfile.nc");
+        snprintf(filename, PATH_MAX, "testfile.nc");
     }
 
     if (rank == 0) {
@@ -64,14 +64,15 @@ int main(int argc, char *argv[]){
 	}
 
     /* Initialize file info */
-	MPI_Info_create(&Info);
-    MPI_Info_set(Info, "nc_bb_driver", "enable");
+	MPI_Info_create(&info);
+    MPI_Info_set(info, "nc_bb_driver", "enable");
+    MPI_Info_set(info, "nc_bb_overwrite", "enable");
     /* Set defualt buffer size to 1/16 of the rows */
-    sprintf(bsize, "%d", SIZE * SIZE / 16 * sizeof(int));
-    MPI_Info_set(Info, "nc_bb_flush_buffer_size", bsize);
+    sprintf(bsize, "%u", (unsigned int)(SIZE * SIZE / 16 * sizeof(int)));
+    MPI_Info_set(info, "nc_bb_flush_buffer_size", bsize);
 
     /* Create new netcdf file */
-    ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, Info, &ncid);
+    ret = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, info, &ncid);
     if (ret != NC_NOERR) {
         printf("Error at line %d in %s: ncmpi_create: %d\n", __LINE__, __FILE__, ret);
         nerr++;
@@ -170,6 +171,8 @@ int main(int argc, char *argv[]){
         nerr++;
         goto ERROR;
     }
+
+    MPI_Info_free(&info);
 
     /* check if PnetCDF freed all internal malloc */
     MPI_Offset malloc_size, sum_size;

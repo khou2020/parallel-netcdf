@@ -470,16 +470,6 @@ ncbbio_cancel(void *ncdp,
     }
 
     if (num_req > nput){
-        /* 
-         * Flush the log if there is any get operation
-         * If there are ids of get in req_ids
-         */
-        if (ncbbp->inited){
-            err = ncbbio_log_flush(ncbbp);
-            if (status == NC_NOERR){
-                status = err;
-            }
-        }
         err = ncbbp->ncmpio_driver->cancel(ncbbp->ncp, num_req - nput, req_ids + nput, statuses + nput);
         if (status == NC_NOERR){
             status = err;

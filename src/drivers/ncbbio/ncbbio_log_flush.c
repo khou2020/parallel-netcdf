@@ -415,10 +415,10 @@ int log_flush(NC_bb *ncbbp) {
              * Wait must be called first or previous data will be corrupted
              */
             if (ncbbp->isindep) {
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, ub - lb, reqids, stats, NC_REQ_INDEP); 
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, j, reqids, stats, NC_REQ_INDEP); 
             }
             else{
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, ub - lb, reqids, stats, NC_REQ_COLL);
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, j, reqids, stats, NC_REQ_COLL);
             }
             if (status == NC_NOERR) {
                 status = err;

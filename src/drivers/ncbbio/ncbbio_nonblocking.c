@@ -105,8 +105,10 @@ int ncbbio_put_list_remove(NC_bb *ncbbp, int reqid){
     int i, tmp;
     int tail, idx;
     NC_bb_put_list *lp = &(ncbbp->putlist);
-    NC_bb_put_req *req;
     
+    /* Mark entry as invalid */
+    lp->list[reqid].valid = 0;
+
     /* Return id to the list */
     lp->ids[--lp->nused] = reqid;
 
@@ -120,7 +122,10 @@ int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid, int *stat){
 
     // Filter invalid reqid
     if (reqid > lp->nalloc) {
-        DEBUG_RETURN_ERROR(NC_EINVAL_REQUEST);
+        if (stat != NULL) {
+            *stat = NC_EINVAL_REQUEST;
+        }
+        return status;
     }
 
     // Locate the req object
@@ -128,7 +133,10 @@ int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid, int *stat){
     
     // Filter invalid reqid
     if (!req->valid){
-        DEBUG_RETURN_ERROR(NC_EINVAL_REQUEST);
+        if (stat != NULL) {
+            *stat = NC_EINVAL_REQUEST;
+        }
+        return status;
     }
 
     if (!req->ready){
@@ -136,7 +144,8 @@ int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid, int *stat){
     }
     
     if (!req->ready){
-        printf("Error\n");
+        printf("Fatal error: nonblocking request not in log file\n");
+        MPI_Abort(MPI_COMM_WORLD, -1);
     }
 
     if (stat != NULL){
@@ -176,7 +185,10 @@ int ncbbio_cancel_put_req(NC_bb *ncbbp, int reqid, int *stat){
 
     // Filter invalid reqid
     if (reqid > lp->nalloc) {
-        DEBUG_RETURN_ERROR(NC_EINVAL_REQUEST);
+        if (stat != NULL) {
+            *stat = NC_EINVAL_REQUEST;
+        }
+        return status;
     }
 
     // Locate the req object
@@ -184,7 +196,10 @@ int ncbbio_cancel_put_req(NC_bb *ncbbp, int reqid, int *stat){
     
     // Filter invalid reqid
     if (!req->valid){
-        DEBUG_RETURN_ERROR(NC_EINVAL_REQUEST);
+        if (stat != NULL) {
+            *stat = NC_EINVAL_REQUEST;
+        }
+        return status;
     }
 
     if (req->ready){

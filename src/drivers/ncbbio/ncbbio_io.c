@@ -154,6 +154,7 @@ int ncbbio_file_flush(NC_bb_file *f){
 #endif
     }
     f->bused = 0;
+    return NC_NOERR;
 }
 
 /*
@@ -181,7 +182,7 @@ int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count) {
         if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
         DEBUG_RETURN_ERROR(err);
     }
-    if (ioret != f->bused){
+    if (ioret != count){
         DEBUG_RETURN_ERROR(NC_EREAD);
     }
 #endif
@@ -256,7 +257,7 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
             if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
             DEBUG_RETURN_ERROR(err);
         }
-        if (ioret != f->bused){
+        if (ioret != aend - astart){
             DEBUG_RETURN_ERROR(NC_EWRITE);
         }
 #endif
