@@ -54,3 +54,22 @@ void ncbbio_extract_hint(NC_bb *ncbbp, MPI_Info info){
         ncbbp->flushbuffersize = 0; // <= 0 means unlimited}
     }
 }
+
+void ncbbio_export_hint(NC_bb *ncbbp, MPI_Info info){
+    char value[MPI_MAX_INFO_VAL];
+
+    MPI_Info_set(info, "nc_bb_driver", "enable");
+    if (ncbbp->hints & NC_LOG_HINT_LOG_OVERWRITE) {
+        MPI_Info_set(info, "nc_bb_overwrite", "enable");
+    }
+    if (!(ncbbp->hints & NC_LOG_HINT_DEL_ON_CLOSE)) {
+        MPI_Info_set(info, "nc_bb_del_on_close", "disable");
+    }
+    if (strcmp(ncbbp->logbase, ".") != 0) {
+        MPI_Info_set(info, "nc_bb_dirname", ncbbp->logbase);
+    }
+    if (ncbbp->flushbuffersize > 0) {
+        sprintf(value, "%llu", ncbbp->flushbuffersize);
+        MPI_Info_set(info, "nc_bb_flush_buffer_size", value);
+    }
+}

@@ -7,13 +7,8 @@
 /* $Id$ */
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * This program tests writing a variable exceeding the size of data buffer.
- * Each process writes a submatrix of size 1024 * 1024, a total of 1M cells 
- * The submatrix form each processes is stacked along the first dimension so that the variable dimensions are (1024 * np) * 1024
- * Each processes writes it's rank to every cell
- * Each process starts by writing the first 1/8 of the rows at once, which should caused an increase of the data buffer size to accomodate it
- * Then each process writes the remaining row one at a time
- *
+ * This program tests nonblocking functionality of bb driver
+ * Flaushed requests can not be canceled, canceled request can't be waited
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <stdio.h>

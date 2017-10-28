@@ -222,7 +222,7 @@ ncbbio_enddef(void *ncdp)
         /* Init log structure */
         err = ncbbio_log_create(ncbbp, ncbbp->info);
         if (err != NC_NOERR) {
-            NCI_Free(ncbbp);
+            //NCI_Free(ncbbp);
             return err;
         }
         ncbbio_put_list_init(ncbbp);
@@ -257,7 +257,7 @@ ncbbio__enddef(void       *ncdp,
         /* Init log structure */
         err = ncbbio_log_create(ncbbp, ncbbp->info);
         if (err != NC_NOERR) {
-            NCI_Free(ncbbp);
+            //NCI_Free(ncbbp);
             return err;
         }
         ncbbio_put_list_init(ncbbp);
@@ -395,16 +395,7 @@ ncbbio_inq_misc(void       *ncdp,
 
     /* Export bb related settings */
     if (info_used != NULL){
-        MPI_Info_set(*info_used, "nc_bb_driver", "enable");
-        if (ncbbp->hints & NC_LOG_HINT_LOG_OVERWRITE) {
-            MPI_Info_set(*info_used, "nc_bb_overwrite", "enable");
-        }
-        if (ncbbp->hints & NC_LOG_HINT_DEL_ON_CLOSE) {
-            MPI_Info_set(*info_used, "nc_bb_del_on_close", "enable");
-        }
-        if (strcmp(ncbbp->logbase, ".") != 0) {
-            MPI_Info_set(*info_used, "nc_bb_dirname", ncbbp->logbase);
-        }
+        ncbbio_export_hint(ncbbp, *info_used);
     }
 
     return NC_NOERR;
