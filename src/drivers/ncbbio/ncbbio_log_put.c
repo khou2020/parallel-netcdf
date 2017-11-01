@@ -62,6 +62,32 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
         size *= count[i];
     }
 
+    /* Return size */
+    if (putsize != NULL){
+        *putsize = size;
+    }
+
+    /* Size of data does not fit buffer */
+    if (ncbbp->flushbuffersize > 0 && size > ncbbp->flushbuffersize) {
+        int reqmode;
+
+        // Flush the log to preserve the order
+        ncbbio_log_flush(ncbbp);
+        
+        /* 
+         * Data size is considered large enough for blocking call
+         */
+        reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL;
+        if (ncbbp->isindep){
+            reqmode |= NC_REQ_COLL;
+        }
+        else{
+            reqmode |= NC_REQ_INDEP;
+        }
+        err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, NULL, buf, -1, buftype, reqmode);
+        return err;
+    }
+
     /* Update record dimension size if is record variable */
     /* Get dimids */
     dimids = NCI_Malloc(sizeof(int) * dim);
@@ -192,8 +218,8 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
     ncbbio_log_sizearray_append(&(ncbbp->entrydatasize), entryp->data_len);
     // Record in index
     // Entry address must be relative as metadata buffer can be reallocated
-    ncbbio_metaidx_add(ncbbp, entryp - 
-                       (NC_bb_metadataentry*)ncbbp->metadata.buffer);
+    ncbbio_metaidx_add(ncbbp, (NC_bb_metadataentry*)((void*)entryp - 
+                       (void*)(ncbbp->metadata.buffer)));
 
     t2 = MPI_Wtime();
     
@@ -256,11 +282,6 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
  
     ncbbp->total_data += size;
     ncbbp->total_meta += esize;
-
-    /* Return size */
-    if (putsize != NULL){
-        *putsize = size;
-    }
 
     return NC_NOERR;
 }

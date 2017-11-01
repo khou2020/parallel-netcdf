@@ -53,10 +53,7 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
                         &(ncbbp->nodecomm));
     MPI_Bcast(&masterrank, 1, MPI_INT, 0, ncbbp->nodecomm); 
 #endif
-    
-    // TODO: Add buffersize hints
-    ncbbp->flushbuffersize = 0;
-   
+       
     /* Initialize log structure */
     
     /* Determine log file name

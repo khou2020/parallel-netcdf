@@ -134,7 +134,7 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
 /* Convert from log type to MPI type used by pnetcdf library
  * Log spec has different enum of types than MPI
  */
-inline int logtype2mpitype(int type, MPI_Datatype *buftype){
+int logtype2mpitype(int type, MPI_Datatype *buftype){
     /* Convert from log type to MPI type used by pnetcdf library
      * Log spec has different enum of types than MPI
      */

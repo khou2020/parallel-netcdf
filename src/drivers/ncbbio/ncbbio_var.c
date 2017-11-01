@@ -276,8 +276,19 @@ ncbbio_iput_var(void             *ncdp,
     
     ncbbp->putlist.list[id].entryend = ncbbp->metaidx.nused;
     
-    for (i = ncbbp->putlist.list[id].entrystart; i < ncbbp->putlist.list[id].entryend; i++){
-        ncbbp->metaidx.entries[i].reqid = id;
+    /* 
+     * If new entry is created in the log, link thos entries to the request
+     * The entry may go directly to the ncmpio driver if it is too large
+     * If there are no entry created, we mark this request as completed
+     */
+    if (ncbbp->putlist.list[id].entryend > ncbbp->putlist.list[id].entrystart) {
+        for (i = ncbbp->putlist.list[id].entrystart; i < ncbbp->putlist.list[id].entryend; i++) {
+            ncbbp->metaidx.entries[i].reqid = id;
+        }
+    }
+    else{
+        ncbbp->putlist.list[id].ready = 1;
+        ncbbp->putlist.list[id].status = NC_NOERR;
     }
 
     return NC_NOERR;
