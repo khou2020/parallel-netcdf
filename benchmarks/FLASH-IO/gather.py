@@ -16,8 +16,13 @@ def gather(dir:str):
                         bestrec = None
                     elif (line[:40] == '-----+-----++------------+++++++++--+---'):
                         if (not drop):
-                            if (bestrec == None or bestrec['total_time'] > rec['total_time']):
+                            if (bestrec == None or ('total_time' not in bestrec and 'total_time_max' not in bestrec)):
                                 bestrec = rec
+                            else:
+                                if ('total_time' in bestrec and bestrec['total_time'] > rec['total_time']):
+                                    bestrec = rec
+                                elif ('total_time_max' in bestrec and bestrec['total_time_max'] > rec['total_time_max']):
+                                    bestrec = rec
                         rec = {}
                         drop = False
                     elif (line[:3] == '#%$'):
@@ -130,6 +135,7 @@ def main(argv:list):
             rec['total_bandwidth'] = rec['total_io_size'] / rec['total_time'] / 1024
 
     with open('result.csv', 'w') as fout:
+        '''
         filter = {'io_driver': 'ncmpi'}
         plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_time')
         filter = {'io_driver': 'bb'}
@@ -180,6 +186,50 @@ def main(argv:list):
 
         filter = {'io_driver': 'stage', 'io_mode': 'nonblocking_indep'}
         plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
+        '''
+
+        filter = {'shared_log': 0, 'io_driver': 'bb'}
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
+
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_mean', 'bb_put_meta_wr_time_mean', 'bb_put_num_wr_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_var', 'bb_put_meta_wr_time_var', 'bb_put_num_wr_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_max', 'bb_put_meta_wr_time_max', 'bb_put_num_wr_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_min', 'bb_put_meta_wr_time_min', 'bb_put_num_wr_time_min'])
+
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_mean', 'bb_flush_data_rd_time_mean', 'bb_flush_put_time_mean', 'bb_flush_wait_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_var', 'bb_flush_data_rd_time_var', 'bb_flush_put_time_var', 'bb_flush_wait_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_max', 'bb_flush_data_rd_time_max', 'bb_flush_put_time_max', 'bb_flush_wait_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_min', 'bb_flush_data_rd_time_min', 'bb_flush_put_time_min', 'bb_flush_wait_time_min'])
+
+        filter = {'shared_log': 1, 'io_driver': 'bb'}
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
+
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_mean', 'bb_put_meta_wr_time_mean', 'bb_put_num_wr_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_var', 'bb_put_meta_wr_time_var', 'bb_put_num_wr_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_max', 'bb_put_meta_wr_time_max', 'bb_put_num_wr_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_min', 'bb_put_meta_wr_time_min', 'bb_put_num_wr_time_min'])
+
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_mean', 'bb_flush_data_rd_time_mean', 'bb_flush_put_time_mean', 'bb_flush_wait_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_var', 'bb_flush_data_rd_time_var', 'bb_flush_put_time_var', 'bb_flush_wait_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_max', 'bb_flush_data_rd_time_max', 'bb_flush_put_time_max', 'bb_flush_wait_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_min', 'bb_flush_data_rd_time_min', 'bb_flush_put_time_min', 'bb_flush_wait_time_min'])
+
+        filter = {'io_driver': 'ncmpi', 'io_mode': 'blocking_coll'}
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
+        filter = {'io_driver': 'ncmpi', 'io_mode': 'nonblocking_coll'}
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
+        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
 
 if __name__=='__main__':
     main(sys.argv)
