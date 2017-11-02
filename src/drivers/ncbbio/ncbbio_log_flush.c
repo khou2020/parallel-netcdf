@@ -70,10 +70,10 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
          */
         reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL;
         if (ncbbp->isindep){
-            reqmode |= NC_REQ_COLL;
+            reqmode |= NC_REQ_INDEP;
         }
         else{
-            reqmode |= NC_REQ_INDEP;
+            reqmode |= NC_REQ_COLL;
         }
         err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, NULL, buffer, -1, buftype, reqmode);
         

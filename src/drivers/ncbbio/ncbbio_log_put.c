@@ -79,10 +79,10 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
          */
         reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL;
         if (ncbbp->isindep){
-            reqmode |= NC_REQ_COLL;
+            reqmode |= NC_REQ_INDEP;
         }
         else{
-            reqmode |= NC_REQ_INDEP;
+            reqmode |= NC_REQ_COLL;
         }
         err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, NULL, buf, -1, buftype, reqmode);
         return err;
