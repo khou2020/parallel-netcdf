@@ -48,11 +48,16 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         DEBUG_RETURN_ERROR(err);
     }
     masterrank = rank;
-#ifdef NC_BB_SHARED_LOG
-    MPI_Comm_split_type(ncbbp->comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL,
-                        &(ncbbp->nodecomm));
-    MPI_Bcast(&masterrank, 1, MPI_INT, 0, ncbbp->nodecomm); 
-#endif
+    
+    if (1){
+        MPI_Comm_split_type(ncbbp->comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL,
+                        &(ncbbp->logcomm));
+        MPI_Bcast(&masterrank, 1, MPI_INT, 0, ncbbp->logcomm); 
+    }
+    else{
+        ncbbp->logcomm = MPI_COMM_SELF;
+        masterrank = rank;
+    }
        
     /* Initialize log structure */
     
@@ -179,12 +184,12 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         flag |= O_EXCL;
     }
     //ncbbp->datalog_fd = ncbbp->metalog_fd = -1;
-    err = ncbbio_file_open(ncbbp->nodecomm, ncbbp->metalogpath, flag,
+    err = ncbbio_file_open(ncbbp->logcomm, ncbbp->metalogpath, flag,
                            &ncbbp->metalog_fd);
     if (err != NC_NOERR) {
         return err;
     }
-    err = ncbbio_file_open(ncbbp->nodecomm, ncbbp->datalogpath, flag,
+    err = ncbbio_file_open(ncbbp->logcomm, ncbbp->datalogpath, flag,
                            &ncbbp->datalog_fd);
     if (err != NC_NOERR) {
         return err;

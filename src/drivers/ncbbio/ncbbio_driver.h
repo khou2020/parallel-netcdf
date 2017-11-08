@@ -146,13 +146,11 @@ typedef struct NC_bb_put_list {
 
 /* File structure */
 typedef struct NC_bb_file {
-#ifdef NC_BB_SHARED_LOG
-    MPI_File fd;
-    MPI_Offset pos;
-#else
+    size_t fpos;
     int fd;
+    int rank;
+    int np;
     size_t pos;
-#endif
     char *buf;
     size_t bused;
     size_t bsize;
@@ -205,7 +203,7 @@ typedef struct NC_bb {
     int                ncid;
     char              *path;        /* path name */
     MPI_Comm           comm;        /* MPI communicator */
-    MPI_Comm           nodecomm;        /* MPI communicator */
+    MPI_Comm           logcomm;        /* MPI communicator */
     MPI_Info           info;
     void              *ncp;         /* pointer to driver's internal object */
     struct PNC_driver *ncmpio_driver;
