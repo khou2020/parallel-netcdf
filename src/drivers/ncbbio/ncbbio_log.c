@@ -48,8 +48,8 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         DEBUG_RETURN_ERROR(err);
     }
     masterrank = rank;
-    
-    if (1){
+
+    if (ncbbp->hints & NC_LOG_HINT_LOG_SHARE){
         MPI_Comm_split_type(ncbbp->comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL,
                         &(ncbbp->logcomm));
         MPI_Bcast(&masterrank, 1, MPI_INT, 0, ncbbp->logcomm); 

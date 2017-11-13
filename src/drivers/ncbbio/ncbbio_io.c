@@ -95,13 +95,19 @@ int ncbbio_file_close(NC_bb_file *f) {
     return NC_NOERR;
 }
 
+/*
+ * Write shared file
+ * IN       f:    File structure
+ * OUT    buf:    Buffer for read data
+ * IN   count:    Size of buffer
+ */
 int ncbbio_file_write_core(NC_bb_file *f, void *buf, size_t count){
-    int i;
+    int i, err;
     size_t sblock, soff, eblock, eoff;
     size_t off, len;
     size_t ioret;
 
-    if (f->np > 0){
+    if (f->np > 1){
         sblock = f->fpos / BLOCKSIZE;
         soff =  f->fpos % BLOCKSIZE;
         eblock = (f->fpos + count) / BLOCKSIZE;
@@ -124,11 +130,27 @@ int ncbbio_file_write_core(NC_bb_file *f, void *buf, size_t count){
                 len = BLOCKSIZE;
             }
             ioret = pwrite(f->fd, buf, len, off);
+            if (ioret < 0){
+                err = ncmpii_error_posix2nc("write");
+                if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+                DEBUG_RETURN_ERROR(err);
+            }
+            if (ioret != len){
+                DEBUG_RETURN_ERROR(NC_EWRITE);
+            }
             buf += ioret;
         }
     }
     else{
         ioret = write(f->fd, buf, count);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
     }
 
     f->fpos += count;
@@ -146,35 +168,28 @@ int ncbbio_file_flush(NC_bb_file *f){
 
     /* Write data if buffer is not empty */
     if (f->bused > 0){
-        ioret = ncbbio_file_write_core(f, f->buf, f->bused);
-        /*
-        if (ioret < 0){
-            err = ncmpii_error_posix2nc("write");
-            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
-            DEBUG_RETURN_ERROR(err);
+        err = ncbbio_file_write_core(f, f->buf, f->bused);
+        if (err != NC_NOERR){
+            return err;
         }
-        if (ioret != f->bused){
-            DEBUG_RETURN_ERROR(NC_EWRITE);
-        }
-        */
     }
     f->bused = 0;
     return NC_NOERR;
 }
 
 /*
- * Read buffered file
+ * Read buffered shared file 
  * IN       f:    File structure
  * OUT    buf:    Buffer for read data
  * IN   count:    Size of buffer
  */
 int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count) {
-    int i;
+    int i, err;
     size_t sblock, soff, eblock, eoff;
     size_t off, len;
     size_t ioret;
 
-    if (f->np > 0){
+    if (f->np > 1){
         sblock = f->fpos / BLOCKSIZE;
         soff =  f->fpos % BLOCKSIZE;
         eblock = (f->fpos + count) / BLOCKSIZE;
@@ -197,11 +212,27 @@ int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count) {
                 len = BLOCKSIZE;
             }
             ioret = pread(f->fd, buf, len, off);
+            if (ioret < 0){
+                err = ncmpii_error_posix2nc("read");
+                if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
+                DEBUG_RETURN_ERROR(err);
+            }
+            if (ioret != len){
+                DEBUG_RETURN_ERROR(NC_EREAD);
+            }
             buf += ioret;
         }
     }
     else{
         ioret = read(f->fd, buf, count);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("read");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EREAD);
+        }
     }
 
     f->pos += count;
@@ -261,17 +292,10 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
      * From astart to aend
      */
     if (aend > astart) {
-        ioret = ncbbio_file_write_core(f, buf + astart, aend - astart); 
-        /*
-        if (ioret < 0){
-            err = ncmpii_error_posix2nc("write");
-            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
-            DEBUG_RETURN_ERROR(err);
+        err = ncbbio_file_write_core(f, buf + astart, aend - astart); 
+        if (err != NC_NOERR){
+            return err;
         }
-        if (ioret != aend - astart){
-            DEBUG_RETURN_ERROR(NC_EWRITE);
-        }
-        */
     }
 
     /*
@@ -308,36 +332,24 @@ int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
         return err;
     }
 
-    if (f->np > 0){
-        // Update position
-        if (whence == SEEK_SET){ 
-            f->fpos = off;
-            
-        }
-        else if (whence == SEEK_CUR){
-            f->fpos += off;
-        }
-        else{
-            DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
-        }
-    }
-    else{
+    if (f->np <= 1){
         ioret = lseek(f->fd, off, whence);
         if (ioret < 0){
             err = ncmpii_error_posix2nc("lseek");
             DEBUG_RETURN_ERROR(err); 
         }
-            
-        // Update position
-        if (whence == SEEK_SET){ 
-            f->fpos = off;
-        }
-        else if (whence == SEEK_CUR){
-            f->fpos += off;
-        }
-        else{
-            DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
-        }
+    }
+
+    // Update position
+    if (whence == SEEK_SET){ 
+        f->fpos = off;
+        
+    }
+    else if (whence == SEEK_CUR){
+        f->fpos += off;
+    }
+    else{
+        DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
     }
     f->pos = f->fpos;
 

@@ -50,6 +50,7 @@
 #define NC_LOG_HINT_FLUSH_ON_READ 0x10
 #define NC_LOG_HINT_LOG_OVERWRITE 0x20
 #define NC_LOG_HINT_LOG_CHECK 0x40
+#define NC_LOG_HINT_LOG_SHARE 0x80
 
 /* PATH_MAX after padding to 4 byte allignment */
 #if PATH_MAX % 4 == 0
