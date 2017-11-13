@@ -67,7 +67,7 @@ do
         
         # Bb_shared
         if [ "x${u}" = "xblocking" ] && [ "x${v}" = "xcoll" ]; then
-            export PNETCDF_HINTS="nc_bb_driver=enable;pnetcdf_bb_del_on_close=disable;pnetcdf_bb_overwrite=enable;nc_bb_sharedlog;pnetcdf_bb_dirname=${BBDIR}"
+            export PNETCDF_HINTS="nc_bb_driver=enable;pnetcdf_bb_del_on_close=disable;pnetcdf_bb_overwrite=enable;nc_bb_sharedlog=enable;pnetcdf_bb_dirname=${BBDIR}"
             for i in 1 2 3
             do
                 echo "rm -f ${OUTDIR}/*"
