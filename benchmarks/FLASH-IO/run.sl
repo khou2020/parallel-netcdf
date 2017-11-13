@@ -42,7 +42,7 @@ do
 
         # Bb
         if [ "x${u}" = "xblocking" ] && [ "x${v}" = "xcoll" ]; then
-            export PNETCDF_HINTS="pnetcdf_bb=enable;pnetcdf_bb_del_on_close=disable;pnetcdf_bb_overwrite=enable;pnetcdf_bb_dirname=${BBDIR}"
+            export PNETCDF_HINTS="nc_bb_driver=enable;pnetcdf_bb_del_on_close=disable;pnetcdf_bb_overwrite=enable;pnetcdf_bb_dirname=${BBDIR}"
             for i in 1 2 3
             do
                 echo "rm -f ${OUTDIR}/*"
@@ -53,6 +53,31 @@ do
                 srun -n ${NP} ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
 
                 echo "#%$: io_driver: bb"
+                echo "#%$: number_of_nodes: ${NN}"
+                echo "#%$: io_mode: ${u}_${v}"
+
+                echo "ls -lah ${OUTDIR}"
+                ls -lah ${OUTDIR}
+                            
+                echo '-----+-----++------------+++++++++--+---'
+            done
+            unset PNETCDF_HINTS
+            echo '--++---+----+++-----++++---+++--+-++--+---'
+        fi
+        
+        # Bb_shared
+        if [ "x${u}" = "xblocking" ] && [ "x${v}" = "xcoll" ]; then
+            export PNETCDF_HINTS="nc_bb_driver=enable;pnetcdf_bb_del_on_close=disable;pnetcdf_bb_overwrite=enable;nc_bb_sharedlog;pnetcdf_bb_dirname=${BBDIR}"
+            for i in 1 2 3
+            do
+                echo "rm -f ${OUTDIR}/*"
+                rm -f ${OUTDIR}/*
+                echo "rm -f ${BBDIR}/*"
+                rm -f ${BBDIR}/*
+                
+                srun -n ${NP} ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
+
+                echo "#%$: io_driver: bb_shared"
                 echo "#%$: number_of_nodes: ${NN}"
                 echo "#%$: io_mode: ${u}_${v}"
 
