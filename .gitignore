@@ -1,0 +1,5 @@
+# Build Results
+*.[Pp]lo
+*.o
+*.lo
+*.la
