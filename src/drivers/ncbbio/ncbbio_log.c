@@ -48,14 +48,17 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         DEBUG_RETURN_ERROR(err);
     }
     masterrank = rank;
-#ifdef NC_BB_SHARED_LOG
-    MPI_Comm_split_type(ncbbp->comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &(ncbbp->nodecomm));
-    MPI_Bcast(&masterrank, 1, MPI_INT, 0, ncbbp->nodecomm); 
-#endif
-    
-    // TODO: Add buffersize hints
-    ncbbp->flushbuffersize = 0;
-   
+
+    if (ncbbp->hints & NC_LOG_HINT_LOG_SHARE){
+        MPI_Comm_split_type(ncbbp->comm, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL,
+                        &(ncbbp->logcomm));
+        MPI_Bcast(&masterrank, 1, MPI_INT, 0, ncbbp->logcomm); 
+    }
+    else{
+        ncbbp->logcomm = MPI_COMM_SELF;
+        masterrank = rank;
+    }
+       
     /* Initialize log structure */
     
     /* Determine log file name
@@ -100,8 +103,10 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
      * We need to create them before we can search for usable id
      * As log file name hasn't been determined, we need to use a dummy one here
      */
-    sprintf(ncbbp->metalogpath, "%s%s_%d_%d.meta", logbase, fname, ncbbp->ncid, masterrank);
-    sprintf(ncbbp->datalogpath, "%s%s_%d_%d.data", logbase, fname, ncbbp->ncid, masterrank);
+    sprintf(ncbbp->metalogpath, "%s%s_%d_%d.meta", logbase, fname,
+            ncbbp->ncid, masterrank);
+    sprintf(ncbbp->datalogpath, "%s%s_%d_%d.data", logbase, fname,
+            ncbbp->ncid, masterrank);
      
     /* Initialize metadata buffer */
     err = ncbbio_log_buffer_init(&(ncbbp->metadata));
@@ -116,8 +121,6 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     }
 
     /* Set log file descriptor to NULL */
-    //ncbbp->datalog_fd = -1;
-    //ncbbp->metalog_fd = -1;
 
     /* Performance counters */
     ncbbp->total_time = 0;
@@ -149,16 +152,19 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (headersize % 4 != 0){
         headersize += 4 - (headersize % 4);
     }
-    headerp = (NC_bb_metadataheader*)ncbbio_log_buffer_alloc(&(ncbbp->metadata), headersize);
+    headerp = (NC_bb_metadataheader*)ncbbio_log_buffer_alloc(&(ncbbp->metadata),
+                                                             headersize);
     memset(headerp, 0, headersize);
 
     /* Fill up the metadata log header */
     memcpy(headerp->magic, NC_LOG_MAGIC, sizeof(headerp->magic));
     memcpy(headerp->format, NC_LOG_FORMAT_CDF_MAGIC, sizeof(headerp->format));
-    strncpy((char*)headerp->basename, basename, headersize - sizeof(NC_bb_metadataheader) + 1);
+    strncpy((char*)headerp->basename, basename,
+            headersize - sizeof(NC_bb_metadataheader) + 1);
     headerp->rank_id = rank;   /* Rank */
     headerp->num_ranks = np;   /* Number of processes */
-    headerp->is_external = 0;    /* Without convertion before logging, data in native representation */
+    /* Without convertion before logging, data in native representation */
+    headerp->is_external = 0;    
     /* Determine endianess */
 #ifdef WORDS_BIGENDIAN 
     headerp->big_endian = NC_LOG_TRUE;
@@ -168,7 +174,8 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     headerp->num_entries = 0;    /* The log is empty */
     /* Highest dimension among all variables */
     headerp->max_ndims = 0;    
-    headerp->entry_begin = ncbbp->metadata.nused;  /* Location of the first entry */
+    /* Location of the first entry */
+    headerp->entry_begin = ncbbp->metadata.nused;  
     headerp->basenamelen = strlen(basename);
 
     /* Create log files */
@@ -177,11 +184,13 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
         flag |= O_EXCL;
     }
     //ncbbp->datalog_fd = ncbbp->metalog_fd = -1;
-    err = ncbbio_file_open(ncbbp->nodecomm, ncbbp->metalogpath, flag, &ncbbp->metalog_fd);
+    err = ncbbio_file_open(ncbbp->logcomm, ncbbp->metalogpath, flag,
+                           &ncbbp->metalog_fd);
     if (err != NC_NOERR) {
         return err;
     }
-    err = ncbbio_file_open(ncbbp->nodecomm, ncbbp->datalogpath, flag, &ncbbp->datalog_fd);
+    err = ncbbio_file_open(ncbbp->logcomm, ncbbp->datalogpath, flag,
+                           &ncbbp->datalog_fd);
     if (err != NC_NOERR) {
         return err;
     }
@@ -193,16 +202,6 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (err != NC_NOERR){
         return err;
     }
-    /*
-    if (ioret < 0){
-        err = ncmpii_error_posix2nc("write");
-        if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
-        DEBUG_RETURN_ERROR(err);
-    }
-    if (ioret != headersize){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
-    }
-    */
 
     /* Write data header to file 
      * Data header consists of a fixed sized string PnetCDF0
@@ -211,16 +210,6 @@ int ncbbio_log_create(NC_bb* ncbbp, MPI_Info info) {
     if (err != NC_NOERR){
         return err;
     }
-    /*
-    if (ioret < 0){ 
-        err = ncmpii_error_posix2nc("write");
-        if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
-        DEBUG_RETURN_ERROR(err);
-    }
-    if (ioret != 8){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
-    }
-    */
 
     ncbbp->datalogsize = 8;
    
@@ -244,9 +233,11 @@ int ncbbio_log_enddef(NC_bb *ncbbp){
     int i, maxdims, err, recdimid;
     ssize_t ioret;
     double t1, t2; 
-    NC_bb_metadataheader *headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
+    NC_bb_metadataheader *headerp;
     
     t1 = MPI_Wtime();
+
+    headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
     
     /* 
      * Update the header if max ndim increased 
@@ -258,36 +249,23 @@ int ncbbio_log_enddef(NC_bb *ncbbp){
         /* Seek to the location of maxndims 
          * Note: location need to be updated when struct change
          */
-        err = ncbbio_file_seek(ncbbp->metalog_fd, sizeof(NC_bb_metadataheader) - sizeof(headerp->basename) - sizeof(headerp->basenamelen) - sizeof(headerp->num_entries) - sizeof(headerp->max_ndims), SEEK_SET);
+        err = ncbbio_file_seek(ncbbp->metalog_fd, sizeof(NC_bb_metadataheader) - 
+                               sizeof(headerp->basename) - 
+                               sizeof(headerp->basenamelen) - 
+                               sizeof(headerp->num_entries) - 
+                               sizeof(headerp->max_ndims), SEEK_SET);
         if (err != NC_NOERR){
             return err;
         }
-        /*
-        if (ioret < 0){
-            DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
-        }
-        */
+
         /* Overwrite maxndims
          * This marks the completion of the record
          */
-        err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->max_ndims, SIZEOF_MPI_OFFSET);
+        err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->max_ndims,
+                                SIZEOF_MPI_OFFSET);
         if (err != NC_NOERR){
             return err;
         }
-        /*
-        if (ioret < 0){
-            err = ncmpii_error_posix2nc("write");
-            if (err == NC_EFILE){
-                err = NC_EWRITE;
-            }
-            DEBUG_RETURN_ERROR(err);
-        }
-        if (ioret != SIZEOF_MPI_OFFSET){
-            err = ncmpii_error_posix2nc("write");
-            
-            DEBUG_RETURN_ERROR(NC_EWRITE);
-        }
-        */
     }
     
     t2 = MPI_Wtime();
@@ -323,10 +301,11 @@ int ncbbio_log_close(NC_bb *ncbbp) {
     double put_meta_wr_time;
     double put_num_wr_time;
 #endif
-
-    NC_bb_metadataheader* headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
+    NC_bb_metadataheader* headerp;
 
     t1 = MPI_Wtime();
+
+    headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
 
     /* If log file is created, flush the log */
     if (ncbbp->metalog_fd >= 0){
@@ -408,290 +387,6 @@ int ncbbio_log_close(NC_bb *ncbbp) {
 }
 
 /*
- * Prepare a single log entry to be write to log
- * Used by ncmpii_getput_varm
- * IN    ncbbp:    log structure to log this entry
- * IN    varp:    NC_var structure associate to this entry
- * IN    start: start in put_var* call
- * IN    count: count in put_var* call
- * IN    stride: stride in put_var* call
- * IN    bur:    buffer of data to write
- * IN    buftype:    buftype as in ncmpii_getput_varm, MPI_PACKED indicate a flexible api
- * IN    packedsize:    Size of buf in byte, only valid when buftype is MPI_PACKED
- */
-int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[], const MPI_Offset count[], const MPI_Offset stride[], void *buf, MPI_Datatype buftype, MPI_Offset *putsize){
-    int err, i, dim, elsize;
-    int itype;    /* Type used in log file */
-    int *dimids;
-    char *buffer;
-    double t1, t2, t3, t4, t5; 
-    MPI_Offset esize, dataoff, recsize;
-    MPI_Offset *Start, *Count, *Stride;
-    MPI_Offset size;
-    ssize_t ioret;
-    NC_bb_metadataentry *entryp;
-    NC_bb_metadataheader *headerp;
-    
-    t1 = MPI_Wtime();
-
-    /* Calculate data size */
-    /* Get ndims */
-    err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, &dim, 
-                                        NULL, NULL, NULL, NULL, NULL);
-    if (err != NC_NOERR){
-        return err;
-    }
-    /* Calcalate submatrix size */
-    MPI_Type_size(buftype, &elsize);
-    size = (MPI_Offset)elsize;
-    for(i = 0; i < dim; i++){
-        size *= count[i];
-    }
-
-    /* Update record dimension size if is record variable */
-    /* Get dimids */
-    dimids = NCI_Malloc(sizeof(int) * dim);
-    err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, NULL, 
-                                        dimids, NULL, NULL, NULL, NULL);
-    if (err != NC_NOERR){
-        return err;
-    }
-    /* Update recdimsize if first dim is unlimited */
-    if (dim > 0 && dimids[0] == ncbbp->recdimid) {
-        /* Dim size after the put operation */
-        if (stride == NULL) {
-            recsize = start[0] + count[0];
-        }
-        else {
-            recsize = start[0] + (count[0] - 1) * stride[0] + 1;
-        }
-        if (recsize > ncbbp->recdimsize) {
-            ncbbp->recdimsize = recsize;
-        }
-    }
-    NCI_Free(dimids);
-
-    /* Convert to log types 
-     * Log spec has different enum of types than MPI
-     */
-    if (buftype == MPI_CHAR) {   /* put_*_text */
-        itype = NC_LOG_TYPE_TEXT;
-    }
-    else if (buftype == MPI_SIGNED_CHAR) {    /* put_*_schar */
-        itype = NC_LOG_TYPE_SCHAR;
-    }
-    else if (buftype == MPI_UNSIGNED_CHAR) {    /* put_*_uchar */
-        itype = NC_LOG_TYPE_UCHAR;
-    }
-    else if (buftype == MPI_SHORT) { /* put_*_ushort */
-        itype = NC_LOG_TYPE_SHORT;
-    }
-    else if (buftype == MPI_UNSIGNED_SHORT) { /* put_*_ushort */
-        itype = NC_LOG_TYPE_USHORT;
-    }
-    else if (buftype == MPI_INT) { /* put_*_int */
-        itype = NC_LOG_TYPE_INT;
-    }
-    else if (buftype == MPI_UNSIGNED) { /* put_*_uint */
-        itype = NC_LOG_TYPE_UINT;
-    }
-    else if (buftype == MPI_FLOAT) { /* put_*_float */
-        itype = NC_LOG_TYPE_FLOAT;
-    }
-    else if (buftype == MPI_DOUBLE) { /* put_*_double */
-        itype = NC_LOG_TYPE_DOUBLE;
-    }
-    else if (buftype == MPI_LONG_LONG_INT) { /* put_*_longlong */
-        itype = NC_LOG_TYPE_LONGLONG;
-    }
-    else if (buftype == MPI_UNSIGNED_LONG_LONG) { /* put_*_ulonglong */
-        itype = NC_LOG_TYPE_ULONGLONG;
-    }
-    else { /* Unrecognized type */
-        DEBUG_RETURN_ERROR(NC_EINVAL);
-    }
-    
-    /* Prepare metadata entry header */
-        
-    /* Find out the location of data in datalog
-     * Which is current possition in data log 
-     * Datalog descriptor should always points to the end of file
-     * Position must be recorded first before writing
-     */
-    dataoff = (MPI_Offset)ncbbp->datalogsize;
-    
-    /* Size of metadata entry
-     * Include metadata entry header and variable size additional data (start, count, stride) 
-     */
-    esize = sizeof(NC_bb_metadataentry) + dim * 3 * SIZEOF_MPI_OFFSET;
-    /* Allocate space for metadata entry header */
-    buffer = (char*)ncbbio_log_buffer_alloc(&(ncbbp->metadata), esize);
-    entryp = (NC_bb_metadataentry*)buffer;
-    entryp->esize = esize; /* Entry size */
-    entryp->itype = itype; /* Variable type */
-    entryp->varid = varid;  /* Variable id */
-    entryp->ndims = dim;  /* Number of dimensions of the variable*/
-	entryp->data_len = size; /* The size of data in bytes. The size that will be write to data log */
-    entryp->data_off = dataoff;
-    
-    /* Determine the api kind of original call
-     * If stride is NULL, we log it as a vara call, otherwise, a vars call 
-     * Upper layer translates var1 and var to vara, so we only have vara and vars
-     */
-    if (stride == NULL){
-        entryp->api_kind = NC_LOG_API_KIND_VARA;
-    }
-    else{
-        entryp->api_kind = NC_LOG_API_KIND_VARS;
-    }
-    
-    /* Calculate location of start, count, stride in metadata buffer */
-    Start = (MPI_Offset*)(buffer + sizeof(NC_bb_metadataentry));
-    Count = Start + dim;
-    Stride = Count + dim;
-    
-    /* Fill up start, count, and stride */
-    memcpy(Start, start, dim * SIZEOF_MPI_OFFSET);
-    memcpy(Count, count, dim * SIZEOF_MPI_OFFSET);
-    if(stride != NULL){
-        memcpy(Stride, stride, dim * SIZEOF_MPI_OFFSET);
-    }
-    else{
-        memset(Stride, 0, dim * SIZEOF_MPI_OFFSET);
-    }
- 
-    /* Increase number of entry
-     * This must be the final step of a log record
-     * Increasing num_entries marks the completion of the record
-     */
-
-    /* Increase num_entries in the metadata buffer */
-    headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
-    headerp->num_entries++;
-
-    //We only increase datalogsize by amount actually write
-    ncbbp->datalogsize += size;
-
-    /* Record data size */
-    ncbbio_log_sizearray_append(&(ncbbp->entrydatasize), entryp->data_len);
-    // Record in index
-    // Entry address must be relative as metadata buffer can be reallocated
-    ncbbio_metaidx_add(ncbbp, entryp - (NC_bb_metadataentry*)ncbbp->metadata.buffer);
-
-    t2 = MPI_Wtime();
-    
-    /* Writing to data log
-     * Note: Metadata record indicate completion, so data must go first 
-     */
-
-    /* 
-     * Write data log
-     */
-    err = ncbbio_file_write(ncbbp->datalog_fd, buf, size);
-    if (err != NC_NOERR){
-        return err;
-    }
-
-    t3 = MPI_Wtime();
-
-    /*
-    if (ioret < 0){
-        err = ncmpii_error_posix2nc("write");
-        if (err == NC_EFILE){
-            err = NC_EWRITE;
-        }
-        DEBUG_RETURN_ERROR(err);
-    }
-    if (ioret != size){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
-    }
-    */
-
-    /* Seek to the head of metadata
-     * Note: EOF may not be the place for next entry after a flush
-     * Note: metadata size will be updated after allocating metadata buffer space, substract esize for original location 
-     */
-    err = ncbbio_file_seek(ncbbp->metalog_fd, ncbbp->metadata.nused - esize, SEEK_SET);   
-    if (err != NC_NOERR){
-        return err;
-    }
-    /*
-    if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
-    }
-    */
-    
-    /* Write meta data log */
-    err = ncbbio_file_write(ncbbp->metalog_fd, buffer, esize);
-    if (err != NC_NOERR){
-        return err;
-    }
-    /*
-    if (ioret < 0){
-        err = ncmpii_error_posix2nc("write");
-        if (err == NC_EFILE){
-            err = NC_EWRITE;
-        }
-        DEBUG_RETURN_ERROR(err);
-    }
-    if (ioret != esize){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
-    }
-    */
-    t4 = MPI_Wtime();
-
-
-    /* Seek to the location of num_entries
-     * Note: location need to be updated when struct change
-     */
-    err = ncbbio_file_seek(ncbbp->metalog_fd, 56, SEEK_SET);
-    if (err != NC_NOERR){
-        return err;
-    }
-    /*
-    if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
-    }
-    */
-    /* Overwrite num_entries
-     * This marks the completion of the record
-     */
-    err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
-    if (err != NC_NOERR){
-        return err;
-    }
-    /*
-    if (ioret < 0){
-        err = ncmpii_error_posix2nc("write");
-        if (err == NC_EFILE){
-            err = NC_EWRITE;
-        }
-        DEBUG_RETURN_ERROR(err);
-    }
-    if (ioret != SIZEOF_MPI_OFFSET){
-        DEBUG_RETURN_ERROR(NC_EWRITE);
-    }
-    */
-
-    t5 = MPI_Wtime();
-    ncbbp->put_data_wr_time += t3 - t2;
-    ncbbp->put_meta_wr_time += t4 - t3;
-    ncbbp->put_num_wr_time += t5 - t4;
-    ncbbp->total_time += t5 - t1;
-    ncbbp->put_time += t5 - t1;
- 
-    ncbbp->total_data += size;
-    ncbbp->total_meta += esize;
-
-    /* Return size */
-    if (putsize != NULL){
-        *putsize = size;
-    }
-
-    return NC_NOERR;
-}
-
-/*
  * Commit the log into cdf file and delete the log
  * User can call this to force a commit without closing
  * It work by flush and re-initialize the log structure
@@ -703,9 +398,11 @@ int ncbbio_log_flush(NC_bb* ncbbp) {
     double t1, t2; 
     size_t ioret;
     //NC_req *putlist;
-    NC_bb_metadataheader *headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
+    NC_bb_metadataheader *headerp;
     
     t1 = MPI_Wtime();
+
+    headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
 
     /* Nothing to replay if nothing have been written */
     if (headerp->num_entries == 0){
@@ -731,37 +428,15 @@ int ncbbio_log_flush(NC_bb* ncbbp) {
     if (err != NC_NOERR){
         return err;
     }
-    /*
-    if (ioret < 0){
-        err = ncmpii_error_posix2nc("lseek");
-        if (status == NC_NOERR){
-            DEBUG_ASSIGN_ERROR(status, err);
-        }
-    }
-    */
+
     /* Overwrite num_entries
      * This marks the completion of flush
      */
-    err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->num_entries, SIZEOF_MPI_OFFSET);
+    err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->num_entries,
+                            SIZEOF_MPI_OFFSET);
     if (err != NC_NOERR){
         return err;
     }
-    /*
-    if (ioret < 0){
-        err = ncmpii_error_posix2nc("write");
-        if (err == NC_EFILE){
-            err = NC_EWRITE;
-        }
-        if (status == NC_NOERR){
-            DEBUG_ASSIGN_ERROR(status, err);
-        }
-    }
-    if (ioret != SIZEOF_MPI_OFFSET){
-        if (status == NC_NOERR){
-            DEBUG_ASSIGN_ERROR(status, err);
-        }
-    }
-    */
 
     /* Reset metadata buffer and entry array status */
     ncbbp->metadata.nused = headerp->entry_begin;
@@ -773,14 +448,7 @@ int ncbbio_log_flush(NC_bb* ncbbp) {
     if (err != NC_NOERR){
         return err;
     }
-    /*
-    if (ioret != 8){
-        err = ncmpii_error_posix2nc("lseek");
-        if (status == NC_NOERR){
-            DEBUG_ASSIGN_ERROR(status, err);
-        }
-    }
-    */
+
     ncbbp->datalogsize = 8;
    
     t2 = MPI_Wtime();

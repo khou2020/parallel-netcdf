@@ -234,12 +234,15 @@ ncmpi_create(MPI_Comm    comm,
              int        *ncidp)
 {
     int default_format, rank, status=NC_NOERR, err;
-    int safe_mode=0, mpireturn, root_cmode, enable_foo_driver=0, enable_bb_driver = 0;
+    int safe_mode=0, mpireturn, root_cmode, enable_bb_driver = 0;
     char *env_str;
     MPI_Info combined_info;
     void *ncp;
     PNC *pncp;
     PNC_driver *driver;
+#ifdef BUILD_DRIVER_FOO
+    int enable_foo_driver=0;
+#endif
 
     MPI_Comm_rank(comm, &rank);
 
@@ -285,26 +288,24 @@ ncmpi_create(MPI_Comm    comm,
     /* combine user's info and PNETCDF_HINTS env variable */
     combine_env_hints(info, &combined_info);
 
+
     /* check if nc_foo_driver is enabled */
     if (combined_info != MPI_INFO_NULL) {
         char value[MPI_MAX_INFO_VAL];
         int flag;
 
+#ifdef BUILD_DRIVER_FOO
         MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
-        
+#endif
         MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_bb_driver = 1;
    }
 
-    /* TODO: Use environment variable and cmode to tell the file format which
-     * is later used to select the right driver. For now, we have only one
-     * driver, ncmpio.
-     */
 #ifdef BUILD_DRIVER_FOO
     if (enable_foo_driver)
         driver = ncfoo_inq_driver();
@@ -315,11 +316,16 @@ ncmpi_create(MPI_Comm    comm,
             driver = ncbbio_inq_driver();
         }
         else {
+            /* TODO: Use environment variable and cmode to tell the file format
+             * which is later used to select the right driver. For now, we have
+             * only one driver, ncmpio.
+             */
             /* default is ncmpio driver */
             driver = ncmpio_inq_driver();
         }
     }
-#if 0 /* refer to netCDF library's USE_REFCOUNT */
+#if 0
+    /* refer to netCDF library's USE_REFCOUNT */
     /* check whether this path is already opened */
     pncp = find_in_PNCList_by_name(path);
     if (pncp != NULL) return NC_ENFILE;
@@ -399,12 +405,15 @@ ncmpi_open(MPI_Comm    comm,
            int        *ncidp)  /* OUT */
 {
     int i, nalloc, rank, format, msg[2], status=NC_NOERR, err, enable_bb_driver = 0;
-    int safe_mode=0, mpireturn, root_omode, enable_foo_driver=0;
+    int safe_mode=0, mpireturn, root_omode;
     char *env_str;
     MPI_Info combined_info;
     void *ncp;
     PNC *pncp;
     PNC_driver *driver;
+#ifdef BUILD_DRIVER_FOO
+    int enable_foo_driver=0;
+#endif
 
     MPI_Comm_rank(comm, &rank);
 
@@ -471,30 +480,30 @@ ncmpi_open(MPI_Comm    comm,
     /* combine user's info and PNETCDF_HINTS env variable */
     combine_env_hints(info, &combined_info);
 
+
     /* check if nc_foo_driver is enabled */
     if (combined_info != MPI_INFO_NULL) {
         char value[MPI_MAX_INFO_VAL];
         int flag;
-
+#ifdef BUILD_DRIVER_FOO
         MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
-
+#endif
         MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
             value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_bb_driver = 1;
     }
-
-    /* TODO: currently we only have ncmpio driver. Need to add other
-     * drivers once they are available
-     */
 #ifdef BUILD_DRIVER_FOO
     if (enable_foo_driver)
         driver = ncfoo_inq_driver();
     else
 #endif
+        /* TODO: currently we only have ncmpio driver. Need to add other
+         * drivers once they are available
+         */
         if (format == NC_FORMAT_CLASSIC ||
             format == NC_FORMAT_CDF2 ||
             format == NC_FORMAT_CDF5) {
@@ -882,19 +891,28 @@ int
 ncmpi_inq_file_format(const char *filename,
                       int        *formatp) /* out */
 {
-    char *cdf_signature="CDF";
-    char *hdf5_signature="\211HDF\r\n\032\n";
+    const char *cdf_signature="CDF";
+    const char *hdf5_signature="\211HDF\r\n\032\n";
+    const char *path;
     char signature[8];
     int fd;
     ssize_t rlen;
 
     *formatp = NC_FORMAT_UNKNOWN;
 
+    /* remove the file system type prefix name if there is any.
+     * For example, when filename = "lustre:/home/foo/testfile.nc", remove
+     * "lustre:" to make path = "/home/foo/testfile.nc" in open() below
+     */
+    path = strchr(filename, ':');
+    if (path == NULL) path = filename; /* no prefix */
+    else              path++;
+
     /* must include config.h on 32-bit machines, as AC_SYS_LARGEFILE is called
      * at the configure time and it defines _FILE_OFFSET_BITS to 64 if large
      * file feature is supported.
      */
-    if ((fd = open(filename, O_RDONLY, 00400)) == -1) {
+    if ((fd = open(path, O_RDONLY, 00400)) == -1) { /* open for read */
              if (errno == ENOENT)       DEBUG_RETURN_ERROR(NC_ENOENT)
         else if (errno == EACCES)       DEBUG_RETURN_ERROR(NC_EACCESS)
         else if (errno == ENAMETOOLONG) DEBUG_RETURN_ERROR(NC_EBAD_FILE)

@@ -11,7 +11,6 @@
 #define _PNETCDF_H
 
 #include <mpi.h>
-#include <stdlib.h> /* size_t */
 
 #define PNETCDF_VERSION       "@PNETCDF_VERSION@"
 #define PNETCDF_VERSION_MAJOR @PNETCDF_VERSION_MAJOR@
@@ -160,15 +159,6 @@ typedef int nc_type;
 
 #define NC_CLASSIC_MODEL 0x0100 /**< Enforce classic model on netCDF-4. Mode flag for nc_create(). */
 #define NC_64BIT_OFFSET  0x0200  /**< Use large (64-bit) file offsets. Mode flag for nc_create(). */
-
-/* Log hint flags */
-#define NC_LOG_HINT_LOG_ENABLE 0x01
-#define NC_LOG_HINT_DEL_ON_CLOSE 0x02
-#define NC_LOG_HINT_FLUSH_ON_WAIT 0x04
-#define NC_LOG_HINT_FLUSH_ON_SYNC 0x08
-#define NC_LOG_HINT_FLUSH_ON_READ 0x10
-#define NC_LOG_HINT_LOG_OVERWRITE 0x20
-#define NC_LOG_HINT_LOG_CHECK 0x40
 
 /** \deprecated The following flag currently is ignored, but use in
  * nc_open() or nc_create() may someday support use of advisory
@@ -577,7 +567,6 @@ by the desired type. */
 #define NC_ENOTFILL			(-234) /**< Attempting to fill a variable when its fill mode is off */
 #define NC_EINVAL_OMODE			(-235) /**< Invalid file open mode */
 #define NC_EPENDING			(-236) /**< Pending nonblocking request is found at file close */
-#define NC_EUNKNOWN             (-237) /**< Unknown error */
 /* add new error here */
 
 /* header inconsistency errors start from -250 */
@@ -849,7 +838,6 @@ ncmpi_inq_var_fill(int ncid, int varid, int *no_fill, void *fill_value);
 
 extern int
 ncmpi_inq_path(int ncid, int *pathlen, char *path);
-
 
 /* End Inquiry Functions */
 
@@ -4490,56 +4478,6 @@ ncmpi_mget_varm_ulonglong_all(int ncid, int num, int *varids,
                MPI_Offset* const *starts, MPI_Offset* const *counts,
                MPI_Offset* const *strides, MPI_Offset* const *imaps,
                unsigned long long *bufs[]);
-
-/* Log related */
-
-typedef struct NC_Log_entryheader {
-    MPI_Offset esize;
-    int api_kind;
-    int itype;
-    int varid;
-    int ndims;
-    MPI_Offset data_off;
-    MPI_Offset data_len;
-} NC_Log_entryheader;
-
-typedef struct NC_Log_header {
-    char magic[8];
-    char format[8];
-    int big_endian;
-    int is_external;
-    MPI_Offset num_ranks;
-    MPI_Offset rank_id;
-    MPI_Offset entry_begin;
-    MPI_Offset max_ndims;
-    MPI_Offset num_entries;
-    int basenamelen;
-    char basename[1];   
-} NC_Log_header;
-
-typedef struct NC_Log_entry {
-    NC_Log_entryheader *header;
-    MPI_Offset *start;
-    MPI_Offset *count;
-    MPI_Offset *stride;
-} NC_Log_entry;
-
-typedef struct NC_Log_file {
-    NC_Log_header *header;
-    char *buffer;
-    NC_Log_entry *entries;
-} NC_Log_file;
-
-extern int 
-ncmpi_inq_logfile_path(int ncid, char *path, char *logbase, int rank, 
-                char *metapath, char *datapath, char *abs_path);
-
-extern int 
-ncmpi_inq_logfile(int ncid, char *path, char* logbase, int rank, 
-            NC_Log_file *metalog, size_t *metasize, size_t *datasize);
-extern int 
-ncmpi_free_logfile(NC_Log_file *metalog);
-
 
 /* End Skip Prototypes for Fortran binding */
 

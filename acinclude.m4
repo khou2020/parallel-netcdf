@@ -1569,7 +1569,11 @@ AC_DEFUN([UD_CHECK_PGF77],[
 ])
 
 dnl Check if Fortran compiler is NAG
-dnl According to nagfor manual the command-line option to should version is -V
+dnl According to nagfor manual the command-line option to get version is -V
+dnl % nagfor -V
+dnl NAG Fortran Compiler Release 6.1(Tozai) Build 6106
+dnl Product NPL6A61NA for x86-64 Linux
+dnl Copyright 1990-2016 The Numerical Algorithms Group Ltd., Oxford, U.K.
 dnl
 AC_DEFUN([UD_CHECK_FC_NAG],[
     AC_CACHE_CHECK([if Fortran compiler is NAG], [ac_cv_fc_compiler_nag],
@@ -1648,8 +1652,59 @@ rm -f conftest.$ac_ext
 AC_LANG_PUSH([C])
 ])
 
+dnl check the availability of one MPI executable
+AC_DEFUN([UD_MPI_PATH_PROG], [
+   dnl 1st token in $2 must be the program name, rests are command-line options
+   ac_first_token=`echo $2 | cut -d" " -f1`
+   ac_rest_tokens=`echo $2 | cut -d" " -s -f2-`
+   UD_MSG_DEBUG(ac_first_token=$ac_first_token)
+   UD_MSG_DEBUG(ac_rest_tokens=$ac_rest_tokens)
 
-dnl check the availability of MPI executables
+   ac_mpi_prog_$1=
+   if test "x$MPI_INSTALL" != x ; then
+      dnl Check if MPI_INSTALL is a substring of first_token
+      if test "$ac_first_token" != "${ac_first_token%$MPI_INSTALL*}" ; then
+         UD_MSG_DEBUG("MPI_INSTALL is a substring of ac_first_token")
+         ac_prog=`echo $ac_first_token | rev | cut -d"/" -f1 |rev`
+      else
+         ac_prog=$ac_first_token
+      fi
+      UD_MSG_DEBUG(ac_prog=$ac_prog)
+      UD_MSG_DEBUG(--with-mpi=$MPI_INSTALL is used)
+      if test -d "${MPI_INSTALL}/bin" ; then
+         UD_MSG_DEBUG(search $ac_prog under $MPI_INSTALL/bin)
+         AC_PATH_PROG([ac_mpi_prog_$1], [$ac_prog], [], [$MPI_INSTALL/bin])
+      else
+         dnl ${MPI_INSTALL}/bin does not exist, search $MPI_INSTALL
+         UD_MSG_DEBUG(search $ac_prog under $MPI_INSTALL)
+         AC_PATH_PROG([ac_mpi_prog_$1], [$ac_prog], [], [$MPI_INSTALL])
+      fi
+   else
+      UD_MSG_DEBUG(--with-mpi=$MPI_INSTALL is NOT used)
+      UD_MSG_DEBUG(search $ac_first_token under $PATH)
+      AC_PATH_PROG([ac_mpi_prog_$1], [$ac_first_token])
+   fi
+   UD_MSG_DEBUG([ac_mpi_prog_$1=${ac_mpi_prog_$1}])
+   if test "x${ac_mpi_prog_$1}" = x ; then
+      dnl AC_CHECK_FILE fails when $ac_first_token is not found in cross compile
+      dnl AC_CHECK_FILE([$ac_first_token], [ac_mpi_prog_$1=$2])
+      AC_CHECK_PROG([ac_mpi_prog_$1], [$ac_first_token])
+      dnl AC_CHECK_PROGS([ac_mpi_prog_$1], [$2], [], [/])
+      dnl ac_first_token=`echo $2 | cut -d" " -f1`
+      dnl UD_MSG_DEBUG(check first token $ac_first_token of $2)
+      dnl if test -f $ac_first_token ; then
+         dnl UD_MSG_DEBUG(use file $ac_first_token as it exits)
+         dnl ac_mpi_prog_$1=$2
+      dnl fi
+   else
+      if test "x$ac_rest_tokens" != x ; then
+         ac_mpi_prog_$1="$ac_mpi_prog_$1 $ac_rest_tokens"
+      fi
+   fi
+   $1=${ac_mpi_prog_$1}
+])
+
+dnl check the availability of a list of MPI executables
 AC_DEFUN([UD_MPI_PATH_PROGS], [
    ac_mpi_prog_$1=
    if test "x$MPI_INSTALL" != x ; then
@@ -1669,12 +1724,14 @@ AC_DEFUN([UD_MPI_PATH_PROGS], [
    fi
    UD_MSG_DEBUG([ac_mpi_prog_$1=${ac_mpi_prog_$1}])
    if test "x${ac_mpi_prog_$1}" = x ; then
-      AC_CHECK_FILE([$2], [ac_mpi_prog_$1=$2])
+      dnl AC_CHECK_FILES fails when $2 is not found in cross compile
+      dnl AC_CHECK_FILES([$2], [ac_mpi_prog_$1=$2])
+      AC_CHECK_PROGS([ac_mpi_prog_$1], [$2])
       dnl AC_CHECK_PROGS([ac_mpi_prog_$1], [$2], [], [/])
-      dnl first_token=`echo $2 | cut -d" " -f1`
-      dnl UD_MSG_DEBUG(check first token $first_token of $2)
-      dnl if test -f $first_token ; then
-         dnl UD_MSG_DEBUG(use file $first_token as it exits)
+      dnl ac_first_token=`echo $2 | cut -d" " -f1`
+      dnl UD_MSG_DEBUG(check first token $ac_first_token of $2)
+      dnl if test -f $ac_first_token ; then
+         dnl UD_MSG_DEBUG(use file $ac_first_token as it exits)
          dnl ac_mpi_prog_$1=$2
       dnl fi
    fi
@@ -1822,5 +1879,32 @@ AC_DEFUN([UD_CHECK_F77_INT8],
     )
     AC_LANG_POP([Fortran 77])
     AC_MSG_RESULT([$ac_cv_f77_int8])
+])
+
+dnl
+dnl Check how sed command handling in-place option -i and define SED_I
+dnl
+AC_DEFUN([UD_PROG_SED_I],
+[
+   AC_REQUIRE([AC_PROG_SED])
+   AC_CACHE_CHECK([for sed handling option -i ], ac_cv_SED_I,[
+   cat > conftest.sed_i <<EOF
+   test str1
+EOF
+   ac_cv_err=`$SED -i '' -e 's|str1|str2|g' conftest.sed_i 2>&1`
+   if test "x$ac_cv_err" = x ; then
+      ac_cv_SED_I="$SED -i ''"
+   else
+      ac_cv_err=`sed -i'' -e 's|str1|str2|g' conftest.sed_i 2>&1`
+      if test "x$ac_cv_err" = x ; then
+         ac_cv_SED_I="$SED -i''"
+      else
+         AC_MSG_ERROR("No proper sed -i option found")
+      fi
+   fi
+   AS_UNSET(ac_cv_err)])
+   SED_I="$ac_cv_SED_I"
+   AC_SUBST(SED_I)
+   ${RM} -f conftest.sed_i
 ])
 

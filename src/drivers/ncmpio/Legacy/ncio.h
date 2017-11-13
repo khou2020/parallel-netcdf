@@ -10,7 +10,6 @@
 #include <stddef.h>       /* size_t */
 #include <sys/types.h>    /* off_t */
 #include <mpi.h>
-#include <limits.h>
 #include "pnetcdf.h"
 
 #define MPI_COLLECTIVE_FH 2

@@ -21,7 +21,6 @@ EXTRA_DIST = COPYRIGHT \
              README \
              RELEASE_NOTES \
              m4/foreach.m4 \
-             m4/foreachq.m4 \
              m4/utils.m4
 
 # Below is a trick to build all test executables, without running them
@@ -52,6 +51,16 @@ ptests:
 		$(MAKE) $(MFLAGS) -C $$d ptests $$* ; \
 	done ) ;
 
+tests-local:
+	@echo '|'
+	@echo '|  All test programs have been successfully built.'
+	@echo '|'
+
+check-local:
+	@echo '|'
+	@echo '|  All sequential test programs have run successfully.'
+	@echo '|'
+
 install-data-hook:
 	@echo '+----------------------------------------------------------------------------+'
 	@echo '|'
@@ -61,9 +70,9 @@ install-data-hook:
 	@echo '|  * PnetCDF header files have been installed in'
 	@echo '|          $(prefix)/include'
 	@echo '|  * PnetCDF library files have been installed in'
-	@echo '|          $(prefix)/lib'
+	@echo '|          $(exec_prefix)/lib'
 	@echo '|  * PnetCDF utility programs have been installed in'
-	@echo '|          $(prefix)/bin'
+	@echo '|          $(exec_prefix)/bin'
 	@echo '|  * PnetCDF man pages have been installed in'
 	@echo '|          $(prefix)/share/man'
 	@echo '|'
@@ -80,12 +89,14 @@ install-data-hook:
 	fi
 	@echo '|'
 	@echo '|  Add the following line to link your program to PnetCDF library:'
-	@echo '|      -L$(prefix)/lib -lpnetcdf'
+	@echo '|      -L$(exec_prefix)/lib -lpnetcdf'
 	@echo '|'
-	@echo '|  Add the following to your run-time environment variable LD_LIBRARY_PATH,'
-	@echo '|  if your executable is linked with the PnetCDF shared libraries.'
-	@echo '|      $(prefix)/lib'
-	@echo '|'
+	@if test "x$(enable_shared)" = xyes ; then \
+	 echo '|  Add the following to your run-time environment variable LD_LIBRARY_PATH,' ; \
+	 echo '|  if your executable is linked with the PnetCDF shared libraries.' ; \
+	 echo '|      $(exec_prefix)/lib' ; \
+	 echo '|' ; \
+	fi
 	@echo '|  PnetCDF is jointly developed by a team at Northwestern University and'
 	@echo '|  Argonne National Laboratory.'
 	@echo '|'

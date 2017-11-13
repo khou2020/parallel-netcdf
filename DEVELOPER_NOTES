@@ -15,6 +15,11 @@ Tasks immediately before a new release (must run in the following order)
                                               CPPFLAGS=-funsigned-char
                    and their combinations)
 
+        For C only, run address sanitizer build (gcc and clang) by adding
+        --disable-fortran \
+        CFLAGS="-O0 -Wall -fsanitize=address -fno-omit-frame-pointer" \
+        CXXFLAGS="-O0 -Wall -fsanitize=address -fno-omit-frame-pointer"
+
       - make check
       - run "make check" with valgrind by adding the following lines to command
         "make check". As of PnetCDF 1.8.0, "make check" passes without any
@@ -34,6 +39,12 @@ Tasks immediately before a new release (must run in the following order)
         * For using valgrind, set TESTSEQRUN and TESTMPIRUN as described above.
       - make distcheck
       - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS="--silent --enable-shared"
+      - check Building Binary Packages Using DESTDIR (automake chapter 2.2.10)
+        make DESTDIR=$HOME/inst install
+        This creates a folder under $HOME/inst with name equal to $prefix.
+      - test if file system type prefix added to file name is acceptable.
+        For example, "ufs:" added to file name. Note this ROMIO convention may
+        not be portable, so it is not added to the regular test programs.
 
     * build and test on different platforms with various compilers:
       - login.mcs.anl.gov : Intel, NAG Fortran, PGI, Solaris Studio compilers

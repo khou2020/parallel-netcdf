@@ -14,97 +14,313 @@
 #include <pnetcdf.h>
 #include <ncbbio_driver.h>
 #include <fcntl.h>
+#include <pnetcdf.h>
 
 #define BUFSIZE 8388608
 #define BLOCKSIZE 8388608
 
+/*
+ * Open buffered file
+ * IN      comm:    Communicator for shared file
+ * IN      path:    Path of file
+ * IN      flag:    File open flag
+ * OUT       fd:    File structure
+ */
 int ncbbio_file_open(MPI_Comm comm, char *path, int flag, NC_bb_file **fd) {
-    int err;
-#ifdef NC_BB_SHARED_LOG
-    int rank, np;
-    int amode = 0;
-    MPI_Datatype ftype;
-    MPI_Datatype btype;
-#endif    
+    int err; 
     NC_bb_file *f;
 
+    /* Allocate buffer */
     f = (NC_bb_file*)NCI_Malloc(sizeof(NC_bb_file));
     f->buf = NCI_Malloc(BUFSIZE);
+    if (f->buf == NULL){
+        DEBUG_RETURN_ERROR(NC_ENOMEM);
+    }
+    // TODO: Adjustable bsize
     f->bsize = BUFSIZE;
     f->pos = 0;
+    f->fpos = 0;
     f->bused = 0;
-#ifdef NC_BB_SHARED_LOG
-    if (flag & O_RDWR) {
-        amode |= MPI_MODE_RDWR;
+    MPI_Comm_rank(comm, &(f->rank));
+    MPI_Comm_size(comm, &(f->np));
+
+    /* Open file */
+    if (f->rank == 0){
+        f->fd = open(path, flag, 0744);
+        if (f->fd < 0){
+            err = ncmpii_error_posix2nc("open");
+            free(f->buf); // Free the buffer if error occurs
+            DEBUG_RETURN_ERROR(err);
+        }
     }
-    if (flag & O_CREAT) {
-        amode |= MPI_MODE_CREATE;
+
+    if (f->np > 1){
+        MPI_Barrier(comm);
     }
-    if (flag & O_EXCL) {
-        amode |= MPI_MODE_EXCL;
+
+    if (f->rank > 0){
+        if (flag & O_CREAT){
+            flag ^= O_CREAT;
+        }
+        f->fd = open(path, flag, 0744);
+        if (f->fd < 0){
+            err = ncmpii_error_posix2nc("open");
+            free(f->buf); // Free the buffer if error occurs
+            DEBUG_RETURN_ERROR(err);
+        }
     }
-    MPI_Comm_rank(comm, &rank);
-    MPI_Comm_size(comm, &np);
-    MPI_File_open(comm, path, amode, MPI_INFO_NULL, &(f->fd));
-    MPI_Type_contiguous(BLOCKSIZE, MPI_BYTE, &btype);
-    MPI_Type_commit(&btype);
-    MPI_Type_create_resized(btype, 0, BLOCKSIZE * np, &ftype);
-    MPI_Type_commit(&ftype);
-    MPI_File_set_view(f->fd, BLOCKSIZE * rank, MPI_BYTE, ftype, "native", MPI_INFO_NULL);
-#else
-    f->fd = open(path, flag, 0744);
-#endif
+
     *fd = f;
     return NC_NOERR;
 }
 
+/*
+ * Close buffered file
+ * IN       f:    File structure
+ */
 int ncbbio_file_close(NC_bb_file *f) {
+    int err;
 
+    /* Free the buffer */
     NCI_Free(f->buf);
-#ifdef NC_BB_SHARED_LOG
-    MPI_File_close(&(f->fd));
-#else
-    close(f->fd);
-#endif
+
+    /* Close file */
+    err = close(f->fd);
+    if (err != 0){
+        err = ncmpii_error_posix2nc("close");
+        DEBUG_RETURN_ERROR(err);
+    }
+
     NCI_Free(f);
     return NC_NOERR;
 }
 
-int ncbbio_file_flush(NC_bb_file *f){
-    
-    if (f->bused > 0){
-#ifdef NC_BB_SHARED_LOG
-        MPI_Status stat;
-        MPI_File_write(f->fd, f->buf, f->bused, MPI_BYTE, &stat);
-#else
-        write(f->fd, f->buf, f->bused);
-#endif
-    }
-    f->bused = 0;
-}
+/*
+ * Write shared file
+ * IN       f:    File structure
+ * OUT    buf:    Buffer for read data
+ * IN   count:    Size of buffer
+ */
+int ncbbio_file_write_core(NC_bb_file *f, void *buf, size_t count){
+    int i, err;
+    size_t sblock, soff, eblock, eoff;
+    size_t off, len;
+    size_t ioret;
 
-int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count) {
-    int err;
-#ifdef NC_BB_SHARED_LOG
-    MPI_Status stat;       
-    err = MPI_File_read(f->fd, buf, count, MPI_BYTE, &stat);
-    
-#else
-    read(f->fd, buf, count);
-#endif
-    f->pos += count;
+    if (f->np > 1){
+        sblock = f->fpos / BLOCKSIZE;
+        soff =  f->fpos % BLOCKSIZE;
+        eblock = (f->fpos + count) / BLOCKSIZE;
+        eoff =  (f->fpos + count) % BLOCKSIZE;
+
+        for(i = sblock; i <=eblock; i++){
+            if (i == sblock){
+                off = (i * f->np + f->rank) * BLOCKSIZE + soff;
+                len = BLOCKSIZE - soff;
+                if (len > count){
+                    len = count;
+                }
+            }
+            else if (i == eblock) {
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = eoff;
+            }
+            else{
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = BLOCKSIZE;
+            }
+            ioret = pwrite(f->fd, buf, len, off);
+            if (ioret < 0){
+                err = ncmpii_error_posix2nc("write");
+                if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+                DEBUG_RETURN_ERROR(err);
+            }
+            if (ioret != len){
+                DEBUG_RETURN_ERROR(NC_EWRITE);
+            }
+            buf += ioret;
+        }
+    }
+    else{
+        ioret = write(f->fd, buf, count);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
+    }
+
+    f->fpos += count;
+
     return NC_NOERR;
 }
 
+/*
+ * Write shared file
+ * IN       f:    File structure
+ * OUT    buf:    Buffer for read data
+ * IN   count:    Size of buffer
+ */
+int ncbbio_file_pwrite(NC_bb_file *f, void *buf, size_t count, size_t offset){
+    int i, err;
+    size_t sblock, soff, eblock, eoff;
+    size_t off, len;
+    size_t ioret;
+
+    if (f->np > 1){
+        sblock = offset / BLOCKSIZE;
+        soff =  offset % BLOCKSIZE;
+        eblock = (offset + count) / BLOCKSIZE;
+        eoff =  (offset + count) % BLOCKSIZE;
+
+        for(i = sblock; i <=eblock; i++){
+            if (i == sblock){
+                off = (i * f->np + f->rank) * BLOCKSIZE + soff;
+                len = BLOCKSIZE - soff;
+                if (len > count){
+                    len = count;
+                }
+            }
+            else if (i == eblock) {
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = eoff;
+            }
+            else{
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = BLOCKSIZE;
+            }
+            ioret = pwrite(f->fd, buf, len, off);
+            if (ioret < 0){
+                err = ncmpii_error_posix2nc("write");
+                if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+                DEBUG_RETURN_ERROR(err);
+            }
+            if (ioret != len){
+                DEBUG_RETURN_ERROR(NC_EWRITE);
+            }
+            buf += ioret;
+        }
+    }
+    else{
+        ioret = pwrite(f->fd, buf, count, offset);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
+    }
+
+    return NC_NOERR;
+}
+
+/*
+ * Flush file buffer
+ * IN       f:    File structure
+ */
+int ncbbio_file_flush(NC_bb_file *f){
+    int err;
+    ssize_t ioret;
+
+    /* Write data if buffer is not empty */
+    if (f->bused > 0){
+        err = ncbbio_file_write_core(f, f->buf, f->bused);
+        if (err != NC_NOERR){
+            return err;
+        }
+    }
+    f->bused = 0;
+    return NC_NOERR;
+}
+
+/*
+ * Read buffered shared file 
+ * IN       f:    File structure
+ * OUT    buf:    Buffer for read data
+ * IN   count:    Size of buffer
+ */
+int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count) {
+    int i, err;
+    size_t sblock, soff, eblock, eoff;
+    size_t off, len;
+    size_t ioret;
+
+    if (f->np > 1){
+        sblock = f->fpos / BLOCKSIZE;
+        soff =  f->fpos % BLOCKSIZE;
+        eblock = (f->fpos + count) / BLOCKSIZE;
+        eoff =  (f->fpos + count) % BLOCKSIZE;
+
+        for(i = sblock; i <=eblock; i++){
+            if (i == sblock){
+                off = (i * f->np + f->rank) * BLOCKSIZE + soff;
+                len = BLOCKSIZE - soff;
+                if (len > count){
+                    len = count;
+                }
+            }
+            else if (i == eblock) {
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = eoff;
+            }
+            else{
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = BLOCKSIZE;
+            }
+            ioret = pread(f->fd, buf, len, off);
+            if (ioret < 0){
+                err = ncmpii_error_posix2nc("read");
+                if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
+                DEBUG_RETURN_ERROR(err);
+            }
+            if (ioret != len){
+                DEBUG_RETURN_ERROR(NC_EREAD);
+            }
+            buf += ioret;
+        }
+    }
+    else{
+        ioret = read(f->fd, buf, count);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("read");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EREAD);
+        }
+    }
+
+    f->pos += count;
+    f->fpos += count;
+
+    return NC_NOERR;
+}
+
+/*
+ * Write buffered file
+ * IN       f:    File structure
+ * IN     buf:    Data buffer to write
+ * IN   count:    Size of buffer
+ */
 int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
+    int err;
+    ssize_t ioret;
     size_t wsize;
     size_t astart, aend;
     char *cbuf = buf;
 
+    // Calculate the first alligned position with the write region
     astart = (f->bsize - f->pos % f->bsize) % f->bsize;
     if (astart > count) {
         astart = 0;
     }
+    // Calculate the last alligned position with the write region
     aend = f->pos + count - (f->pos + count) % f->bsize;
     if (aend < f->pos){
         aend = 0;
@@ -113,26 +329,40 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
         aend -= f->pos;
     }
 
+    /*
+     * If there are data in the buffer, we must at a unaligned position
+     * Combine data before astart with data in the buffer
+     */
     if (f->bused > 0){
         memcpy(f->buf + f->bused, cbuf, astart); 
         f->bused += astart;
+        // Flush the buffer if it is full
         if (f->bused == f->bsize){
-            ncbbio_file_flush(f);
+            err = ncbbio_file_flush(f);
+            if (err != NC_NOERR){
+                return err;
+            }
         }
     }
     else{
         astart = 0;
     }
     
+    /*
+     * Write aligned section as usual
+     * From astart to aend
+     */
     if (aend > astart) {
-#ifdef NC_BB_SHARED_LOG
-        MPI_Status stat;       
-        MPI_File_write(f->fd, buf + astart, aend - astart, MPI_BYTE, &stat);
-#else
-        write(f->fd, buf + astart, aend - astart); 
-#endif
+        err = ncbbio_file_write_core(f, buf + astart, aend - astart); 
+        if (err != NC_NOERR){
+            return err;
+        }
     }
 
+    /*
+     * Place the final section to the buffer
+     * After aend
+     */
     if (count > aend){
         memcpy(f->buf + f->bused, cbuf + aend, count - aend);
         f->bused += count - aend;
@@ -143,31 +373,61 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
     return NC_NOERR;
 }
 
+/*
+ * Seek buffered file
+ * IN       f:    File structure
+ * IN     off:    Offset to seek
+ * IN  whence:    Type of offset
+ */
 int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
-    ncbbio_file_flush(f);
-#ifdef NC_BB_SHARED_LOG
-    int mpiwhence;
+    int err;
+    size_t new_off;
+    off_t ioret;
+
+    // Calculate new position
     if (whence == SEEK_SET){ 
-        mpiwhence = MPI_SEEK_SET;
+        new_off = off;
+        
     }
     else if (whence == SEEK_CUR){
-        mpiwhence = MPI_SEEK_CUR;
+        new_off = f->fpos + off;
     }
     else{
+        DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
     }
-    MPI_File_seek(f->fd, off, mpiwhence);
-#else
-    lseek(f->fd, off, whence);
-#endif
-    if (whence == SEEK_SET){ 
-        f->pos = off;
+
+    /*
+     * Return if file postion already at destination
+     * This prevents unnecessary buffer flush
+     */
+    if (new_off == f->pos){
+        return  NC_NOERR;
     }
-    else if (whence == SEEK_CUR){
-        f->pos += off;
+
+    /* 
+     * Flush the buffer
+     * We assume buffered data region starts immediately after cursor position
+     * When we change the cursor possition, we need to flush the buffer
+     */
+    err = ncbbio_file_flush(f);
+    if (err != NC_NOERR){
+        return err;
     }
-    else{
-        printf("ERROR\n");
+
+    /*
+     * Seek is only required when we have file per process
+     */
+    if (f->np <= 1){
+        ioret = lseek(f->fd, off, whence);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("lseek");
+            DEBUG_RETURN_ERROR(err); 
+        }
     }
+
+    // Update position
+    f->pos = f->fpos = new_off;
+
     return NC_NOERR;
 }
 

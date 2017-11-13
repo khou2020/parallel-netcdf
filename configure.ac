@@ -114,7 +114,6 @@ AH_TEMPLATE([PNC_MALLOC_TRACE],         [Define if to enable malloc tracing])
 AH_TEMPLATE([HAVE_FUNC_MACRO],          [Define if C++ macro __func__ is defined])
 AH_TEMPLATE([HAVE_FUNCTION_MACRO],      [Define if C++ macro __FUNCTION__ is defined])
 AH_TEMPLATE([RELAX_COORD_BOUND],        [Define if relaxed coordinate check is enabled])
-AH_TEMPLATE([BUILD_DRIVER_FOO],         [Define if build driver foo (development test only)])
 
 AH_TOP([#ifndef _CONFIG_H
 #define _CONFIG_H])
@@ -157,7 +156,8 @@ AC_ARG_WITH(mpi,
 if test "x${MPI_INSTALL}" != x && (! test -d "${MPI_INSTALL}") ; then
    AC_MSG_ERROR(Directory '${MPI_INSTALL}' specified in --with-mpi does not exist)
 fi
-dnl MPI_INSTALL will be referred in UD_MPI_PATH_PROGS defined in acinclude.m4
+dnl MPI_INSTALL will be referred in UD_MPI_PATH_PROGS and UD_MPI_PATH_PROG
+dnl defined in acinclude.m4
 
 AC_ARG_VAR(MPICC,  [MPI C compiler, @<:@default: CC@:>@])
 AC_ARG_VAR(MPICXX, [MPI C++ compiler, @<:@default: CXX@:>@])
@@ -221,7 +221,8 @@ dnl find the full path of MPICC from CANDIDATE_MPICC and MPI_INSTALL
 if test "x${ac_user_MPICC}" = x ; then
    UD_MPI_PATH_PROGS([MPICC], [$CANDIDATE_MPICC])
 else
-   UD_MPI_PATH_PROGS([MPICC], [$ac_user_MPICC])
+   dnl check whether user specified MPICC is valid
+   UD_MPI_PATH_PROG([MPICC], [$ac_user_MPICC])
 fi
 
 if test "x${MPICC}" = x ; then
@@ -297,7 +298,8 @@ if test "x${enable_cxx}" != xno ; then
    if test "x${ac_user_MPICXX}" = x ; then
       UD_MPI_PATH_PROGS([MPICXX], [$CANDIDATE_MPICXX])
    else
-      UD_MPI_PATH_PROGS([MPICXX], [$ac_user_MPICXX])
+      dnl check whether user specified MPICXX is valid
+      UD_MPI_PATH_PROG([MPICXX], [$ac_user_MPICXX])
    fi
    UD_MSG_DEBUG([MPICXX=$MPICXX])
 
@@ -432,7 +434,8 @@ else
       dnl CANDIDATE_MPIF77, and find the full path of MPIF77
       UD_MPI_PATH_PROGS([MPIF77], [$CANDIDATE_MPIF77])
    else
-      UD_MPI_PATH_PROGS([MPIF77], [$ac_user_MPIF77])
+      dnl check whether user specified MPIF77 is valid
+      UD_MPI_PATH_PROG([MPIF77], [$ac_user_MPIF77])
    fi
 
    if test "x${MPIF77}" = x ; then
@@ -472,7 +475,8 @@ if test "x${has_fortran}" = xyes ; then
       dnl CANDIDATE_MPIF90, and find the full path of MPIF90
       UD_MPI_PATH_PROGS([MPIF90], [$CANDIDATE_MPIF90])
    else
-      UD_MPI_PATH_PROGS([MPIF90], [$ac_user_MPIF90])
+      dnl check whether user specified MPIF90 is valid
+      UD_MPI_PATH_PROG([MPIF90], [$ac_user_MPIF90])
    fi
 
    if test "x${MPIF90}" = x ; then
@@ -739,8 +743,16 @@ if test "x${has_fortran}" = xyes ; then
    dnl Check if the Fortran compiler is an NAG
    UD_CHECK_FC_NAG
    if test "x${ac_cv_fc_compiler_nag}" = xyes ; then
-       FFLAGS+=" -DNAGFortran -mismatch"
-      FCFLAGS+=" -DNAGFortran -mismatch"
+      dnl Add -mismatch if they are not set by users
+      if ! echo "${FFLAGS}" | ${EGREP} -q -- "-mismatch" ; then
+         FFLAGS+=" -mismatch"
+      fi
+      if ! echo "${FCFLAGS}" | ${EGREP} -q -- "-mismatch" ; then
+         FCFLAGS+=" -mismatch"
+      fi
+      dnl Add -DNAGFortran
+       FFLAGS+=" -DNAGFortran"
+      FCFLAGS+=" -DNAGFortran"
    fi
 
    dnl check Fortran parameter modifier for 8-byte integer type
@@ -845,6 +857,8 @@ AC_PROG_EGREP
 
 dnl AC_PROG_SED and AC_PROG_GREP are only available on autoconf 2.60 and later
 AC_PROG_SED
+dnl check sed command option -i and set SED_I
+UD_PROG_SED_I
 AC_PROG_GREP
 
 dnl YACC and LEX are required to build PnetCDF utility tool ncmpigen
@@ -1364,7 +1378,9 @@ AC_ARG_VAR(TESTMPIRUN, [MPI run command for "make ptest", @<:@default: mpiexec -
 if test "x${TESTMPIRUN}" = x ; then
    dnl set default to "mpiexec -n NP"
    UD_MPI_PATH_PROGS([TESTMPIRUN], [mpiexec mpirun srun])
-   TESTMPIRUN+=" -n NP"
+   if test "x${TESTMPIRUN}" != x ; then
+      TESTMPIRUN+=" -n NP"
+   fi
 fi
 
 AC_ARG_VAR(TESTOUTDIR, [Output file directory for "make check" and "make ptest", @<:@default: ./@:>@])
@@ -1416,6 +1432,7 @@ AC_CONFIG_FILES(Makefile \
                 src/drivers/include/Makefile \
                 src/drivers/ncmpio/Makefile \
                 src/drivers/ncbbio/Makefile \
+                src/drivers/ncfoo/Makefile \
                 src/binding/Makefile \
                 src/binding/cxx/Makefile \
                 src/binding/f77/Makefile \
@@ -1432,8 +1449,9 @@ AC_CONFIG_FILES(Makefile \
                 src/utils/ncmpidump/Makefile \
                 src/utils/ncmpigen/Makefile \
                 src/utils/ncmpilogdump/Makefile \
+                src/utils/pnetcdf-config \
                 src/packaging/Makefile \
-                src/packaging/pnetcdf_pc \
+                src/packaging/pnetcdf.pc \
                 examples/Makefile \
                 examples/C/Makefile \
                 examples/tutorial/Makefile \
@@ -1469,19 +1487,11 @@ dnl The following dependency is for configure.in and configure
 dnl See autoconf manual 2.69, Section 4.8.5 Automatic Remaking
 dnl AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 
-dnl add executable permission to pnetcdf-config and check_install
-AC_CONFIG_FILES([src/utils/pnetcdf-config], [chmod u+x src/utils/pnetcdf-config])
-dnl AC_CONFIG_FILES([src/utils/check_install],  [chmod u+x src/utils/check_install])
+dnl build ncfoo driver only in debug mode
+AM_CONDITIONAL(BUILD_DRIVER_FOO, [test x${debug} = xyes])
 
-dnl AC_CHECK_FILE fails when cross-compile
-dnl AC_CHECK_FILE([${srcdir}/src/drivers/ncfoo/Makefile.am], [build_foo=yes], [build_foo=no])
-build_foo=no
-if test -r "${srcdir}/src/drivers/ncfoo/Makefile.am" ; then
-    AC_CONFIG_FILES(src/drivers/ncfoo/Makefile)
-    AC_DEFINE(BUILD_DRIVER_FOO)
-    build_foo=yes
-fi
-AM_CONDITIONAL(BUILD_DRIVER_FOO, [test x${build_foo} = xyes])
+AC_SUBST(enable_static)
+AC_SUBST(enable_shared)
 
 AC_OUTPUT
 echo "------------------------------------------------------------------------------"

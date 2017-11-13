@@ -39,6 +39,7 @@ C_SRCS = ncbbio_attr.c \
          ncbbio_nonblocking.c \
 		 ncbbio_util.c \
 		 ncbbio_log_flush.c \
+		 ncbbio_log_put.c \
 		 ncbbio_io.c
 
 

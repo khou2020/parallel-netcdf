@@ -70,10 +70,10 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
          */
         reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL;
         if (ncbbp->isindep){
-            reqmode |= NC_REQ_COLL;
+            reqmode |= NC_REQ_INDEP;
         }
         else{
-            reqmode |= NC_REQ_INDEP;
+            reqmode |= NC_REQ_COLL;
         }
         err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, NULL, buffer, -1, buftype, reqmode);
         
@@ -134,7 +134,7 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
 /* Convert from log type to MPI type used by pnetcdf library
  * Log spec has different enum of types than MPI
  */
-inline int logtype2mpitype(int type, MPI_Datatype *buftype){
+int logtype2mpitype(int type, MPI_Datatype *buftype){
     /* Convert from log type to MPI type used by pnetcdf library
      * Log spec has different enum of types than MPI
      */
@@ -415,10 +415,10 @@ int log_flush(NC_bb *ncbbp) {
              * Wait must be called first or previous data will be corrupted
              */
             if (ncbbp->isindep) {
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, ub - lb, reqids, stats, NC_REQ_INDEP); 
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, j, reqids, stats, NC_REQ_INDEP); 
             }
             else{
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, ub - lb, reqids, stats, NC_REQ_COLL);
+                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, j, reqids, stats, NC_REQ_COLL);
             }
             if (status == NC_NOERR) {
                 status = err;

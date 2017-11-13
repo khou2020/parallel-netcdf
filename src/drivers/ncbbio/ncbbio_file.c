@@ -222,7 +222,7 @@ ncbbio_enddef(void *ncdp)
         /* Init log structure */
         err = ncbbio_log_create(ncbbp, ncbbp->info);
         if (err != NC_NOERR) {
-            NCI_Free(ncbbp);
+            //NCI_Free(ncbbp);
             return err;
         }
         ncbbio_put_list_init(ncbbp);
@@ -257,7 +257,7 @@ ncbbio__enddef(void       *ncdp,
         /* Init log structure */
         err = ncbbio_log_create(ncbbp, ncbbp->info);
         if (err != NC_NOERR) {
-            NCI_Free(ncbbp);
+            //NCI_Free(ncbbp);
             return err;
         }
         ncbbio_put_list_init(ncbbp);
@@ -395,16 +395,7 @@ ncbbio_inq_misc(void       *ncdp,
 
     /* Export bb related settings */
     if (info_used != NULL){
-        MPI_Info_set(*info_used, "nc_bb_driver", "enable");
-        if (ncbbp->hints & NC_LOG_HINT_LOG_OVERWRITE) {
-            MPI_Info_set(*info_used, "nc_bb_overwrite", "enable");
-        }
-        if (ncbbp->hints & NC_LOG_HINT_DEL_ON_CLOSE) {
-            MPI_Info_set(*info_used, "nc_bb_del_on_close", "enable");
-        }
-        if (strcmp(ncbbp->logbase, ".") != 0) {
-            MPI_Info_set(*info_used, "nc_bb_dirname", ncbbp->logbase);
-        }
+        ncbbio_export_hint(ncbbp, *info_used);
     }
 
     return NC_NOERR;
@@ -470,16 +461,6 @@ ncbbio_cancel(void *ncdp,
     }
 
     if (num_req > nput){
-        /* 
-         * Flush the log if there is any get operation
-         * If there are ids of get in req_ids
-         */
-        if (ncbbp->inited){
-            err = ncbbio_log_flush(ncbbp);
-            if (status == NC_NOERR){
-                status = err;
-            }
-        }
         err = ncbbp->ncmpio_driver->cancel(ncbbp->ncp, num_req - nput, req_ids + nput, statuses + nput);
         if (status == NC_NOERR){
             status = err;

@@ -19,10 +19,9 @@ endif
 
 all: $(API_GUIDE)
 
-pnetcdf-api.pdf: $(srcdir)/pnetcdf-api.tex
-	$(LATEX) $<
-	$(LATEX) $<
-	$(DVIPDF) pnetcdf-api
+pnetcdf-api.pdf: pnetcdf-api.tex
+	cd $(srcdir) ; $(LATEX) -output-directory=$(abs_builddir) $< && $(LATEX) -output-directory=$(abs_builddir) $<
+	$(DVIPDF) pnetcdf-api.dvi $@
 
 EXTRA_DIST = c_api.tex \
              data_mode_api.tex \
@@ -32,7 +31,8 @@ EXTRA_DIST = c_api.tex \
              multiple_io.tex \
              nonblocking.tex \
              pnetcdf-api.bbl \
-             pnetcdf-api.tex
+             pnetcdf-api.tex \
+             hints.tex
 
 CLEANFILES = *.dvi *.log *.aux *.ps $(API_GUIDE)
 

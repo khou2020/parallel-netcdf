@@ -68,9 +68,11 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
 			   iput_all_kinds \
 			   bb_nonblocking \
 			   highdim \
-			   bb_bsize
+			   bb_bsize \
+               bb_hints \
+               wait
 
-M4_SRCS  = put_all_kinds.m4 erange_fill.m4 iput_all_kinds.m4 bb_nonblocking.m4
+M4_SRCS  = put_all_kinds.m4 erange_fill.m4 iput_all_kinds.m4
 
 TESTPROGRAMS += put_all_kinds \
 				iput_all_kinds

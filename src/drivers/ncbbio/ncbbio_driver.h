@@ -50,6 +50,7 @@
 #define NC_LOG_HINT_FLUSH_ON_READ 0x10
 #define NC_LOG_HINT_LOG_OVERWRITE 0x20
 #define NC_LOG_HINT_LOG_CHECK 0x40
+#define NC_LOG_HINT_LOG_SHARE 0x80
 
 /* PATH_MAX after padding to 4 byte allignment */
 #if PATH_MAX % 4 == 0
@@ -146,13 +147,11 @@ typedef struct NC_bb_put_list {
 
 /* File structure */
 typedef struct NC_bb_file {
-#ifdef NC_BB_SHARED_LOG
-    MPI_File fd;
-    MPI_Offset pos;
-#else
+    size_t fpos;
     int fd;
+    int rank;
+    int np;
     size_t pos;
-#endif
     char *buf;
     size_t bused;
     size_t bsize;
@@ -205,7 +204,7 @@ typedef struct NC_bb {
     int                ncid;
     char              *path;        /* path name */
     MPI_Comm           comm;        /* MPI communicator */
-    MPI_Comm           nodecomm;        /* MPI communicator */
+    MPI_Comm           logcomm;        /* MPI communicator */
     MPI_Info           info;
     void              *ncp;         /* pointer to driver's internal object */
     struct PNC_driver *ncmpio_driver;
@@ -227,12 +226,14 @@ int ncbbio_log_enddef(NC_bb *ncbbp);
 int ncbbio_put_list_init(NC_bb *ncbbp);
 int ncbbio_put_list_resize(NC_bb *ncbbp);
 int ncbbio_put_list_free(NC_bb *ncbbp);
+int ncbbio_put_list_add(NC_bb *ncbbp, int *id);
 int ncbbio_put_list_remove(NC_bb *ncbbp, int reqid);
 int ncbbio_handle_put_req(NC_bb *ncbbp, int reqid, int *stat);
 int ncbbio_handle_all_put_req(NC_bb *ncbbp);
-int ncbbio_remove_all_put_req(NC_bb *ncbbp);
+int ncbbio_cancel_put_req(NC_bb *ncbbp, int reqid, int *stat);
+int ncbbio_cancel_all_put_req(NC_bb *ncbbp);
 int ncbbio_metaidx_init(NC_bb *ncbbp);
-int ncbbio_metaidx_append(NC_bb *ncbbp, NC_bb_metadataentry *entry, int reqid);
+int ncbbio_metaidx_add(NC_bb *ncbbp, NC_bb_metadataentry *entry);
 int ncbbio_metaidx_free(NC_bb *ncbbp);
 int ncbbio_log_intvector_init(NC_bb_intvector *vp);
 void ncbbio_log_intvector_free(NC_bb_intvector *vp);
@@ -242,8 +243,11 @@ int ncbbio_file_close(NC_bb_file *f);
 int ncbbio_file_flush(NC_bb_file *f);
 int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count);
 int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count);
+int ncbbio_file_pwrite(NC_bb_file *f, void *buf, size_t count, size_t offset);
 int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence); 
 
+void ncbbio_extract_hint(NC_bb *ncbbp, MPI_Info info);
+void ncbbio_export_hint(NC_bb *ncbbp, MPI_Info info);
 
 extern int
 ncbbio_create(MPI_Comm comm, const char *path, int cmode, int ncid, MPI_Info info, void **ncdp);
