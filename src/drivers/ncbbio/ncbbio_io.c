@@ -159,6 +159,67 @@ int ncbbio_file_write_core(NC_bb_file *f, void *buf, size_t count){
 }
 
 /*
+ * Write shared file
+ * IN       f:    File structure
+ * OUT    buf:    Buffer for read data
+ * IN   count:    Size of buffer
+ */
+int ncbbio_file_pwrite(NC_bb_file *f, void *buf, size_t count, size_t offset){
+    int i, err;
+    size_t sblock, soff, eblock, eoff;
+    size_t off, len;
+    size_t ioret;
+
+    if (f->np > 1){
+        sblock = offset / BLOCKSIZE;
+        soff =  offset % BLOCKSIZE;
+        eblock = (offset + count) / BLOCKSIZE;
+        eoff =  (offset + count) % BLOCKSIZE;
+
+        for(i = sblock; i <=eblock; i++){
+            if (i == sblock){
+                off = (i * f->np + f->rank) * BLOCKSIZE + soff;
+                len = BLOCKSIZE - soff;
+                if (len > count){
+                    len = count;
+                }
+            }
+            else if (i == eblock) {
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = eoff;
+            }
+            else{
+                off = (i * f->np + f->rank) * BLOCKSIZE;
+                len = BLOCKSIZE;
+            }
+            ioret = pwrite(f->fd, buf, len, off);
+            if (ioret < 0){
+                err = ncmpii_error_posix2nc("write");
+                if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+                DEBUG_RETURN_ERROR(err);
+            }
+            if (ioret != len){
+                DEBUG_RETURN_ERROR(NC_EWRITE);
+            }
+            buf += ioret;
+        }
+    }
+    else{
+        ioret = pwrite(f->fd, buf, count, offset);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
+    }
+
+    return NC_NOERR;
+}
+
+/*
  * Flush file buffer
  * IN       f:    File structure
  */
@@ -320,7 +381,28 @@ int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count) {
  */
 int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
     int err;
+    size_t new_off;
     off_t ioret;
+
+    // Calculate new position
+    if (whence == SEEK_SET){ 
+        new_off = off;
+        
+    }
+    else if (whence == SEEK_CUR){
+        new_off = f->fpos + off;
+    }
+    else{
+        DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
+    }
+
+    /*
+     * Return if file postion already at destination
+     * This prevents unnecessary buffer flush
+     */
+    if (new_off == f->pos){
+        return  NC_NOERR;
+    }
 
     /* 
      * Flush the buffer
@@ -332,6 +414,9 @@ int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
         return err;
     }
 
+    /*
+     * Seek is only required when we have file per process
+     */
     if (f->np <= 1){
         ioret = lseek(f->fd, off, whence);
         if (ioret < 0){
@@ -341,17 +426,7 @@ int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence) {
     }
 
     // Update position
-    if (whence == SEEK_SET){ 
-        f->fpos = off;
-        
-    }
-    else if (whence == SEEK_CUR){
-        f->fpos += off;
-    }
-    else{
-        DEBUG_RETURN_ERROR(NC_ENOTSUPPORT); 
-    }
-    f->pos = f->fpos;
+    f->pos = f->fpos = new_off;
 
     return NC_NOERR;
 }

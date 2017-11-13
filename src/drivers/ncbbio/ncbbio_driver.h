@@ -243,6 +243,7 @@ int ncbbio_file_close(NC_bb_file *f);
 int ncbbio_file_flush(NC_bb_file *f);
 int ncbbio_file_read(NC_bb_file *f, void *buf, size_t count);
 int ncbbio_file_write(NC_bb_file *f, void *buf, size_t count);
+int ncbbio_file_pwrite(NC_bb_file *f, void *buf, size_t count, size_t offset);
 int ncbbio_file_seek(NC_bb_file *f, size_t off, int whence); 
 
 void ncbbio_extract_hint(NC_bb *ncbbp, MPI_Info info);

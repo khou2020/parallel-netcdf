@@ -259,16 +259,18 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
     /* Seek to the location of num_entries
      * Note: location need to be updated when struct change
      */
-    err = ncbbio_file_seek(ncbbp->metalog_fd, 56, SEEK_SET);
+    /*
+     err = ncbbio_file_seek(ncbbp->metalog_fd, 56, SEEK_SET);
     if (err != NC_NOERR){
         return err;
     }
+    */
 
     /* Overwrite num_entries
      * This marks the completion of the record
      */
-    err = ncbbio_file_write(ncbbp->metalog_fd, &headerp->num_entries,
-                            SIZEOF_MPI_OFFSET);
+    err = ncbbio_file_pwrite(ncbbp->metalog_fd, &headerp->num_entries,
+                            SIZEOF_MPI_OFFSET, 56);
     if (err != NC_NOERR){
         return err;
     }
