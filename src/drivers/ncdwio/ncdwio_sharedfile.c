@@ -11,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <pnc_debug.h>
 #include <common.h>
 #include <pnetcdf.h>
@@ -26,7 +28,7 @@
  * IN      info:    File hint for opened file (currently unused)
  * OUT       fd:    File handler
  */
-int ncdwio_sharedfile_open(MPI_Comm comm, char *path, int amode, MPI_Info info, NC_dw_sharedfile **fh) {
+int ncdwio_sharedfile_open(MPI_Comm comm, char *path, int flag, MPI_Info info, NC_dw_sharedfile **fh) {
     int err; 
     NC_dw_sharedfile *f;
 
@@ -79,7 +81,7 @@ int ncdwio_sharedfile_open(MPI_Comm comm, char *path, int amode, MPI_Info info, 
         }
     }
 
-    *fd = f;
+    *fh = f;
     return NC_NOERR;
 }
 
@@ -132,6 +134,7 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
     int sblock, eblock;   // start and end block
     off_t off; // Offset to write for current block in physical file
     size_t cnt;    // number of byte to write for current block
+    size_t ioret;
 
     // Write directly if not sharing
     if(f->nchanel == 1){
@@ -144,6 +147,7 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
         if (ioret != count){
             DEBUG_RETURN_ERROR(NC_EWRITE);
         }
+        return NC_NOERR;
     }
 
     /* Calculate first and last blocks
@@ -206,15 +210,30 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
  * IN     buf:    Buffer of data to be written
  * IN   count:    Number of bytes to write
  * 
- * We call ncdwio_shared_file_pwrite and then increase the file position by count
+ * We call ncdwio_sharedfile_pwrite and then increase the file position by count
  */
 int ncdwio_sharedfile_write(NC_dw_sharedfile *f, void *buf, size_t count){
     int err;
 
-    // Write at current file position
-    err = ncdwio_shared_file_pwrite(f, buf, count, f->pos);
-    if (err != NC_NOERR){
-        return err;
+    // Write directly if not sharing
+    if(f->nchanel == 1){
+        size_t ioret;
+        ioret = write(f->fd, buf, count);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("write");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EWRITE);
+        }
+    }
+    else{
+        // Write at current file position
+        err = ncdwio_sharedfile_pwrite(f, buf, count, f->pos);
+        if (err != NC_NOERR){
+            return err;
+        }
     }
 
     // Increase current file position
@@ -252,6 +271,7 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
     int sblock, eblock;   // start and end block
     off_t off; // Offset to read for current block in physical file
     size_t cnt;    // number of byte to read for current block
+    size_t ioret;
 
     // Read directly if not sharing
     if(f->nchanel == 1){
@@ -264,6 +284,7 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
         if (ioret != count){
             DEBUG_RETURN_ERROR(NC_EREAD);
         }
+        return NC_NOERR;
     }
 
     /* Calculate first and last blocks
@@ -326,15 +347,30 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
  * OUT    buf:    Buffer of data to be written
  * IN   count:    Number of bytes to write
  * 
- * We call ncdwio_shared_file_pread and then increase the file position by count
+ * We call ncdwio_sharedfile_pread and then increase the file position by count
  */
 int ncdwio_sharedfile_read(NC_dw_sharedfile *f, void *buf, size_t count){
     int err;
 
-    // Read from current file position
-    err = ncdwio_shared_file_pread(f, buf, count, f->pos);
-    if (err != NC_NOERR){
-        return err;
+    // Read directly if not sharing
+    if(f->nchanel == 1){
+        size_t ioret;
+        ioret = read(f->fd, buf, count);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("read");
+            if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
+            DEBUG_RETURN_ERROR(err);
+        }
+        if (ioret != count){
+            DEBUG_RETURN_ERROR(NC_EREAD);
+        }
+    }
+    else{
+        // Read from current file position
+        err = ncdwio_sharedfile_pread(f, buf, count, f->pos);
+        if (err != NC_NOERR){
+            return err;
+        }
     }
 
     // Increase current file position
@@ -351,19 +387,33 @@ int ncdwio_sharedfile_read(NC_dw_sharedfile *f, void *buf, size_t count){
  */
 int ncdwio_sharedfile_seek(NC_dw_sharedfile *f, off_t offset, int whence){
     int err;
+    off_t ioret;
 
-    switch (whence){
-        case SEEK_SET:  // Offset from begining of the file
-            f->pos = offset;
-            break;
-        case SEEK_CUR:  // Offset related to current position
-            f->pos += offset;
-            break;
-        case SEEK_END: // Offset from end of the file
-            f->pos = f->fsize + offset;
-            break;
-        default:
-            DEBUG_RETURN_ERROR(NC_EFILE);
+    /* Move file pointer if not sharing, so write and read can function properly without doing pwrite/read
+     * Logical file position is not tracked in this case because it's equal to physical position
+     */
+    if(f->nchanel == 1){
+        ioret = lseek(f->fd, offset, whence);
+        if (ioret < 0){
+            err = ncmpii_error_posix2nc("lseek");
+            DEBUG_RETURN_ERROR(err);
+        }
+    }
+    else{
+        // Update file position
+        switch (whence){
+            case SEEK_SET:  // Offset from begining of the file
+                f->pos = offset;
+                break;
+            case SEEK_CUR:  // Offset related to current position
+                f->pos += offset;
+                break;
+            case SEEK_END: // Offset from end of the file
+                f->pos = f->fsize + offset;
+                break;
+            default:
+                DEBUG_RETURN_ERROR(NC_EFILE);
+        }
     }
 
     return NC_NOERR;

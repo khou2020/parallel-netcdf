@@ -40,10 +40,8 @@ C_SRCS = ncdwio_attr.c \
 		 ncdwio_util.c \
 		 ncdwio_log_flush.c \
 		 ncdwio_log_put.c \
-		 # ncdwio_io.c \
 		 ncdwio_sharedfile.c \
 		 ncdwio_bufferedfile.c
-
 
 $(M4_SRCS:.m4=.c): Makefile
 

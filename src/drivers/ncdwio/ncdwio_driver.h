@@ -159,12 +159,13 @@ typedef struct NC_dw_sharedfile {
 typedef struct NC_dw_bufferedfile {
     NC_dw_sharedfile *fd;    // Shared file
     size_t pos; // File position
-    char *buf;  // Buffer
+    char *buffer;  // Buffer
     // We require buffered region always maps to an aligned block boundary
     // If we seek to an unaligned position, the region from the start of buffer to this region must be mark as unused to prevent being flushed to the file
     size_t bunused;  // Unused amount of the buffer
     size_t bused;     // Buffer used region
     size_t bsize;   // Buffer size, also write block size
+    size_t fsize;   // Current file size
 } NC_dw_bufferedfile;
 
 /* Log structure */
@@ -249,7 +250,7 @@ int ncdwio_log_intvector_init(NC_dw_intvector *vp);
 void ncdwio_log_intvector_free(NC_dw_intvector *vp);
 int ncdwio_log_intvector_append(NC_dw_intvector *vp, int size);
 
-int ncdwio_sharedfile_open(MPI_Comm comm, char *path, int amode, MPI_Info info, NC_dw_sharedfile **fh);
+int ncdwio_sharedfile_open(MPI_Comm comm, char *path, int flag, MPI_Info info, NC_dw_sharedfile **fh);
 int ncdwio_sharedfile_close(NC_dw_sharedfile *f);
 int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t offset);
 int ncdwio_sharedfile_write(NC_dw_sharedfile *f, void *buf, size_t count);
@@ -257,7 +258,7 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
 int ncdwio_sharedfile_read(NC_dw_sharedfile *f, void *buf, size_t count);
 int ncdwio_sharedfile_seek(NC_dw_sharedfile *f, off_t offset, int whence);
 
-int ncdwio_bufferedfile_open(MPI_Comm comm, char *path, int amode, MPI_Info info, NC_dw_bufferedfile **fh);
+int ncdwio_bufferedfile_open(MPI_Comm comm, char *path, int flag, MPI_Info info, NC_dw_bufferedfile **fh);
 int ncdwio_bufferedfile_close(NC_dw_bufferedfile *f);
 int ncdwio_bufferedfile_pwrite(NC_dw_bufferedfile *f, void *buf, size_t count, off_t offset);
 int ncdwio_bufferedfile_write(NC_dw_bufferedfile *f, void *buf, size_t count);

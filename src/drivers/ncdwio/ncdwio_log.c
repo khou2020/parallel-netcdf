@@ -191,12 +191,12 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     }
     //ncdwp->datalog_fd = ncdwp->metalog_fd = -1;
     err = ncdwio_sharedfile_open(ncdwp->logcomm, ncdwp->metalogpath, flag,
-                           &(ncdwp->metalog_fd));
+                           MPI_INFO_NULL, &(ncdwp->metalog_fd));
     if (err != NC_NOERR) {
         return err;
     }
     err = ncdwio_bufferedfile_open(ncdwp->logcomm, ncdwp->datalogpath, flag,
-                           &(ncdwp->datalog_fd));
+                           MPI_INFO_NULL, &(ncdwp->datalog_fd));
     if (err != NC_NOERR) {
         return err;
     }
