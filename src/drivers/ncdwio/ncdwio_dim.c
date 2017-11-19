@@ -24,18 +24,18 @@
 
 #include <pnc_debug.h>
 #include <common.h>
-#include <ncbbio_driver.h>
+#include <ncdwio_driver.h>
 
 int
-ncbbio_def_dim(void       *ncdp,
+ncdwio_def_dim(void       *ncdp,
               const char *name,
               MPI_Offset  size,
               int        *dimidp)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->def_dim(ncbbp->ncp, name, size, dimidp);
+    err = ncdwp->ncmpio_driver->def_dim(ncdwp->ncp, name, size, dimidp);
     if (err != NC_NOERR) return err;
     
     /* 
@@ -43,45 +43,45 @@ ncbbio_def_dim(void       *ncdp,
      * Note: Assume only 1 rec dim
      */
     if (size == NC_UNLIMITED){
-        ncbbp->recdimid = *dimidp;
+        ncdwp->recdimid = *dimidp;
     }
 
     return NC_NOERR;
 }
 
 int
-ncbbio_inq_dimid(void       *ncdp,
+ncdwio_inq_dimid(void       *ncdp,
                 const char *name,
                 int        *dimid)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->inq_dimid(ncbbp->ncp, name, dimid);
+    err = ncdwp->ncmpio_driver->inq_dimid(ncdwp->ncp, name, dimid);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
 }
 
 int
-ncbbio_inq_dim(void       *ncdp,
+ncdwio_inq_dim(void       *ncdp,
               int         dimid,
               char       *name,
               MPI_Offset *sizep)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->inq_dim(ncbbp->ncp, dimid, name, sizep);
+    err = ncdwp->ncmpio_driver->inq_dim(ncdwp->ncp, dimid, name, sizep);
     if (err != NC_NOERR) return err;
     
     /* 
      * Update size of record dimension with pending records in the log
      * Note: Assume only 1 rec dim
      */
-    if (dimid == ncbbp->recdimid){
-        if (*sizep < ncbbp->recdimsize){
-            *sizep = ncbbp->recdimsize;
+    if (dimid == ncdwp->recdimid){
+        if (*sizep < ncdwp->recdimsize){
+            *sizep = ncdwp->recdimsize;
         }
     }
 
@@ -89,14 +89,14 @@ ncbbio_inq_dim(void       *ncdp,
 }
 
 int
-ncbbio_rename_dim(void       *ncdp,
+ncdwio_rename_dim(void       *ncdp,
                  int         dimid,
                  const char *newname)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->rename_dim(ncbbp->ncp, dimid, newname);
+    err = ncdwp->ncmpio_driver->rename_dim(ncdwp->ncp, dimid, newname);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;

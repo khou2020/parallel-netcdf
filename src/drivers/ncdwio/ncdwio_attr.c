@@ -28,64 +28,64 @@
 #include <mpi.h>
 #include <pnc_debug.h>
 #include <common.h>
-#include <ncbbio_driver.h>
+#include <ncdwio_driver.h>
 
 int
-ncbbio_inq_attname(void *ncdp,
+ncdwio_inq_attname(void *ncdp,
                   int   varid,
                   int   attid,
                   char *name)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->inq_attname(ncbbp->ncp, varid, attid, name);
+    err = ncdwp->ncmpio_driver->inq_attname(ncdwp->ncp, varid, attid, name);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
 }
 
 int
-ncbbio_inq_attid(void       *ncdp,
+ncdwio_inq_attid(void       *ncdp,
                 int         varid,
                 const char *name,
                 int        *attidp)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->inq_attid(ncbbp->ncp, varid, name, attidp);
+    err = ncdwp->ncmpio_driver->inq_attid(ncdwp->ncp, varid, name, attidp);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
 }
 
 int
-ncbbio_inq_att(void       *ncdp,
+ncdwio_inq_att(void       *ncdp,
               int         varid,
               const char *name,
               nc_type    *datatypep,
               MPI_Offset *lenp)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->inq_att(ncbbp->ncp, varid, name, datatypep, lenp);
+    err = ncdwp->ncmpio_driver->inq_att(ncdwp->ncp, varid, name, datatypep, lenp);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
 }
 
 int
-ncbbio_rename_att(void       *ncdp,
+ncdwio_rename_att(void       *ncdp,
                  int         varid,
                  const char *name,
                  const char *newname)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->rename_att(ncbbp->ncp, varid, name, newname);
+    err = ncdwp->ncmpio_driver->rename_att(ncdwp->ncp, varid, name, newname);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
@@ -93,55 +93,55 @@ ncbbio_rename_att(void       *ncdp,
 
 
 int
-ncbbio_copy_att(void       *ncdp_in,
+ncdwio_copy_att(void       *ncdp_in,
                int         varid_in,
                const char *name,
                void       *ncdp_out,
                int         varid_out)
 {
     int err;
-    NC_bb *ncbbp_in  = (NC_bb*)ncdp_in;
-    NC_bb *ncbbp_out = (NC_bb*)ncdp_out;
+    NC_dw *ncdwp_in  = (NC_dw*)ncdp_in;
+    NC_dw *ncdwp_out = (NC_dw*)ncdp_out;
     
-    err = ncbbp_in->ncmpio_driver->copy_att(ncbbp_in->ncp,  varid_in, name,
-                                   ncbbp_out->ncp, varid_out);
+    err = ncdwp_in->ncmpio_driver->copy_att(ncdwp_in->ncp,  varid_in, name,
+                                   ncdwp_out->ncp, varid_out);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
 }
 
 int
-ncbbio_del_att(void       *ncdp,
+ncdwio_del_att(void       *ncdp,
               int         varid,
               const char *name)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->del_att(ncbbp->ncp, varid, name);
+    err = ncdwp->ncmpio_driver->del_att(ncdwp->ncp, varid, name);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
 }
 
 int
-ncbbio_get_att(void         *ncdp,
+ncdwio_get_att(void         *ncdp,
               int           varid,
               const char   *name,
               void         *buf,
               MPI_Datatype  itype)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->get_att(ncbbp->ncp, varid, name, buf, itype);
+    err = ncdwp->ncmpio_driver->get_att(ncdwp->ncp, varid, name, buf, itype);
     if (err != NC_NOERR) return err;
 
     return NC_NOERR;
 }
 
 int
-ncbbio_put_att(void         *ncdp,
+ncdwio_put_att(void         *ncdp,
               int           varid,
               const char   *name,
               nc_type       xtype,
@@ -150,9 +150,9 @@ ncbbio_put_att(void         *ncdp,
               MPI_Datatype  itype)
 {
     int err;
-    NC_bb *ncbbp = (NC_bb*)ncdp;
+    NC_dw *ncdwp = (NC_dw*)ncdp;
     
-    err = ncbbp->ncmpio_driver->put_att(ncbbp->ncp, varid, name, xtype, nelems, buf,
+    err = ncdwp->ncmpio_driver->put_att(ncdwp->ncp, varid, name, xtype, nelems, buf,
                                itype);
     if (err != NC_NOERR) return err;
 

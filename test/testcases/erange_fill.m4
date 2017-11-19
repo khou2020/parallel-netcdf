@@ -177,7 +177,7 @@ int test_erange_put_$1_$2(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }

@@ -300,7 +300,7 @@ ncmpi_create(MPI_Comm    comm,
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
 #endif
-        MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
+        MPI_Info_get(combined_info, "nc_dw_driver", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_bb_driver = 1;
@@ -313,7 +313,7 @@ ncmpi_create(MPI_Comm    comm,
 #endif
     {
         if (enable_bb_driver){
-            driver = ncbbio_inq_driver();
+            driver = ncdwio_inq_driver();
         }
         else {
             /* TODO: Use environment variable and cmode to tell the file format
@@ -491,7 +491,7 @@ ncmpi_open(MPI_Comm    comm,
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
 #endif
-        MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
+        MPI_Info_get(combined_info, "nc_dw_driver", MPI_MAX_INFO_VAL-1,
             value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_bb_driver = 1;
@@ -508,7 +508,7 @@ ncmpi_open(MPI_Comm    comm,
             format == NC_FORMAT_CDF2 ||
             format == NC_FORMAT_CDF5) {
             if (enable_bb_driver){
-                driver = ncbbio_inq_driver();
+                driver = ncdwio_inq_driver();
             }
             else {
                 /* default is ncmpio driver */

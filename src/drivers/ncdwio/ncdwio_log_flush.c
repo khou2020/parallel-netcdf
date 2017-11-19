@@ -22,14 +22,14 @@
 #include <pnc_debug.h>
 #include <common.h>
 #include <stdio.h>
-#include <ncbbio_driver.h>
+#include <ncdwio_driver.h>
 
 /*
  * Commit log file into CDF file
  * Meta data is stored in memory, metalog is only used for restoration after abnormal shutdown
- * IN    ncbbp:    log structure
+ * IN    ncdwp:    log structure
  */
-int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset *count, MPI_Offset *stride, MPI_Datatype buftype, MPI_Offset dataoff, MPI_Offset datalen, size_t buffersize, void *buffer) {
+int split_iput(NC_dw *ncdwp, int varid, int ndims, MPI_Offset *start, MPI_Offset *count, MPI_Offset *stride, MPI_Datatype buftype, MPI_Offset dataoff, MPI_Offset datalen, size_t buffersize, void *buffer) {
     int i, err, reqmode;
     MPI_Offset count1, count2;
     MPI_Offset start1, start2;
@@ -43,7 +43,7 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
         t1 = MPI_Wtime();
 
         /* Read buffer into memory */
-        err = ncbbio_file_read(ncbbp->datalog_fd, buffer, datalen); 
+        err = ncdwio_bufferedfile_read(ncdwp->datalog_fd, buffer, datalen); 
         if (err != NC_NOERR){
             return err;
         }
@@ -61,7 +61,7 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
         */
         
         t2 = MPI_Wtime();
-        ncbbp->flush_data_rd_time += t2 - t1;
+        ncdwp->flush_data_rd_time += t2 - t1;
 
         /* 
          * Replay event with non-blocking call 
@@ -69,20 +69,20 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
          * Must use non-blocking call even if only one instance at a time
          */
         reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL;
-        if (ncbbp->isindep){
+        if (ncdwp->isindep){
             reqmode |= NC_REQ_INDEP;
         }
         else{
             reqmode |= NC_REQ_COLL;
         }
-        err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, NULL, buffer, -1, buftype, reqmode);
+        err = ncdwp->ncmpio_driver->put_var(ncdwp->ncp, varid, start, count, stride, NULL, buffer, -1, buftype, reqmode);
         
         if (err != NC_NOERR) {
             return err;
         }
 
         t3 = MPI_Wtime();
-        ncbbp->flush_put_time += t3 - t2;
+        ncdwp->flush_put_time += t3 - t2;
     }
     else{
         for (i = 0; i < ndims; i++) {
@@ -113,13 +113,13 @@ int split_iput(NC_bb *ncbbp, int varid, int ndims, MPI_Offset *start, MPI_Offset
          */
         start[i] = start1;
         count[i] = count1;
-        err = split_iput(ncbbp, varid, ndims, start, count, stride, buftype, dataoff, datalen1, buffersize, buffer);
+        err = split_iput(ncdwp, varid, ndims, start, count, stride, buftype, dataoff, datalen1, buffersize, buffer);
         if (err != NC_NOERR) {
             return err;
         }
         start[i] = start2;
         count[i] = count2;
-        err = split_iput(ncbbp, varid, ndims, start, count, stride, buftype, dataoff + datalen1, datalen2, buffersize, buffer);
+        err = split_iput(ncdwp, varid, ndims, start, count, stride, buftype, dataoff + datalen1, datalen2, buffersize, buffer);
         if (err != NC_NOERR) {
             return err;
         }
@@ -181,20 +181,20 @@ int logtype2mpitype(int type, MPI_Datatype *buftype){
 /*
  * Commit log file into CDF file
  * Meta data is stored in memory, metalog is only used for restoration after abnormal shutdown
- * IN    ncbbp:    log structure
+ * IN    ncdwp:    log structure
  */
-int log_flush(NC_bb *ncbbp) {
+int log_flush(NC_dw *ncdwp) {
     int i, j, lb, ub, err, fd, status = NC_NOERR;
     int *reqids, *stats;
     double t1, t2, t3, t4;
     size_t databufferused, databuffersize, dataread;
     ssize_t ioret;
-    NC_bb_metadataentry *entryp;
+    NC_dw_metadataentry *entryp;
     MPI_Offset *start, *count, *stride;
     MPI_Datatype buftype;
     char *databuffer, *databufferoff;
-    NC_bb_metadataheader *headerp;
-    NC_bb_metadataptr *ip;
+    NC_dw_metadataheader *headerp;
+    NC_dw_metadataptr *ip;
     
     t1 = MPI_Wtime();
 
@@ -206,12 +206,12 @@ int log_flush(NC_bb *ncbbp) {
      * 0 in hint means no limit
      * (Buffer size) = max((largest size of single record), min((size of data log), (size specified in hint)))
      */
-    databuffersize = ncbbp->datalogsize;
-    if (ncbbp->flushbuffersize > 0 && databuffersize > ncbbp->flushbuffersize){
-        databuffersize = ncbbp->flushbuffersize;
+    databuffersize = ncdwp->datalogsize;
+    if (ncdwp->flushbuffersize > 0 && databuffersize > ncdwp->flushbuffersize){
+        databuffersize = ncdwp->flushbuffersize;
     }
-    if (ncbbp->max_buffer < databuffersize){
-        ncbbp->max_buffer = databuffersize;
+    if (ncdwp->max_buffer < databuffersize){
+        ncdwp->max_buffer = databuffersize;
     }
 
     /* Allocate buffer */
@@ -221,7 +221,7 @@ int log_flush(NC_bb *ncbbp) {
     }
 
     /* Seek to the start position of first data record */
-    err = ncbbio_file_seek(ncbbp->datalog_fd, 8, SEEK_SET);
+    err = ncdwio_bufferedfile_seek(ncdwp->datalog_fd, 8, SEEK_SET);
     if (err != NC_NOERR){
         return err;
     }
@@ -234,22 +234,22 @@ int log_flush(NC_bb *ncbbp) {
     databufferused = 0;
     dataread = 0;
 
-    reqids = (int*)NCI_Malloc(ncbbp->entrydatasize.nused * sizeof(int));
-    stats = (int*)NCI_Malloc(ncbbp->entrydatasize.nused * sizeof(int));
+    reqids = (int*)NCI_Malloc(ncdwp->entrydatasize.nused * sizeof(int));
+    stats = (int*)NCI_Malloc(ncdwp->entrydatasize.nused * sizeof(int));
 
     /* 
      * Iterate through meta log entries
      */
-    headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
-    entryp = (NC_bb_metadataentry*)(ncbbp->metadata.buffer + headerp->entry_begin);
-    for (lb = 0; lb < ncbbp->metaidx.nused;){
-        for (ub = lb; ub < ncbbp->metaidx.nused; ub++) {
-            if (ncbbp->metaidx.entries[ub].valid){
-                if(ncbbp->entrydatasize.values[ub] + databufferused > databuffersize) {
+    headerp = (NC_dw_metadataheader*)ncdwp->metadata.buffer;
+    entryp = (NC_dw_metadataentry*)(ncdwp->metadata.buffer + headerp->entry_begin);
+    for (lb = 0; lb < ncdwp->metaidx.nused;){
+        for (ub = lb; ub < ncdwp->metaidx.nused; ub++) {
+            if (ncdwp->metaidx.entries[ub].valid){
+                if(ncdwp->entrydatasize.values[ub] + databufferused > databuffersize) {
                     break;  // Buffer full
                 }
                 else{
-                    databufferused += ncbbp->entrydatasize.values[ub]; // Record size of entry
+                    databufferused += ncdwp->entrydatasize.values[ub]; // Record size of entry
                 }
             }
             else{
@@ -261,12 +261,12 @@ int log_flush(NC_bb *ncbbp) {
                  */
                 if (dataread < databufferused){   
                     t2 = MPI_Wtime();
-                    err = ncbbio_file_read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
+                    err = ncdwio_bufferedfile_read(ncdwp->datalog_fd, databuffer + dataread, databufferused - dataread); 
                     if (err != NC_NOERR){
                         return err;
                     }
                     t3 = MPI_Wtime();
-                    ncbbp->flush_data_rd_time += t3 - t2;
+                    ncdwp->flush_data_rd_time += t3 - t2;
                     /*
                     if (ioret < 0) {
                         ioret = ncmpii_error_posix2nc("read");
@@ -283,7 +283,7 @@ int log_flush(NC_bb *ncbbp) {
                 }
 
                 // Skip canceled entry
-                err = ncbbio_file_seek(ncbbp->datalog_fd, ncbbp->entrydatasize.values[ub], SEEK_CUR);
+                err = ncdwio_bufferedfile_seek(ncdwp->datalog_fd, ncdwp->entrydatasize.values[ub], SEEK_CUR);
                 if (err != NC_NOERR){
                     return err;
                 }
@@ -296,12 +296,12 @@ int log_flush(NC_bb *ncbbp) {
          */
         if (dataread < databufferused){   
             t2 = MPI_Wtime();
-            err = ncbbio_file_read(ncbbp->datalog_fd, databuffer + dataread, databufferused - dataread); 
+            err = ncdwio_bufferedfile_read(ncdwp->datalog_fd, databuffer + dataread, databufferused - dataread); 
             if (err != NC_NOERR){
                 return err;
             }
             t3 = MPI_Wtime();
-            ncbbp->flush_data_rd_time += t3 - t2;
+            ncdwp->flush_data_rd_time += t3 - t2;
             /*
             if (ioret < 0) {
                 ioret = ncmpii_error_posix2nc("read");
@@ -323,7 +323,7 @@ int log_flush(NC_bb *ncbbp) {
          * We must have entryp points to current entry
          */
         if (ub == lb){
-            ip = ncbbp->metaidx.entries + ub;
+            ip = ncdwp->metaidx.entries + ub;
             
             if (ip->valid){
                 /* start, count, stride */
@@ -343,15 +343,15 @@ int log_flush(NC_bb *ncbbp) {
                 }
                            
                 /* Replay event in parts */
-                err = split_iput(ncbbp, entryp->varid, entryp->ndims, start, count, stride, buftype, entryp->data_off, entryp->data_len, databuffersize, databuffer);
+                err = split_iput(ncdwp, entryp->varid, entryp->ndims, start, count, stride, buftype, entryp->data_off, entryp->data_len, databuffersize, databuffer);
                 if (status == NC_NOERR) {
                     status = err;
                 }
                 
                 // Fill up the status for nonblocking request
                 if (ip->reqid >= 0){
-                    ncbbp->putlist.list[ip->reqid].status = err;    
-                    ncbbp->putlist.list[ip->reqid].ready = 1;  
+                    ncdwp->putlist.list[ip->reqid].status = err;    
+                    ncdwp->putlist.list[ip->reqid].ready = 1;  
                 }
                            
                 /* Update batch status */
@@ -359,7 +359,7 @@ int log_flush(NC_bb *ncbbp) {
             }
             
             /* Move to next position */
-            entryp = (NC_bb_metadataentry*)(((char*)entryp) + entryp->esize);
+            entryp = (NC_dw_metadataentry*)(((char*)entryp) + entryp->esize);
             
             /* Skip this entry on batch flush */
             lb++;
@@ -370,7 +370,7 @@ int log_flush(NC_bb *ncbbp) {
             
             j = 0;
             for(i = lb; i < ub; i++){
-                ip = ncbbp->metaidx.entries + i;
+                ip = ncdwp->metaidx.entries + i;
 
                 if (ip->valid) {                   
                     /* start, count, stride */
@@ -392,13 +392,13 @@ int log_flush(NC_bb *ncbbp) {
                     t2 = MPI_Wtime();
                     
                     /* Replay event with non-blocking call */
-                    err = ncbbp->ncmpio_driver->iput_var(ncbbp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databufferoff), -1, buftype, reqids + j, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
+                    err = ncdwp->ncmpio_driver->iput_var(ncdwp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databufferoff), -1, buftype, reqids + j, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
                     if (status == NC_NOERR) {
                         status = err;
                     }
                                     
                     t3 = MPI_Wtime();
-                    ncbbp->flush_put_time += t3 - t2;
+                    ncdwp->flush_put_time += t3 - t2;
 
                     // Move to next data location
                     databufferoff += entryp->data_len;
@@ -406,7 +406,7 @@ int log_flush(NC_bb *ncbbp) {
                 }
      
                 /* Move to next position */
-                entryp = (NC_bb_metadataentry*)(((char*)entryp) + entryp->esize);
+                entryp = (NC_dw_metadataentry*)(((char*)entryp) + entryp->esize);
             }
 
             t2 = MPI_Wtime();
@@ -414,27 +414,27 @@ int log_flush(NC_bb *ncbbp) {
             /* 
              * Wait must be called first or previous data will be corrupted
              */
-            if (ncbbp->isindep) {
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, j, reqids, stats, NC_REQ_INDEP); 
+            if (ncdwp->isindep) {
+                err = ncdwp->ncmpio_driver->wait(ncdwp->ncp, j, reqids, stats, NC_REQ_INDEP); 
             }
             else{
-                err = ncbbp->ncmpio_driver->wait(ncbbp->ncp, j, reqids, stats, NC_REQ_COLL);
+                err = ncdwp->ncmpio_driver->wait(ncdwp->ncp, j, reqids, stats, NC_REQ_COLL);
             }
             if (status == NC_NOERR) {
                 status = err;
             }
 
             t3 = MPI_Wtime();
-            ncbbp->flush_wait_time += t3 - t2;
+            ncdwp->flush_wait_time += t3 - t2;
             
             // Fill up the status for nonblocking request
             for(i = lb; i < ub; i++){
-                ip = ncbbp->metaidx.entries + i;
+                ip = ncdwp->metaidx.entries + i;
                 j = 0;
                 if (ip->valid) {
                     if (ip->reqid >= 0){
-                        ncbbp->putlist.list[ip->reqid].status = stats[j];
-                        ncbbp->putlist.list[ip->reqid].ready = 1;
+                        ncdwp->putlist.list[ip->reqid].status = stats[j];
+                        ncdwp->putlist.list[ip->reqid].ready = 1;
                     }
                     j++;
                 }
@@ -454,7 +454,7 @@ int log_flush(NC_bb *ncbbp) {
     NCI_Free(stats);
 
     t4 = MPI_Wtime();
-    ncbbp->flush_replay_time += t4 - t1;
+    ncdwp->flush_replay_time += t4 - t1;
     
     return status;
 }
