@@ -24,7 +24,8 @@
 #include <stdio.h>
 #include <ncdwio_driver.h>
 
-/*
+/* 
+ * NOTE: This function is deprecated, oversized request now goes directly to the file
  * Commit log file into CDF file
  * Meta data is stored in memory, metalog is only used for restoration after abnormal shutdown
  * IN    ncdwp:    log structure
@@ -37,11 +38,12 @@ int split_iput(NC_dw *ncdwp, int varid, int ndims, MPI_Offset *start, MPI_Offset
 
     /* Flush when buffer is enough to fit */
     if (buffersize >= datalen){
-        double t1, t2, t3;
         ssize_t ioret;
-        
-        t1 = MPI_Wtime();
+#ifdef PNETCDF_DEBUG
+        double t1, t2, t3;
 
+        t1 = MPI_Wtime();
+#endif
         /* Read buffer into memory */
         err = ncdwio_bufferedfile_read(ncdwp->datalog_fd, buffer, datalen); 
         if (err != NC_NOERR){
@@ -59,9 +61,10 @@ int split_iput(NC_dw *ncdwp, int varid, int ndims, MPI_Offset *start, MPI_Offset
             DEBUG_RETURN_ERROR(NC_EBADLOG);
         }
         */
-        
+#ifdef PNETCDF_DEBUG
         t2 = MPI_Wtime();
         ncdwp->flush_data_rd_time += t2 - t1;
+#endif
 
         /* 
          * Replay event with non-blocking call 
@@ -80,9 +83,10 @@ int split_iput(NC_dw *ncdwp, int varid, int ndims, MPI_Offset *start, MPI_Offset
         if (err != NC_NOERR) {
             return err;
         }
-
+#ifdef PNETCDF_DEBUG
         t3 = MPI_Wtime();
         ncdwp->flush_put_time += t3 - t2;
+#endif
     }
     else{
         for (i = 0; i < ndims; i++) {
@@ -186,7 +190,6 @@ int logtype2mpitype(int type, MPI_Datatype *buftype){
 int log_flush(NC_dw *ncdwp) {
     int i, j, lb, ub, err, fd, status = NC_NOERR;
     int *reqids, *stats;
-    double t1, t2, t3, t4;
     size_t databufferused, databuffersize, dataread;
     ssize_t ioret;
     NC_dw_metadataentry *entryp;
@@ -195,8 +198,11 @@ int log_flush(NC_dw *ncdwp) {
     char *databuffer, *databufferoff;
     NC_dw_metadataheader *headerp;
     NC_dw_metadataptr *ip;
+#ifdef PNETCDF_DEBUG
+    double t1, t2, t3, t4;
     
     t1 = MPI_Wtime();
+#endif
 
     /* Read datalog in to memory */
     /* 
@@ -225,11 +231,7 @@ int log_flush(NC_dw *ncdwp) {
     if (err != NC_NOERR){
         return err;
     }
-    /*
-    if (ioret < 0){
-        DEBUG_RETURN_ERROR(ncmpii_error_posix2nc("lseek"));
-    }
-    */
+
     /* Initialize buffer status */
     databufferused = 0;
     dataread = 0;
@@ -260,25 +262,17 @@ int log_flush(NC_dw *ncdwp) {
                  * We read only what needed by pending requests
                  */
                 if (dataread < databufferused){   
+#ifdef PNETCDF_DEBUG
                     t2 = MPI_Wtime();
+#endif
                     err = ncdwio_bufferedfile_read(ncdwp->datalog_fd, databuffer + dataread, databufferused - dataread); 
                     if (err != NC_NOERR){
                         return err;
                     }
+#ifdef PNETCDF_DEBUG
                     t3 = MPI_Wtime();
                     ncdwp->flush_data_rd_time += t3 - t2;
-                    /*
-                    if (ioret < 0) {
-                        ioret = ncmpii_error_posix2nc("read");
-                        if (ioret == NC_EFILE){
-                            ioret = NC_EREAD;
-                        }
-                        DEBUG_RETURN_ERROR(ioret);
-                    }
-                    if (ioret != databufferused - dataread){
-                        DEBUG_RETURN_ERROR(NC_EBADLOG);
-                    }
-                    */
+#endif
                     dataread = databufferused;
                 }
 
@@ -295,25 +289,17 @@ int log_flush(NC_dw *ncdwp) {
          * We read only what needed by pending requests
          */
         if (dataread < databufferused){   
+#ifdef PNETCDF_DEBUG
             t2 = MPI_Wtime();
+#endif
             err = ncdwio_bufferedfile_read(ncdwp->datalog_fd, databuffer + dataread, databufferused - dataread); 
             if (err != NC_NOERR){
                 return err;
             }
+#ifdef PNETCDF_DEBUG
             t3 = MPI_Wtime();
             ncdwp->flush_data_rd_time += t3 - t2;
-            /*
-            if (ioret < 0) {
-                ioret = ncmpii_error_posix2nc("read");
-                if (ioret == NC_EFILE){
-                    ioret = NC_EREAD;
-                }
-                DEBUG_RETURN_ERROR(ioret);
-            }
-            if (ioret != databufferused - dataread){
-                DEBUG_RETURN_ERROR(NC_EBADLOG);
-            }
-            */
+#endif
             dataread = databufferused;
         }
 
@@ -350,8 +336,8 @@ int log_flush(NC_dw *ncdwp) {
                 
                 // Fill up the status for nonblocking request
                 if (ip->reqid >= 0){
-                    ncdwp->putlist.list[ip->reqid].status = err;    
-                    ncdwp->putlist.list[ip->reqid].ready = 1;  
+                    ncdwp->putlist.reqs[ip->reqid].status = err;    
+                    ncdwp->putlist.reqs[ip->reqid].ready = 1;  
                 }
                            
                 /* Update batch status */
@@ -388,17 +374,21 @@ int log_flush(NC_dw *ncdwp) {
                     if (entryp->api_kind == NC_LOG_API_KIND_VARA){
                         stride = NULL;    
                     }
-                                        
+
+#ifdef PNETCDF_DEBUG            
                     t2 = MPI_Wtime();
+#endif
                     
                     /* Replay event with non-blocking call */
                     err = ncdwp->ncmpio_driver->iput_var(ncdwp->ncp, entryp->varid, start, count, stride, NULL, (void*)(databufferoff), -1, buftype, reqids + j, NC_REQ_WR | NC_REQ_NBI | NC_REQ_HL);
                     if (status == NC_NOERR) {
                         status = err;
                     }
-                                    
+
+#ifdef PNETCDF_DEBUG                              
                     t3 = MPI_Wtime();
                     ncdwp->flush_put_time += t3 - t2;
+#endif
 
                     // Move to next data location
                     databufferoff += entryp->data_len;
@@ -409,8 +399,9 @@ int log_flush(NC_dw *ncdwp) {
                 entryp = (NC_dw_metadataentry*)(((char*)entryp) + entryp->esize);
             }
 
+#ifdef PNETCDF_DEBUG
             t2 = MPI_Wtime();
-            
+#endif
             /* 
              * Wait must be called first or previous data will be corrupted
              */
@@ -424,17 +415,19 @@ int log_flush(NC_dw *ncdwp) {
                 status = err;
             }
 
+#ifdef PNETCDF_DEBUG
             t3 = MPI_Wtime();
             ncdwp->flush_wait_time += t3 - t2;
-            
+#endif
+
             // Fill up the status for nonblocking request
             for(i = lb; i < ub; i++){
                 ip = ncdwp->metaidx.entries + i;
                 j = 0;
                 if (ip->valid) {
                     if (ip->reqid >= 0){
-                        ncdwp->putlist.list[ip->reqid].status = stats[j];
-                        ncdwp->putlist.list[ip->reqid].ready = 1;
+                        ncdwp->putlist.reqs[ip->reqid].status = stats[j];
+                        ncdwp->putlist.reqs[ip->reqid].ready = 1;
                     }
                     j++;
                 }
@@ -453,9 +446,11 @@ int log_flush(NC_dw *ncdwp) {
     NCI_Free(reqids);
     NCI_Free(stats);
 
+#ifdef PNETCDF_DEBUG
     t4 = MPI_Wtime();
     ncdwp->flush_replay_time += t4 - t1;
-    
+#endif
+
     return status;
 }
 

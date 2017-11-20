@@ -76,21 +76,18 @@ ncdwio_create(MPI_Comm     comm,
     }
     strcpy(ncdwp->path, path);
     ncdwp->mode = cmode;
-    ncdwp->ncmpio_driver = driver;
-    ncdwp->flag = 0;
+    ncdwp->ncmpio_driver = driver;  // ncmpio driver
     ncdwp->ncid = ncid;
-    ncdwp->curreqid = -1;
-    ncdwp->niget = 0;
-    ncdwp->isindep = 0;
-    ncdwp->ncp = ncp;
+    ncdwp->isindep = 0; // Start at collective mode
+    ncdwp->ncp = ncp;   // NC object used by ncmpio driver
     ncdwp->recdimsize = 0;
-    ncdwp->recdimid = -1;
-    ncdwp->max_ndims = 0;
+    ncdwp->recdimid = -1;   // Id of record dimension
+    ncdwp->max_ndims = 0;   // Highest dimensionality among all variables
     MPI_Comm_dup(comm, &(ncdwp->comm));
     MPI_Info_dup(info, &(ncdwp->info));
-    ncdwio_extract_hint(ncdwp, info);
+    ncdwio_extract_hint(ncdwp, info);   // Translate MPI hint into hint flags
 
-    /* Log init delaied to enddef */
+    /* Log init delayed to enddef */
     ncdwp->inited = 0;
     
     *ncpp = ncdwp;
@@ -136,29 +133,38 @@ ncdwio_open(MPI_Comm     comm,
     }
     strcpy(ncdwp->path, path);
     ncdwp->mode = omode;
-    ncdwp->ncmpio_driver = driver;
-    ncdwp->flag = 0;
+    ncdwp->ncmpio_driver = driver;  // ncmpio driver
     ncdwp->ncid = ncid;
-    ncdwp->curreqid = -1;
-    ncdwp->niget = 0;
-    ncdwp->isindep = 0;
-    ncdwp->ncp = ncp;
+    ncdwp->isindep = 0; // Start at collective mode
+    ncdwp->ncp = ncp;   // NC object used by ncmpio driver
     ncdwp->recdimsize = 0;
-    ncdwp->recdimid = -1;
-    ncdwp->max_ndims = 0;
+    ncdwp->recdimid = -1;   // Id of record dimension
+    ncdwp->max_ndims = 0;   // Highest dimensionality among all variables
     MPI_Comm_dup(comm, &(ncdwp->comm));
     MPI_Info_dup(info, &(ncdwp->info));
-    ncdwio_extract_hint(ncdwp, info);
+    ncdwio_extract_hint(ncdwp, info);   // Translate MPI hint into hint flags
 
-    /* Init log structure if not read only */
+    /* Opened file is in data mode
+     * We must initialize the log for if file is not opened for read only
+     */
     if (omode != NC_NOWRITE ){
+        /* Init log file */
         err = ncdwio_log_create(ncdwp, info);
         if (err != NC_NOERR) {
             NCI_Free(ncdwp);
             return err;
         }
+        // Initialize put list for nonblocking put operation
         ncdwio_put_list_init(ncdwp);
+        if (err != NC_NOERR) {
+            return err;
+        }
+        // Initialize metadata index for log entries
         ncdwio_metaidx_init(ncdwp);
+        if (err != NC_NOERR) {
+            return err;
+        }
+        // Mark as initialized
         ncdwp->inited = 1;
     }
     else{
@@ -169,6 +175,10 @@ ncdwio_open(MPI_Comm     comm,
     return NC_NOERR;
 }
 
+/* 
+ * Close the netcdf file
+ * The logfile must be closed
+ */
 int
 ncdwio_close(void *ncdp)
 {
@@ -177,24 +187,28 @@ ncdwio_close(void *ncdp)
 
     if (ncdwp == NULL) DEBUG_RETURN_ERROR(NC_EBADID)
     
-    /* 
-     * Close log files
-     * Log is only created after enddef
+    /* If log is initialized, we must close the log file
+     * Putlist and metadata index also needs to be cleaned up
      */
     if (ncdwp->inited){
+        // Close log file
         err = ncdwio_log_close(ncdwp);
         if (status == NC_NOERR) {
             status = err;
         }
+        // Clean up put list
         ncdwio_put_list_free(ncdwp);
+        // Clean up metadata index
         ncdwio_metaidx_free(ncdwp);
     }
 
+    // Call ncmpio driver
     err = ncdwp->ncmpio_driver->close(ncdwp->ncp);
     if (status == NC_NOERR) {
         status = err;
     }
 
+    // Cleanup NC-dw object
     MPI_Comm_free(&(ncdwp->comm));
     MPI_Info_free(&(ncdwp->info));
     NCI_Free(ncdwp->path);
@@ -203,36 +217,59 @@ ncdwio_close(void *ncdp)
     return status;
 }
 
+/* 
+ * Handle enddef driver request
+ * If the log file is not initialized yet, we must initialize it
+ * Otherwise, we update the header of logfile with new information
+ */
 int
 ncdwio_enddef(void *ncdp)
 {
     int err;
     NC_dw *ncdwp = (NC_dw*)ncdp;
     
+    // Call ncmpio enddef
     err = ncdwp->ncmpio_driver->enddef(ncdwp->ncp);
     if (err != NC_NOERR) return err;
 
-    /* Init or update log structure */
+    /* If logfile are not initialized, we initialize the logfile
+     * The file is newly created
+     * If the log is already initialized, user must have called redef to define new structure
+     * We update the information in logfile header accordingly
+     */
     if (ncdwp->inited){
         /* Update log with new information */
         err = ncdwio_log_enddef(ncdwp);
         if (err != NC_NOERR) return err;
     }
     else {
-        /* Init log structure */
+        /* Init log file */
         err = ncdwio_log_create(ncdwp, ncdwp->info);
         if (err != NC_NOERR) {
-            //NCI_Free(ncdwp);
             return err;
         }
+        // Initialize put list for nonblocking put operation
         ncdwio_put_list_init(ncdwp);
+        if (err != NC_NOERR) {
+            return err;
+        }
+        // Initialize metadata index for log entries
         ncdwio_metaidx_init(ncdwp);
+        if (err != NC_NOERR) {
+            return err;
+        }
+        // Mark as initialized
         ncdwp->inited = 1;
     }
 
     return NC_NOERR;
 }
 
+/* 
+ * This function handle the enddef driver request
+ * If the log file is not initialized yet, we must initialize it
+ * Otherwise, we update the header of logfile with new information
+ */
 int
 ncdwio__enddef(void       *ncdp,
               MPI_Offset  h_minfree,
@@ -243,25 +280,38 @@ ncdwio__enddef(void       *ncdp,
     int err;
     NC_dw *ncdwp = (NC_dw*)ncdp;
     
+    // Call ncmpio enddef
     err = ncdwp->ncmpio_driver->_enddef(ncdwp->ncp, h_minfree, v_align, v_minfree,
                                r_align);
     if (err != NC_NOERR) return err;
 
-    /* Init or update log structure */
+    /* If logfile are not initialized, we initialize the logfile
+     * The file is newly created
+     * If the log is already initialized, user must have called redef to define new structure
+     * We update the information in logfile header accordingly
+     */
     if (ncdwp->inited){
         /* Update log with new information */
         err = ncdwio_log_enddef(ncdwp);
         if (err != NC_NOERR) return err;
     }
     else {
-        /* Init log structure */
+        /* Init log file */
         err = ncdwio_log_create(ncdwp, ncdwp->info);
         if (err != NC_NOERR) {
-            //NCI_Free(ncdwp);
             return err;
         }
+        // Initialize put list for nonblocking put operation
         ncdwio_put_list_init(ncdwp);
+        if (err != NC_NOERR) {
+            return err;
+        }
+        // Initialize metadata index for log entries
         ncdwio_metaidx_init(ncdwp);
+        if (err != NC_NOERR) {
+            return err;
+        }
+        // Mark as initialized
         ncdwp->inited = 1;
     }
 
@@ -297,7 +347,9 @@ ncdwio_begin_indep_data(void *ncdp)
     err = ncdwp->ncmpio_driver->begin_indep_data(ncdwp->ncp);
     if (err != NC_NOERR) return err;
 
-    /* Independent mode */
+    /* Independent mode
+     * We keep track of current IO mode so we know what mode to use when flushing the log
+     */
     ncdwp->isindep = 1;
 
     return NC_NOERR;
@@ -312,7 +364,9 @@ ncdwio_end_indep_data(void *ncdp)
     err = ncdwp->ncmpio_driver->end_indep_data(ncdwp->ncp);
     if (err != NC_NOERR) return err;
 
-    /* Collective mode */
+    /* Collective mode 
+     * We keep track of current IO mode so we know what mode to use when flushing the log
+     */
     ncdwp->isindep = 0;
 
     return NC_NOERR;
@@ -378,6 +432,9 @@ ncdwio_inq_misc(void       *ncdp,
                                 get_size, info_used, nreqs, usage, buf_size);
     if (err != NC_NOERR) return err;
     
+    /* Data that is pending in the log is not counted by the ncmpio driver, we add the size of data in the log to put size
+     * ncmpio driver does not handle put requests, we add number of pending put requests to ureqs
+     */
     if (ncdwp->inited) {
         /* Add the size of data log to reflect pending put in the log */
         if (put_size != NULL){
@@ -392,7 +449,9 @@ ncdwio_inq_misc(void       *ncdp,
         }
     }
 
-    /* Export bb related settings */
+    /* Export dw related settings
+     * ncdwio driver has it's own hints that is not handled by ncmpio driver
+     */
     if (info_used != NULL){
         ncdwio_export_hint(ncdwp, *info_used);
     }
@@ -400,6 +459,23 @@ ncdwio_inq_misc(void       *ncdp,
     return NC_NOERR;
 }
 
+/*
+ * Cancel non-blocking request
+ * IN       ncdp:    NC_dw object
+ * IN    num_req:    Number of request to be canceled
+ * IN    req_ids:    Reqest ids to be canceled
+ * OUT  statuses:    Result of cancelation
+ * 
+ * We only keep track of put requests, get requests are handled by the ncmpio driver
+ * Given an array of request ids, we separate them into put and get request ids
+ * Put requests are handled by the ncdwio driver, get requests are forwarded to the ncmpio driver
+ * Put requests have odd ids, get request have even ids
+ * We first reorder req_ids so that the first part contains all put requests and the second part contains only get requests
+ * We call ncmpio_wait using the first part, then we handle the second part
+ * After handling the requests, we restore the original order
+ * We keep track of every swap operation we used to reorder req_ids
+ * We apply them in reverse order to restore the original order
+ */
 int
 ncdwio_cancel(void *ncdp,
              int   num_req,
@@ -407,24 +483,23 @@ ncdwio_cancel(void *ncdp,
              int  *statuses)
 {
     int i, j, err, status = NC_NOERR;
-    int nput, tmp, stat;
-    int *swaps;
+    int tmp, stat;
+    int nput;   // How many put request
+    int *swapidx;   // Swap target
     NC_dw *ncdwp = (NC_dw*)ncdp;
    
    /*
-    * Nonblocking put is reserved for log flush
-    * We pick negative ids for put
-    * Forward only positive ids (get oepration) to ncmpio
-    * Process put operation (negative id) only
+    * If num_req is one of all requests, we don't need to handle request ids 
     */
- 
     if (num_req == NC_REQ_ALL || num_req == NC_PUT_REQ_ALL || num_req == NC_GET_REQ_ALL){
+        // Cancel all put requests
         if (num_req == NC_REQ_ALL || num_req == NC_PUT_REQ_ALL){
             err = ncdwio_cancel_all_put_req(ncdwp);
             if (status == NC_NOERR){
                 status = err;
             }
         }
+        // Cancel all get requests
         if (num_req == NC_REQ_ALL || num_req == NC_GET_REQ_ALL){
             err = ncdwp->ncmpio_driver->cancel(ncdwp->ncp, num_req, NULL, NULL);
             if (status == NC_NOERR){
@@ -435,21 +510,39 @@ ncdwio_cancel(void *ncdp,
         return status;
     }
         
-    swaps = (int*)NCI_Malloc(sizeof(int) * num_req);
+    /* Allocate buffer for tracking swap operation
+     * swapidx stores the target location that swaps with current location
+     * if swapidx[i] = j, it means the i-th entry is swapped with j-th entry in req_ids
+     * We do onw swap for each put request, so there are at most num_req swaps
+     */
+    swapidx = (int*)NCI_Malloc(sizeof(int) * num_req);
 
+    /* Count the number of put requests and swap it to the first section
+     * nput is number of put request known so far, it also mark the end of the first section
+     * When we find one put reqeust, we swap it with the entry at nput and increase nput by 1
+     */
     nput = 0;
     for(i = 0; i < num_req; i++){
-        if (req_ids[i] < 0){
-            swaps[nput] = i;
+        if (req_ids[i] & 1){    // Odd id means a put request
+            // We are swapping req_ids[nput] with req_ids[i]
+            swapidx[nput] = i;
+            // Perform swap
             tmp = req_ids[i];
             req_ids[i] = req_ids[nput];
             req_ids[nput++] = tmp;
         }
     }
     
+    /* If we have put requests
+     * The internal put list uses a continuous id, so we translate it by dividing the id by 2
+     */
     if (nput > 0){
+        /* Cancel the request one by one */
         for(i = 0; i < nput; i++){
-            err = ncdwio_cancel_put_req(ncdwp, -(req_ids[i] + 1), &stat);
+            /* Try canceling the request
+             * Cancelation can fail if the request is already flushed to the file
+             */
+            err = ncdwio_cancel_put_req(ncdwp, (req_ids[i] / 2), &stat);
             if (status == NC_NOERR){
                 status = err;
             }
@@ -459,34 +552,79 @@ ncdwio_cancel(void *ncdp,
         }
     }
 
+    /* If we have get requests
+     * ncmpio driver has it's own request id management, so we translate it by dividing the id by 2
+     */
     if (num_req > nput){
+        // Translate reqid to ncmpio reqid
+        for(i = nput; i < num_req; i++){
+            req_ids[i] /= 2;
+        }
+        // Call ncmpio cancel
         err = ncdwp->ncmpio_driver->cancel(ncdwp->ncp, num_req - nput, req_ids + nput, statuses + nput);
         if (status == NC_NOERR){
             status = err;
         }
+        // Translate reqid back to ncdwio reqid
+        for(i = nput; i < num_req; i++){
+            req_ids[i] *= 2;
+        }
     }
     
+    /* After processing the requests, we need to resotre the original order
+     * We read swapsidx in reverse order
+     * There are exactly nput swaps
+     * Since req_ids[i] was swapped with req_ids[swapidx[i]], we must repeat it to swap it back
+     */
     for(i = nput - 1; i > -1; i--){
-        j = swaps[i];
+        j = swapidx[i];
         tmp = req_ids[i];
         req_ids[i] = req_ids[j];
         req_ids[j] = tmp;
     }
-
+    // the order of statuses must be restored as well since they are recorded after reordering 
     if (statuses != NULL){
         for(i = nput - 1; i > -1; i--){
-            j = swaps[i];
+            j = swapidx[i];
             tmp = statuses[i];
             statuses[i] = statuses[j];
             statuses[j] = tmp;
         }
     }
-            
-    NCI_Free(swaps);
+    
+    // Free the tracking buffer
+    NCI_Free(swapidx);
  
     return status;
 }
 
+/*
+ * Handle non-blocking request
+ * IN       ncdp:    NC_dw object
+ * IN    num_req:    Number of request to be canceled
+ * IN    req_ids:    Reqest ids to be canceled
+ * OUT  statuses:    Result of cancelation
+ * 
+ * We only keep track of put requests, get requests are handled by the ncmpio driver
+ * Given an array of request ids, we separate them into put and get request ids
+ * Put requests are handled by the ncdwio driver, get requests are forwarded to the ncmpio driver
+ * Put requests have odd ids, get request have even ids
+ * We first reorder req_ids so that the first part contains all put requests and the second part contains only get requests
+ * We call ncmpio_wait using the first part, then we handle the second part
+ * After handling the requests, we restore the original order
+ * We keep track of every swap operation we used to reorder req_ids
+ * We apply them in reverse order to restore the original order
+ * 
+ * Here we give an example of reordering:
+ * Initial:
+ * req_ids = 0 1 2 3 4
+ * After reordering:
+ *      put reqs|get reqs
+ * req_ids = 1 3 0 2 4
+ *               ^
+ *              nput = 2
+ * swapidx = 1 3
+ */
 int
 ncdwio_wait(void *ncdp,
            int   num_reqs,
@@ -495,24 +633,23 @@ ncdwio_wait(void *ncdp,
            int   reqMode)
 {
     int i, j, err, status = NC_NOERR;
-    int nput, tmp, stat;
-    int *swaps;
+    int tmp, stat;
+    int nput;   // How many put request
+    int *swapidx;   // Swap target
     NC_dw *ncdwp = (NC_dw*)ncdp;
    
    /*
-    * Nonblocking put is reserved for log flush
-    * We pick negative ids for put
-    * Forward only positive ids (get oepration) to ncmpio
-    * Process put operation (negative id) only
+    * If num_reqs is one of all requests, we don't need to handle request ids 
     */
- 
     if (num_reqs == NC_REQ_ALL || num_reqs == NC_PUT_REQ_ALL || num_reqs == NC_GET_REQ_ALL){
+        // Cancel all put requests
         if (num_reqs == NC_REQ_ALL || num_reqs == NC_PUT_REQ_ALL){
             err = ncdwio_handle_all_put_req(ncdwp);
             if (status == NC_NOERR){
                 status = err;
             }
         }
+        // Cancel all get requests
         if (num_reqs == NC_REQ_ALL || num_reqs == NC_GET_REQ_ALL){
             err = ncdwp->ncmpio_driver->wait(ncdwp->ncp, num_reqs, NULL, NULL, reqMode);
             if (status == NC_NOERR){
@@ -522,24 +659,39 @@ ncdwio_wait(void *ncdp,
 
         return status;
     }
-    
-    // Replace the name swaps to more meaningful, eg. w_ids, r_ids
-    // Add more comments to describe
-    swaps = (int*)NCI_Malloc(sizeof(int) * num_reqs);
 
+    /* Allocate buffer for tracking swap operation
+     * swapidx stores the target location that swaps with current location
+     * if swapidx[i] = j, it means the i-th entry is swapped with j-th entry in req_ids
+     * We do onw swap for each put request, so there are at most num_reqs swaps
+     */
+    swapidx = (int*)NCI_Malloc(sizeof(int) * num_reqs);
+
+    /* Count the number of put requests and swap it to the first section
+     * nput is number of put request known so far, it also mark the end of the first section
+     * When we find one put reqeust, we swap it with the entry at nput and increase nput by 1
+     */
     nput = 0;
     for(i = 0; i < num_reqs; i++){
-        if (req_ids[i] < 0){
-            swaps[nput] = i;
+        if (req_ids[i] & 1){    // Odd id means a put request
+            // We are swapping req_ids[nput] with req_ids[i]
+            swapidx[nput] = i;
+            // Perform swap
             tmp = req_ids[i];
             req_ids[i] = req_ids[nput];
             req_ids[nput++] = tmp;
         }
     }
     
+    /* If we have put requests
+     * The internal put list uses a continuous id, so we translate it by dividing the id by 2
+     */
     if (nput > 0){
+        /* Handle the request one by one */
         for(i = 0; i < nput; i++){
-            err = ncdwio_handle_put_req(ncdwp, -(req_ids[i] + 1), &stat);
+            // Handle request
+            // Cancelation can fail if the request is already flushed to the file
+            err = ncdwio_handle_put_req(ncdwp, (req_ids[i] / 2), &stat);
             if (status == NC_NOERR){
                 status = err;
             }
@@ -549,41 +701,57 @@ ncdwio_wait(void *ncdp,
         }
     }
 
+    /* If we have get requests
+     * ncmpio driver has it's own request id management, so we translate it by dividing the id by 2
+     * We need to flush the log so new data can be read
+     */
     if (num_reqs > nput){
-        /* 
-         * Flush the log if there is any get operation
-         * If there are ids of get in req_ids
-         */
+        // Flush the log if log is initialized
         if (ncdwp->inited){
             err = ncdwio_log_flush(ncdwp);
             if (status == NC_NOERR){
                 status = err;
             }
         }
+        // Translate reqid to ncmpio reqid
+        for(i = nput; i < num_reqs; i++){
+            req_ids[i] /= 2;
+        }
+        // Call ncmpio wait
         err = ncdwp->ncmpio_driver->wait(ncdwp->ncp, num_reqs - nput, req_ids + nput, statuses + nput, reqMode);
         if (status == NC_NOERR){
             status = err;
         }
+        // Translate reqid back to ncdwio reqid
+        for(i = nput; i < num_reqs; i++){
+            req_ids[i] *= 2;
+        }
     }
     
+    /* After processing the requests, we need to resotre the original order
+     * We read swapsidx in reverse order
+     * There are exactly nput swaps
+     * Since req_ids[i] was swapped with req_ids[swapidx[i]], we must repeat it to swap it back
+     */
     for(i = nput - 1; i > -1; i--){
-        j = swaps[i];
+        j = swapidx[i];
         tmp = req_ids[i];
         req_ids[i] = req_ids[j];
         req_ids[j] = tmp;
     }
-
+    // the order of statuses must be restored as well since they are recorded after reordering 
     if (statuses != NULL){
         for(i = nput - 1; i > -1; i--){
-            j = swaps[i];
+            j = swapidx[i];
             tmp = statuses[i];
             statuses[i] = statuses[j];
             statuses[j] = tmp;
         }
     }
-            
-    NCI_Free(swaps);
- 
+    
+    // Free the tracking buffer
+    NCI_Free(swapidx);
+
     return status;
 }
 

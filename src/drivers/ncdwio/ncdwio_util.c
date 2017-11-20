@@ -17,13 +17,16 @@
 #include <pnetcdf.h>
 #include <ncdwio_driver.h>
 
+/*
+ * Extract mpi hints and set up the flags
+ */
 void ncdwio_extract_hint(NC_dw *ncdwp, MPI_Info info){
     int flag;
     char value[MPI_MAX_INFO_VAL];
 
-    /* Extract hints */
     ncdwp->hints = NC_LOG_HINT_DEL_ON_CLOSE | NC_LOG_HINT_FLUSH_ON_READ | 
                     NC_LOG_HINT_FLUSH_ON_SYNC;
+    // Directory to place log files
     MPI_Info_get(info, "nc_dw_dirname", MPI_MAX_INFO_VAL - 1,
                  value, &flag);
     if (flag) {
@@ -32,26 +35,25 @@ void ncdwio_extract_hint(NC_dw *ncdwp, MPI_Info info){
     else {
         strncpy(ncdwp->logbase, ".", PATH_MAX);    
     }
+    // Overwrite the logfile is already exists (disable)
     MPI_Info_get(info, "nc_dw_overwrite", MPI_MAX_INFO_VAL - 1, 
                  value, &flag);
     if (flag && strcasecmp(value, "enable") == 0){
         ncdwp->hints |= NC_LOG_HINT_LOG_OVERWRITE;
     }
+    // Use shared logfile (disable)
     MPI_Info_get(info, "nc_dw_sharedlog", MPI_MAX_INFO_VAL - 1, 
                  value, &flag);
     if (flag && strcasecmp(value, "enable") == 0){
         ncdwp->hints |= NC_LOG_HINT_LOG_SHARE;
     }
-    MPI_Info_get(info, "nc_dw_check", MPI_MAX_INFO_VAL - 1, 
-                 value, &flag);
-    if (flag && strcasecmp(value, "enable") == 0){
-        ncdwp->hints |= NC_LOG_HINT_LOG_CHECK;
-    }
+    // Delete the logfile after file closing (enable)
     MPI_Info_get(info, "nc_dw_del_on_close", MPI_MAX_INFO_VAL - 1, 
                  value, &flag);
     if (flag && strcasecmp(value, "disable") == 0){
         ncdwp->hints ^= NC_LOG_HINT_DEL_ON_CLOSE;
     }
+    // Buffer size used to flush the log (0 (unlimited))
     MPI_Info_get(info, "nc_dw_flush_buffer_size", MPI_MAX_INFO_VAL - 1,
                  value, &flag);
     if (flag){
@@ -62,10 +64,15 @@ void ncdwio_extract_hint(NC_dw *ncdwp, MPI_Info info){
         ncdwp->flushbuffersize = (size_t)bsize; // Unit: byte 
     }
     else{
-        ncdwp->flushbuffersize = 0; // <= 0 means unlimited}
+        ncdwp->flushbuffersize = 0; // 0 means unlimited}
     }
 }
 
+/*
+ * Export hint based on flag
+ * NOTE: We only set up the hint if it is not the default setting
+ *       user hint maching the default behavior will be ignored
+ */
 void ncdwio_export_hint(NC_dw *ncdwp, MPI_Info info){
     char value[MPI_MAX_INFO_VAL];
 

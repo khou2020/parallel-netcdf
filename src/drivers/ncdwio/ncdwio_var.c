@@ -228,12 +228,18 @@ ncdwio_iget_var(void             *ncdp,
                                 buf, bufcount, buftype, reqid, reqMode);
     if (err != NC_NOERR) return err;
 
-    /* Record number of pending get operation */
-    ncdwp->niget++;
+    // Translate from ncmpio id to ncdwio id
+    *reqid *= 2;
 
     return NC_NOERR;
 }
 
+/*
+ * Perform non-blocking put operation
+ * We handle it the same way as blocking put
+ * We allocate a request object that links to corresponding entries in the log
+ * The id identifying the request object is then given to the user
+ */
 int
 ncdwio_iput_var(void             *ncdp,
                int               varid,
@@ -250,16 +256,29 @@ ncdwio_iput_var(void             *ncdp,
     int i, err, id;
     NC_dw *ncdwp = (NC_dw*)ncdp;
     
+    // Create a new put request with id
     err = ncdwio_put_list_add(ncdwp, &id);
     if (err != NC_NOERR){
         return err;
     }
     
+    // Translate putlist id to ncdwio id
     if (reqid != NULL){
-        *reqid = -id - 1;
+        *reqid = id * 2 + 1;
     }
 
-    ncdwp->putlist.list[id].entrystart = ncdwp->metaidx.nused;
+    /* We must link the request object to corresponding log entries 
+     * For varn operation, we will create multiple log entries, so it's a 1 to many mapping
+     * Assuming the program runs under single thread, those entries are a continuous region within the metadata log
+     * We record the first and last metadata entries associated with this request
+     * This is done by checking number of lof entries before and after handling this operation
+     * We also need to link those log entries to the request object so statues can be sset when log is flushed
+     * Since one log entry can be associate with at most one request, it is at most 1 to 1
+     */
+
+    // Number of log entries before recording current operation to log
+    ncdwp->putlist.reqs[id].entrystart = ncdwp->metaidx.nused;
+    ncdwp->putlist.reqs[id].entrystart = ncdwp->metaidx.nused;
 
     err = ncdwio_put_var(ncdp, varid, start, count, stride, imap, buf, bufcount, buftype, reqMode);
     if (err != NC_NOERR){
@@ -267,21 +286,22 @@ ncdwio_iput_var(void             *ncdp,
         return err;
     }
     
-    ncdwp->putlist.list[id].entryend = ncdwp->metaidx.nused;
+    // Number of log entries after recording current operation to log
+    ncdwp->putlist.reqs[id].entryend = ncdwp->metaidx.nused;
     
     /* 
-     * If new entry is created in the log, link thos entries to the request
+     * If new entry is created in the log, link those entries to the request
      * The entry may go directly to the ncmpio driver if it is too large
      * If there are no entry created, we mark this request as completed
      */
-    if (ncdwp->putlist.list[id].entryend > ncdwp->putlist.list[id].entrystart) {
-        for (i = ncdwp->putlist.list[id].entrystart; i < ncdwp->putlist.list[id].entryend; i++) {
+    if (ncdwp->putlist.reqs[id].entryend > ncdwp->putlist.reqs[id].entrystart) {
+        for (i = ncdwp->putlist.reqs[id].entrystart; i < ncdwp->putlist.reqs[id].entryend; i++) {
             ncdwp->metaidx.entries[i].reqid = id;
         }
     }
     else{
-        ncdwp->putlist.list[id].ready = 1;
-        ncdwp->putlist.list[id].status = NC_NOERR;
+        ncdwp->putlist.reqs[id].ready = 1;
+        ncdwp->putlist.reqs[id].status = NC_NOERR;
     }
 
     return NC_NOERR;
@@ -366,6 +386,9 @@ ncdwio_get_varn(void              *ncdp,
     return status;
 }
 
+/*
+ * We treate varn operation as n of var operation
+ */
 int
 ncdwio_put_varn(void              *ncdp,
                int                varid,
@@ -434,13 +457,19 @@ ncdwio_iget_varn(void               *ncdp,
     err = ncdwp->ncmpio_driver->iget_varn(ncdwp->ncp, varid, num, starts, counts, buf,
                                  bufcount, buftype, reqid, reqMode);
     if (err != NC_NOERR) return err;
-    
-    /* Record number of pending get operation */
-    ncdwp->niget++;
+
+    // Translate form ncmpio id to ncdwio id
+    *reqid *= 2;
 
     return NC_NOERR;
 }
 
+/*
+ * Perform non-blocking put operation
+ * We handle it the same way as blocking put
+ * We allocate a request object that links to corresponding entries in the log
+ * The id identifying the request object is then given to the user
+ */
 int
 ncdwio_iput_varn(void               *ncdp,
                 int                 varid,
@@ -456,29 +485,53 @@ ncdwio_iput_varn(void               *ncdp,
     int i, err, id;
     NC_dw *ncdwp = (NC_dw*)ncdp;
     
+    // Create a new put request with id
     err = ncdwio_put_list_add(ncdwp, &id);
     if (err != NC_NOERR){
         return err;
     }
     
+    // Translate putlist id to ncdwio id
     if (reqid != NULL){
-        *reqid = -id - 1;
+        *reqid = id * 2 + 1;
     }
     
-    ncdwp->putlist.list[id].entrystart = ncdwp->metaidx.nused;
+    /* We must link the request object to corresponding log entries 
+     * For varn operation, we will create multiple log entries, so it's a 1 to many mapping
+     * Assuming the program runs under single thread, those entries are a continuous region within the metadata log
+     * We record the first and last metadata entries associated with this request
+     * This is done by checking number of lof entries before and after handling this operation
+     * We also need to link those log entries to the request object so statues can be sset when log is flushed
+     * Since one log entry can be associate with at most one request, it is at most 1 to 1
+     */
+
+    // Number of log entries before recording current operation to log
+    ncdwp->putlist.reqs[id].entrystart = ncdwp->metaidx.nused;
  
+    // Handle the IO operation same as blocking one
     err = ncdwio_put_varn(ncdp, varid, num, starts, counts, buf, bufcount, buftype, reqMode);
     if (err != NC_NOERR){
         ncdwio_put_list_remove(ncdwp, id);
         return err;
     }
+
+    // Number of log entries after recording current operation to log
+    ncdwp->putlist.reqs[id].entryend = ncdwp->metaidx.nused;
     
-    ncdwp->putlist.list[id].entryend = ncdwp->metaidx.nused;
-    
-    for (i = ncdwp->putlist.list[id].entrystart; i < ncdwp->putlist.list[id].entryend; i++){
-        ncdwp->metaidx.entries[i].reqid = id;
+    /* If new entry is created in the log, link those entries to the request
+     * The entry may go directly to the ncmpio driver if it is too large
+     * If there are no entry created, we mark this request as completed
+     */
+    if (ncdwp->putlist.reqs[id].entryend > ncdwp->putlist.reqs[id].entrystart) {
+        for (i = ncdwp->putlist.reqs[id].entrystart; i < ncdwp->putlist.reqs[id].entryend; i++) {
+            ncdwp->metaidx.entries[i].reqid = id;
+        }
     }
- 
+    else{
+        ncdwp->putlist.reqs[id].ready = 1;
+        ncdwp->putlist.reqs[id].status = NC_NOERR;
+    }
+
     return NC_NOERR;
 }
 

@@ -6,10 +6,14 @@
 #
 # @configure_input@
 
-SUBDIRS = include common ncmpio ncdwio
+SUBDIRS = include common ncmpio 
 
 if BUILD_DRIVER_FOO
    SUBDIRS += ncfoo
+endif
+
+if BUILD_DRIVER_DW
+   SUBDIRS += ncdwio
 endif
 
 DIST_SUBDIRS = include common ncmpio ncdwio ncfoo

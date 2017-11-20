@@ -109,6 +109,7 @@ AH_TEMPLATE([NO_IEEE_FLOAT],            [Does system have IEEE FLOAT])
 AH_TEMPLATE([DISABLE_FILE_SYNC],        [Define if to disable MPI_File_sync])
 AH_TEMPLATE([DISABLE_IN_PLACE_SWAP],    [Define if to disable in-place byte swap])
 AH_TEMPLATE([ENABLE_SUBFILING],         [Define if to enable subfiling feature])
+AH_TEMPLATE([BUILD_DRIVER_DW],          [Define if to enable datawarp burst buffer feature])
 AH_TEMPLATE([NC_DW_SHARED_LOG],         [Define if to enable bb driver shared log file feature])
 AH_TEMPLATE([PNC_MALLOC_TRACE],         [Define if to enable malloc tracing])
 AH_TEMPLATE([HAVE_FUNC_MACRO],          [Define if C++ macro __func__ is defined])
@@ -1305,6 +1306,20 @@ if test "x$enable_subfiling" = "xyes" ; then
 fi
 AC_SUBST(ENABLE_SUBFILING)
 AM_CONDITIONAL(ENABLE_SUBFILING, [test x$enable_subfiling = xyes])
+
+AC_ARG_ENABLE([dwdriver],
+   [AS_HELP_STRING([--enable-dwdriver],
+                   [Enable datawarp driver support. @<:@default: disabled@:>@])],
+   [enable_dwdriver=${enableval}], [enable_dwdriver=no]
+)
+
+BUILD_DRIVER_DW=0
+if test "x$enable_dwdriver" = "xyes" ; then
+   AC_DEFINE(BUILD_DRIVER_DW)
+   BUILD_DRIVER_DW=1
+fi
+AC_SUBST(BUILD_DRIVER_DW)
+AM_CONDITIONAL(BUILD_DRIVER_DW, [test x$enable_dwdriver = xyes])
 
 AC_ARG_ENABLE([erange-fill],
    [AS_HELP_STRING([--disable-erange-fill],

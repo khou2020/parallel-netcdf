@@ -44,7 +44,9 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     int itype;    /* Type used in log file */
     int *dimids;
     char *buffer;
+#ifdef PNETCDF_DEBUG
     double t1, t2, t3, t4, t5; 
+#endif
     MPI_Offset esize, dataoff, recsize;
     MPI_Offset *Start, *Count, *Stride;
     MPI_Offset size;
@@ -52,7 +54,9 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     NC_dw_metadataentry *entryp;
     NC_dw_metadataheader *headerp;
     
+#ifdef PNETCDF_DEBUG
     t1 = MPI_Wtime();
+#endif
 
     /* Calculate data size */
     /* Get ndims */
@@ -227,8 +231,10 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     ncdwio_metaidx_add(ncdwp, (NC_dw_metadataentry*)((void*)entryp - 
                        (void*)(ncdwp->metadata.buffer)));
 
+#ifdef PNETCDF_DEBUG
     t2 = MPI_Wtime();
-    
+#endif
+
     /* Writing to data log
      * Note: Metadata record indicate completion, so data must go first 
      */
@@ -241,7 +247,9 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
         return err;
     }
 
+#ifdef PNETCDF_DEBUG
     t3 = MPI_Wtime();
+#endif
 
     /* Seek to the head of metadata
      * Note: EOF may not be the place for next entry after a flush
@@ -254,26 +262,16 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     if (err != NC_NOERR){
         return err;
     }
-    
-    
-    
+        
     /* Write meta data log */
     err = ncdwio_sharedfile_write(ncdwp->metalog_fd, buffer, esize);
     if (err != NC_NOERR){
         return err;
     }
 
+#ifdef PNETCDF_DEBUG
     t4 = MPI_Wtime();
-
-    /* Seek to the location of num_entries
-     * Note: location need to be updated when struct change
-     */
-    /*
-     err = ncdwio_file_seek(ncdwp->metalog_fd, 56, SEEK_SET);
-    if (err != NC_NOERR){
-        return err;
-    }
-    */
+#endif
 
     /* Overwrite num_entries
      * This marks the completion of the record
@@ -284,6 +282,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
         return err;
     }
 
+#ifdef PNETCDF_DEBUG
     t5 = MPI_Wtime();
     ncdwp->put_data_wr_time += t3 - t2;
     ncdwp->put_meta_wr_time += t4 - t3;
@@ -293,6 +292,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
  
     ncdwp->total_data += size;
     ncdwp->total_meta += esize;
+#endif
 
     return NC_NOERR;
 }
