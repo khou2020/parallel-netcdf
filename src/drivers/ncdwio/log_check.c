@@ -206,7 +206,7 @@ int ncdwio_log_check_put(NC* ncp, int varid, int api_kind, int itype, int packed
     }
     
     /* Calculate log entry size and allocate buffer */
-    esize = sizeof(NC_dw_metadataentry) + varp->ndims * sizeof(MPI_Offset) * 3;
+    esize = sizeof(NC_dw_metadataentry) + varp->ndims * SIZEOF_MPI_OFFSET * 3;
     if (esize > sizeof(NC_dw_metadataheader)){
         buffer = (char*)malloc(esize);
     }

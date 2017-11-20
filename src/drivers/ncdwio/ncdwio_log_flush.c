@@ -236,8 +236,8 @@ int log_flush(NC_dw *ncdwp) {
     databufferused = 0;
     dataread = 0;
 
-    reqids = (int*)NCI_Malloc(ncdwp->entrydatasize.nused * sizeof(int));
-    stats = (int*)NCI_Malloc(ncdwp->entrydatasize.nused * sizeof(int));
+    reqids = (int*)NCI_Malloc(ncdwp->entrydatasize.nused * SIZEOF_INT);
+    stats = (int*)NCI_Malloc(ncdwp->entrydatasize.nused * SIZEOF_INT);
 
     /* 
      * Iterate through meta log entries

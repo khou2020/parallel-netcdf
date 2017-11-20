@@ -327,10 +327,12 @@ ncdwio_redef(void *ncdp)
     /* 
      * Flush log entries to the file system on redefine 
      */
+    /*
     if (ncdwp->inited) {
         err = ncdwio_log_flush(ncdwp);
         if (err != NC_NOERR) return err;
     }
+    */
 
     err = ncdwp->ncmpio_driver->redef(ncdwp->ncp);
     if (err != NC_NOERR) return err;
@@ -515,7 +517,7 @@ ncdwio_cancel(void *ncdp,
      * if swapidx[i] = j, it means the i-th entry is swapped with j-th entry in req_ids
      * We do onw swap for each put request, so there are at most num_req swaps
      */
-    swapidx = (int*)NCI_Malloc(sizeof(int) * num_req);
+    swapidx = (int*)NCI_Malloc(SIZEOF_INT * num_req);
 
     /* Count the number of put requests and swap it to the first section
      * nput is number of put request known so far, it also mark the end of the first section
@@ -665,7 +667,7 @@ ncdwio_wait(void *ncdp,
      * if swapidx[i] = j, it means the i-th entry is swapped with j-th entry in req_ids
      * We do onw swap for each put request, so there are at most num_reqs swaps
      */
-    swapidx = (int*)NCI_Malloc(sizeof(int) * num_reqs);
+    swapidx = (int*)NCI_Malloc(SIZEOF_INT * num_reqs);
 
     /* Count the number of put requests and swap it to the first section
      * nput is number of put request known so far, it also mark the end of the first section

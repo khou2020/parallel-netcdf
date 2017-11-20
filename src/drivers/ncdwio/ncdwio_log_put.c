@@ -100,7 +100,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
 
     /* Update record dimension size if is record variable */
     /* Get dimids */
-    dimids = NCI_Malloc(sizeof(int) * dim);
+    dimids = NCI_Malloc(SIZEOF_INT * dim);
     err = ncdwp->ncmpio_driver->inq_var(ncdwp->ncp, varid, NULL, NULL, NULL, 
                                         dimids, NULL, NULL, NULL, NULL);
     if (err != NC_NOERR){

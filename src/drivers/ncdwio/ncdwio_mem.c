@@ -150,7 +150,7 @@ int ncdwio_log_sizearray_append(NC_dw_sizevector *sp, size_t size) {
  * IN   vp: vector to be initialized
  */
 int ncdwio_log_intvector_init(NC_dw_intvector *vp){
-    vp->values = (int*)NCI_Malloc(LOG_ARRAY_SIZE * sizeof(int));
+    vp->values = (int*)NCI_Malloc(LOG_ARRAY_SIZE * SIZEOF_INT);
     if (vp->values == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -187,7 +187,7 @@ int ncdwio_log_intvector_append(NC_dw_intvector *vp, int size) {
          */
         size_t newsize = vp->nalloc * SIZE_MULTIPLIER;
         /* ret is used to temporaryly hold the allocated buffer so we don't lose ncdwp->metadata.buffer if allocation fails */
-        ret = (int*)NCI_Realloc(vp->values, newsize * sizeof(int));
+        ret = (int*)NCI_Realloc(vp->values, newsize * SIZEOF_INT);
         /* If not enough memory */
         if (ret == NULL) {
             return NC_ENOMEM;

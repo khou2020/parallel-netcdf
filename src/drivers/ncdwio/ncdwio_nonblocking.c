@@ -70,7 +70,7 @@ int ncdwio_put_list_init(NC_dw *ncdwp){
     lp->nused = 0;
     lp->nalloc = PUT_ARRAY_SIZE;
     lp->reqs = (NC_dw_put_req*)NCI_Malloc(lp->nalloc * sizeof(NC_dw_put_req));
-    lp->ids = (int*)NCI_Malloc(lp->nalloc * sizeof(int));
+    lp->ids = (int*)NCI_Malloc(lp->nalloc * SIZEOF_INT);
     if (lp->reqs == NULL || lp->ids == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
@@ -108,7 +108,7 @@ int ncdwio_put_list_resize(NC_dw *ncdwp){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     lp->reqs = (NC_dw_put_req*)ptr;
-    ptr = NCI_Realloc(lp->ids, nsize * sizeof(int));
+    ptr = NCI_Realloc(lp->ids, nsize * SIZEOF_INT);
     if (ptr = NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
