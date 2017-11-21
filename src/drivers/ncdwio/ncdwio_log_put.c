@@ -44,7 +44,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     int itype;    /* Type used in log file */
     int *dimids;
     char *buffer;
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     double t1, t2, t3, t4, t5; 
 #endif
     MPI_Offset esize, dataoff, recsize;
@@ -54,7 +54,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     NC_dw_metadataentry *entryp;
     NC_dw_metadataheader *headerp;
     
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t1 = MPI_Wtime();
 #endif
 
@@ -231,7 +231,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     ncdwio_metaidx_add(ncdwp, (NC_dw_metadataentry*)((void*)entryp - 
                        (void*)(ncdwp->metadata.buffer)));
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t2 = MPI_Wtime();
 #endif
 
@@ -247,7 +247,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
         return err;
     }
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t3 = MPI_Wtime();
 #endif
 
@@ -269,7 +269,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
         return err;
     }
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t4 = MPI_Wtime();
 #endif
 
@@ -282,7 +282,7 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
         return err;
     }
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t5 = MPI_Wtime();
     ncdwp->put_data_wr_time += t3 - t2;
     ncdwp->put_meta_wr_time += t4 - t3;

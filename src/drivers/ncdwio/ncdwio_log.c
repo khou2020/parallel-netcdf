@@ -35,14 +35,14 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX];
     char hint[NC_LOG_PATH_MAX], value[MPI_MAX_INFO_VAL];
     char *abspath, *fname;
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     double t1, t2;
 #endif
     DIR *logdir;
     size_t ioret, headersize;
     NC_dw_metadataheader *headerp;
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t1 = MPI_Wtime();
 #endif
 
@@ -223,7 +223,7 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
 
     ncdwp->datalogsize = 8;
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t2 = MPI_Wtime();
     ncdwp->total_time += t2 - t1;
     ncdwp->create_time += t2 - t1;
@@ -242,12 +242,12 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
 int ncdwio_log_enddef(NC_dw *ncdwp){   
     int i, maxdims, err, recdimid;
     ssize_t ioret;
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     double t1, t2; 
 #endif
     NC_dw_metadataheader *headerp;
     
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t1 = MPI_Wtime();
 #endif
 
@@ -274,7 +274,7 @@ int ncdwio_log_enddef(NC_dw *ncdwp){
         }
     }
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t2 = MPI_Wtime();
     ncdwp->total_time += t2 - t1;
     ncdwp->enddef_time += t2 - t1;
@@ -290,7 +290,7 @@ int ncdwio_log_enddef(NC_dw *ncdwp){
  */
 int ncdwio_log_close(NC_dw *ncdwp) {
     int err;
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     double t1, t2; 
     unsigned long long total_data;
     unsigned long long total_meta;
@@ -311,7 +311,7 @@ int ncdwio_log_close(NC_dw *ncdwp) {
 #endif
     NC_dw_metadataheader* headerp;
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t1 = MPI_Wtime();
 #endif
 
@@ -345,13 +345,13 @@ int ncdwio_log_close(NC_dw *ncdwp) {
     ncdwio_log_buffer_free(&(ncdwp->metadata));
     ncdwio_log_sizearray_free(&(ncdwp->entrydatasize));
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t2 = MPI_Wtime();
     ncdwp->total_time += t2 - t1;
     ncdwp->close_time += t2 - t1;
 
+#ifdef PNETCDF_DEBUG
     /* Print accounting info in debug build */
-
     MPI_Reduce(&(ncdwp->total_time), &total_time, 1, MPI_DOUBLE, MPI_MAX, 0,
                 ncdwp->comm);
     MPI_Reduce(&(ncdwp->create_time), &create_time, 1, MPI_DOUBLE, MPI_MAX, 0,
@@ -407,6 +407,7 @@ int ncdwio_log_close(NC_dw *ncdwp) {
         printf("==========================================================\n");
     }
 #endif
+#endif
 
     return NC_NOERR;
 }
@@ -420,14 +421,14 @@ int ncdwio_log_close(NC_dw *ncdwp) {
 int ncdwio_log_flush(NC_dw* ncdwp) {
     int err, status = NC_NOERR;
     int numput;
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     double t1, t2; 
 #endif
     size_t ioret;
     //NC_req *putlist;
     NC_dw_metadataheader *headerp;
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t1 = MPI_Wtime();
 #endif
 
@@ -473,7 +474,7 @@ int ncdwio_log_flush(NC_dw* ncdwp) {
 
     ncdwp->datalogsize = 8;
 
-#ifdef PNETCDF_DEBUG
+#ifdef PNETCDF_PROFILING
     t2 = MPI_Wtime();
     ncdwp->total_time += t2 - t1;
     ncdwp->flush_time += t2 - t1;
