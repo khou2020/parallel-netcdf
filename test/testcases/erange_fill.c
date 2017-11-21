@@ -824,7 +824,7 @@ int test_erange_put_schar_uchar(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -901,7 +901,7 @@ int test_erange_put_schar_short(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -978,7 +978,7 @@ int test_erange_put_schar_ushort(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1055,7 +1055,7 @@ int test_erange_put_schar_int(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1132,7 +1132,7 @@ int test_erange_put_schar_uint(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1209,7 +1209,7 @@ int test_erange_put_schar_float(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1286,7 +1286,7 @@ int test_erange_put_schar_double(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1363,7 +1363,7 @@ int test_erange_put_schar_longlong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1440,7 +1440,7 @@ int test_erange_put_schar_ulonglong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1518,7 +1518,7 @@ int test_erange_put_uchar_schar(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1595,7 +1595,7 @@ int test_erange_put_uchar_short(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1672,7 +1672,7 @@ int test_erange_put_uchar_ushort(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1749,7 +1749,7 @@ int test_erange_put_uchar_int(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1826,7 +1826,7 @@ int test_erange_put_uchar_uint(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1903,7 +1903,7 @@ int test_erange_put_uchar_float(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -1980,7 +1980,7 @@ int test_erange_put_uchar_double(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2057,7 +2057,7 @@ int test_erange_put_uchar_longlong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2134,7 +2134,7 @@ int test_erange_put_uchar_ulonglong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2212,7 +2212,7 @@ int test_erange_put_short_ushort(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2289,7 +2289,7 @@ int test_erange_put_short_int(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2366,7 +2366,7 @@ int test_erange_put_short_uint(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2443,7 +2443,7 @@ int test_erange_put_short_float(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2520,7 +2520,7 @@ int test_erange_put_short_double(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2597,7 +2597,7 @@ int test_erange_put_short_longlong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2674,7 +2674,7 @@ int test_erange_put_short_ulonglong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2752,7 +2752,7 @@ int test_erange_put_ushort_short(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2829,7 +2829,7 @@ int test_erange_put_ushort_int(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2906,7 +2906,7 @@ int test_erange_put_ushort_uint(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -2983,7 +2983,7 @@ int test_erange_put_ushort_float(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3060,7 +3060,7 @@ int test_erange_put_ushort_double(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3137,7 +3137,7 @@ int test_erange_put_ushort_longlong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3214,7 +3214,7 @@ int test_erange_put_ushort_ulonglong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3292,7 +3292,7 @@ int test_erange_put_int_uint(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3369,7 +3369,7 @@ int test_erange_put_int_float(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3446,7 +3446,7 @@ int test_erange_put_int_double(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3523,7 +3523,7 @@ int test_erange_put_int_longlong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3600,7 +3600,7 @@ int test_erange_put_int_ulonglong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3678,7 +3678,7 @@ int test_erange_put_uint_int(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3755,7 +3755,7 @@ int test_erange_put_uint_float(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3832,7 +3832,7 @@ int test_erange_put_uint_double(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3909,7 +3909,7 @@ int test_erange_put_uint_longlong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -3986,7 +3986,7 @@ int test_erange_put_uint_ulonglong(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -4064,7 +4064,7 @@ int test_erange_put_float_double(char* filename) {
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }

@@ -1,3 +1,9 @@
+/*
+ *  Copyright (C) 2017, Northwestern University and Argonne National Laboratory
+ *  See COPYRIGHT notice in top-level directory.
+ */
+/* $Id$ */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -17,12 +23,12 @@
 #include <pnc_debug.h>
 #include <common.h>
 #include <pnetcdf.h>
-#include <ncbbio_driver.h>
+#include <ncdwio_driver.h>
 
 /*
  * Prepare a single log entry to be write to log
  * Used by ncmpii_getput_varm
- * IN    ncbbp:    log structure to log this entry
+ * IN    ncdwp:    log structure to log this entry
  * IN    varp:    NC_var structure associate to this entry
  * IN    start: start in put_var* call
  * IN    count: count in put_var* call
@@ -31,26 +37,30 @@
  * IN    buftype:    buftype from upper layer
  * IN    packedsize:    size of buf in byte
  */
-int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
+int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
                        const MPI_Offset count[], const MPI_Offset stride[],
                        void *buf, MPI_Datatype buftype, MPI_Offset *putsize){
     int err, i, dim, elsize;
     int itype;    /* Type used in log file */
     int *dimids;
     char *buffer;
+#ifdef PNETCDF_PROFILING
     double t1, t2, t3, t4, t5; 
+#endif
     MPI_Offset esize, dataoff, recsize;
     MPI_Offset *Start, *Count, *Stride;
     MPI_Offset size;
     ssize_t ioret;
-    NC_bb_metadataentry *entryp;
-    NC_bb_metadataheader *headerp;
+    NC_dw_metadataentry *entryp;
+    NC_dw_metadataheader *headerp;
     
+#ifdef PNETCDF_PROFILING
     t1 = MPI_Wtime();
+#endif
 
     /* Calculate data size */
     /* Get ndims */
-    err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, &dim, 
+    err = ncdwp->ncmpio_driver->inq_var(ncdwp->ncp, varid, NULL, NULL, &dim, 
                                         NULL, NULL, NULL, NULL, NULL);
     if (err != NC_NOERR){
         return err;
@@ -68,36 +78,36 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
     }
 
     /* Size of data does not fit buffer */
-    if (ncbbp->flushbuffersize > 0 && size > ncbbp->flushbuffersize) {
+    if (ncdwp->flushbuffersize > 0 && size > ncdwp->flushbuffersize) {
         int reqmode;
 
         // Flush the log to preserve the order
-        ncbbio_log_flush(ncbbp);
+        ncdwio_log_flush(ncdwp);
         
         /* 
          * Data size is considered large enough for blocking call
          */
         reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL;
-        if (ncbbp->isindep){
+        if (ncdwp->isindep){
             reqmode |= NC_REQ_INDEP;
         }
         else{
             reqmode |= NC_REQ_COLL;
         }
-        err = ncbbp->ncmpio_driver->put_var(ncbbp->ncp, varid, start, count, stride, NULL, buf, -1, buftype, reqmode);
+        err = ncdwp->ncmpio_driver->put_var(ncdwp->ncp, varid, start, count, stride, NULL, buf, -1, buftype, reqmode);
         return err;
     }
 
     /* Update record dimension size if is record variable */
     /* Get dimids */
-    dimids = NCI_Malloc(sizeof(int) * dim);
-    err = ncbbp->ncmpio_driver->inq_var(ncbbp->ncp, varid, NULL, NULL, NULL, 
+    dimids = NCI_Malloc(SIZEOF_INT * dim);
+    err = ncdwp->ncmpio_driver->inq_var(ncdwp->ncp, varid, NULL, NULL, NULL, 
                                         dimids, NULL, NULL, NULL, NULL);
     if (err != NC_NOERR){
         return err;
     }
     /* Update recdimsize if first dim is unlimited */
-    if (dim > 0 && dimids[0] == ncbbp->recdimid) {
+    if (dim > 0 && dimids[0] == ncdwp->recdimid) {
         /* Dim size after the put operation */
         if (stride == NULL) {
             recsize = start[0] + count[0];
@@ -105,8 +115,8 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
         else {
             recsize = start[0] + (count[0] - 1) * stride[0] + 1;
         }
-        if (recsize > ncbbp->recdimsize) {
-            ncbbp->recdimsize = recsize;
+        if (recsize > ncdwp->recdimsize) {
+            ncdwp->recdimsize = recsize;
         }
     }
     NCI_Free(dimids);
@@ -158,16 +168,16 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
      * Datalog descriptor should always points to the end of file
      * Position must be recorded first before writing
      */
-    dataoff = (MPI_Offset)ncbbp->datalogsize;
+    dataoff = (MPI_Offset)ncdwp->datalogsize;
     
     /* Size of metadata entry
      * Include metadata entry header and variable size additional data
      * (start, count, stride) 
      */
-    esize = sizeof(NC_bb_metadataentry) + dim * 3 * SIZEOF_MPI_OFFSET;
+    esize = sizeof(NC_dw_metadataentry) + dim * 3 * SIZEOF_MPI_OFFSET;
     /* Allocate space for metadata entry header */
-    buffer = (char*)ncbbio_log_buffer_alloc(&(ncbbp->metadata), esize);
-    entryp = (NC_bb_metadataentry*)buffer;
+    buffer = (char*)ncdwio_log_buffer_alloc(&(ncdwp->metadata), esize);
+    entryp = (NC_dw_metadataentry*)buffer;
     entryp->esize = esize; /* Entry size */
     entryp->itype = itype; /* Variable type */
     entryp->varid = varid;  /* Variable id */
@@ -188,7 +198,7 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
     }
     
     /* Calculate location of start, count, stride in metadata buffer */
-    Start = (MPI_Offset*)(buffer + sizeof(NC_bb_metadataentry));
+    Start = (MPI_Offset*)(buffer + sizeof(NC_dw_metadataentry));
     Count = Start + dim;
     Stride = Count + dim;
     
@@ -208,21 +218,23 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
      */
 
     /* Increase num_entries in the metadata buffer */
-    headerp = (NC_bb_metadataheader*)ncbbp->metadata.buffer;
+    headerp = (NC_dw_metadataheader*)ncdwp->metadata.buffer;
     headerp->num_entries++;
 
     //We only increase datalogsize by amount actually write
-    ncbbp->datalogsize += size;
+    ncdwp->datalogsize += size;
 
     /* Record data size */
-    ncbbio_log_sizearray_append(&(ncbbp->entrydatasize), entryp->data_len);
+    ncdwio_log_sizearray_append(&(ncdwp->entrydatasize), entryp->data_len);
     // Record in index
     // Entry address must be relative as metadata buffer can be reallocated
-    ncbbio_metaidx_add(ncbbp, (NC_bb_metadataentry*)((void*)entryp - 
-                       (void*)(ncbbp->metadata.buffer)));
+    ncdwio_metaidx_add(ncdwp, (NC_dw_metadataentry*)((void*)entryp - 
+                       (void*)(ncdwp->metadata.buffer)));
 
+#ifdef PNETCDF_PROFILING
     t2 = MPI_Wtime();
-    
+#endif
+
     /* Writing to data log
      * Note: Metadata record indicate completion, so data must go first 
      */
@@ -230,60 +242,57 @@ int ncbbio_log_put_var(NC_bb *ncbbp, int varid, const MPI_Offset start[],
     /* 
      * Write data log
      */
-    err = ncbbio_file_write(ncbbp->datalog_fd, buf, size);
+    err = ncdwio_bufferedfile_write(ncdwp->datalog_fd, buf, size);
     if (err != NC_NOERR){
         return err;
     }
 
+#ifdef PNETCDF_PROFILING
     t3 = MPI_Wtime();
+#endif
 
     /* Seek to the head of metadata
      * Note: EOF may not be the place for next entry after a flush
      * Note: metadata size will be updated after allocating metadata buffer
      *       space, substract esize for original location 
      */
-    err = ncbbio_file_seek(ncbbp->metalog_fd, ncbbp->metadata.nused - esize,
+    
+    err = ncdwio_sharedfile_seek(ncdwp->metalog_fd, ncdwp->metadata.nused - esize,
                            SEEK_SET);   
     if (err != NC_NOERR){
         return err;
     }
-    
+        
     /* Write meta data log */
-    err = ncbbio_file_write(ncbbp->metalog_fd, buffer, esize);
+    err = ncdwio_sharedfile_write(ncdwp->metalog_fd, buffer, esize);
     if (err != NC_NOERR){
         return err;
     }
 
+#ifdef PNETCDF_PROFILING
     t4 = MPI_Wtime();
-
-    /* Seek to the location of num_entries
-     * Note: location need to be updated when struct change
-     */
-    /*
-     err = ncbbio_file_seek(ncbbp->metalog_fd, 56, SEEK_SET);
-    if (err != NC_NOERR){
-        return err;
-    }
-    */
+#endif
 
     /* Overwrite num_entries
      * This marks the completion of the record
      */
-    err = ncbbio_file_pwrite(ncbbp->metalog_fd, &headerp->num_entries,
+    err = ncdwio_sharedfile_pwrite(ncdwp->metalog_fd, &headerp->num_entries,
                             SIZEOF_MPI_OFFSET, 56);
     if (err != NC_NOERR){
         return err;
     }
 
+#ifdef PNETCDF_PROFILING
     t5 = MPI_Wtime();
-    ncbbp->put_data_wr_time += t3 - t2;
-    ncbbp->put_meta_wr_time += t4 - t3;
-    ncbbp->put_num_wr_time += t5 - t4;
-    ncbbp->total_time += t5 - t1;
-    ncbbp->put_time += t5 - t1;
+    ncdwp->put_data_wr_time += t3 - t2;
+    ncdwp->put_meta_wr_time += t4 - t3;
+    ncdwp->put_num_wr_time += t5 - t4;
+    ncdwp->total_time += t5 - t1;
+    ncdwp->put_time += t5 - t1;
  
-    ncbbp->total_data += size;
-    ncbbp->total_meta += esize;
+    ncdwp->total_data += size;
+    ncdwp->total_meta += esize;
+#endif
 
     return NC_NOERR;
 }

@@ -1,0 +1,45 @@
+#
+# Copyright (C) 2017, Northwestern University and Argonne National Laboratory
+# See COPYRIGHT notice in top-level directory.
+#
+# $Id$
+
+-----------------------------------------------------------------------------
+ What is PnetCDF Datawarp module
+-----------------------------------------------------------------------------
+
+Datawarp module is a log based buffering layer designed to operate on CRAY Datawarp
+
+-----------------------------------------------------------------------------
+ Build PnetCDF with Datawarp module
+-----------------------------------------------------------------------------
+
+Please enable dwdriver option, eg.
+
+    ./configure --prefix=/path/to/install \
+                --enable-dwdriver 
+
+-----------------------------------------------------------------------------
+ Using PnetCDF with Datawarp module
+-----------------------------------------------------------------------------
+
+Datawarp module is designed to be transparent to the user application. Use it as if using pnetcdf without datawarp module.
+
+The behavior of datawarp module is controled by file hints. Here's a list of them:
+
+hint                          values                 default         description
+nc_dw_driver                  enable/disable         disable         Whether datawarp module is engaged
+nc_dw_dirname                 <string>               "."             Where (directory) should log file be placed. Usually path to burst buffer directory.
+nc_dw_del_on_close            enable/disable         enable          Whether logfile should be deleted after closing the NetCDF file
+nc_dw_flush_buffer_size       <integer>              0               Amount of memory that can be used to flush the log in bytes. 0 means unlimited.
+nc_dw_sharedlog               enable/disable         disable         Whether all processes within a node should share a single log file or each process will create it's own log file
+
+Here's an example using environment variable:
+export PNETCDF_HINTS="nc_dw_driver=enable;nc_dw_del_on_close=disable;nc_dw_dirname=${BBDIR}"
+
+-----------------------------------------------------------------------------
+ Known issue in Datawarp module
+-----------------------------------------------------------------------------
+
+1. Log buffering delays actuall file write to replay time. If there are errors caused by put operations, it will be hided by logging until the log is replayed.
+   

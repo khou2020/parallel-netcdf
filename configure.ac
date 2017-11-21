@@ -109,7 +109,9 @@ AH_TEMPLATE([NO_IEEE_FLOAT],            [Does system have IEEE FLOAT])
 AH_TEMPLATE([DISABLE_FILE_SYNC],        [Define if to disable MPI_File_sync])
 AH_TEMPLATE([DISABLE_IN_PLACE_SWAP],    [Define if to disable in-place byte swap])
 AH_TEMPLATE([ENABLE_SUBFILING],         [Define if to enable subfiling feature])
-AH_TEMPLATE([NC_BB_SHARED_LOG],         [Define if to enable bb driver shared log file feature])
+AH_TEMPLATE([BUILD_DRIVER_DW],          [Define if to enable datawarp burst buffer feature])
+AH_TEMPLATE([PNETCDF_PROFILING],        [Define if to enable datawarp burst buffer feature])
+AH_TEMPLATE([NC_DW_SHARED_LOG],         [Define if to enable bb driver shared log file feature])
 AH_TEMPLATE([PNC_MALLOC_TRACE],         [Define if to enable malloc tracing])
 AH_TEMPLATE([HAVE_FUNC_MACRO],          [Define if C++ macro __func__ is defined])
 AH_TEMPLATE([HAVE_FUNCTION_MACRO],      [Define if C++ macro __FUNCTION__ is defined])
@@ -950,13 +952,13 @@ AC_ARG_ENABLE([sharedlog],
     [sharedlog=yes], [sharedlog=no]
 )
 
-NC_BB_SHARED_LOG=0
+NC_DW_SHARED_LOG=0
 if test "x${sharedlog}" = xyes; then
-   AC_DEFINE(NC_BB_SHARED_LOG)
-   NC_BB_SHARED_LOG=1
+   AC_DEFINE(NC_DW_SHARED_LOG)
+   NC_DW_SHARED_LOG=1
 fi
-AC_SUBST(NC_BB_SHARED_LOG)
-AM_CONDITIONAL(NC_BB_SHARED_LOG, [test x"$NC_BB_SHARED_LOG" = x1])
+AC_SUBST(NC_DW_SHARED_LOG)
+AM_CONDITIONAL(NC_DW_SHARED_LOG, [test x"$NC_DW_SHARED_LOG" = x1])
 
 dnl check the size of MPI_Offset. PnetCDF requires it be 8 bytes.
 AC_CHECK_TYPE([MPI_Offset], [], [], [#include <mpi.h>])
@@ -1306,6 +1308,34 @@ fi
 AC_SUBST(ENABLE_SUBFILING)
 AM_CONDITIONAL(ENABLE_SUBFILING, [test x$enable_subfiling = xyes])
 
+AC_ARG_ENABLE([dwdriver],
+   [AS_HELP_STRING([--enable-dwdriver],
+                   [Enable datawarp driver support. @<:@default: disabled@:>@])],
+   [enable_dwdriver=${enableval}], [enable_dwdriver=no]
+)
+
+BUILD_DRIVER_DW=0
+if test "x$enable_dwdriver" = "xyes" ; then
+   AC_DEFINE(BUILD_DRIVER_DW)
+   BUILD_DRIVER_DW=1
+fi
+AC_SUBST(BUILD_DRIVER_DW)
+AM_CONDITIONAL(BUILD_DRIVER_DW, [test x$enable_dwdriver = xyes])
+
+AC_ARG_ENABLE([profiling],
+   [AS_HELP_STRING([--enable_profiling],
+                   [Enable time and memory profiling. @<:@default: disabled@:>@])],
+   [enable_profiling=${enableval}], [enable_profiling=no]
+)
+
+PNETCDF_PROFILING=0
+if test "x$enable_profiling" = "xyes" ; then
+   AC_DEFINE(PNETCDF_PROFILING)
+   PNETCDF_PROFILING=1
+fi
+AC_SUBST(PNETCDF_PROFILING)
+AM_CONDITIONAL(PNETCDF_PROFILING, [test x$enable_profiling = xyes])
+
 AC_ARG_ENABLE([erange-fill],
    [AS_HELP_STRING([--disable-erange-fill],
                    [Disable use of fill value when out-of-range type
@@ -1431,7 +1461,7 @@ AC_CONFIG_FILES(Makefile \
                 src/drivers/common/Makefile \
                 src/drivers/include/Makefile \
                 src/drivers/ncmpio/Makefile \
-                src/drivers/ncbbio/Makefile \
+                src/drivers/ncdwio/Makefile \
                 src/drivers/ncfoo/Makefile \
                 src/binding/Makefile \
                 src/binding/cxx/Makefile \

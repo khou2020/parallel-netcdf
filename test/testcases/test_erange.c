@@ -50,7 +50,7 @@ int test_cdf2(char *filename)
     err = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, MPI_INFO_NULL, &ncid); CHECK_ERR
     
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }
@@ -159,7 +159,7 @@ int test_cdf5(char *filename)
     err = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER|NC_64BIT_DATA, MPI_INFO_NULL, &ncid); CHECK_ERR
 
     ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_bb_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }

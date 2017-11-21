@@ -234,7 +234,7 @@ ncmpi_create(MPI_Comm    comm,
              int        *ncidp)
 {
     int default_format, rank, status=NC_NOERR, err;
-    int safe_mode=0, mpireturn, root_cmode, enable_bb_driver = 0;
+    int safe_mode=0, mpireturn, root_cmode;
     char *env_str;
     MPI_Info combined_info;
     void *ncp;
@@ -242,6 +242,9 @@ ncmpi_create(MPI_Comm    comm,
     PNC_driver *driver;
 #ifdef BUILD_DRIVER_FOO
     int enable_foo_driver=0;
+#endif
+#ifdef BUILD_DRIVER_DW
+    int enable_dw_driver = 0;
 #endif
 
     MPI_Comm_rank(comm, &rank);
@@ -300,10 +303,12 @@ ncmpi_create(MPI_Comm    comm,
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
 #endif
-        MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
+#ifdef BUILD_DRIVER_DW
+        MPI_Info_get(combined_info, "nc_dw_driver", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
-            enable_bb_driver = 1;
+            enable_dw_driver = 1;
+#endif
    }
 
 #ifdef BUILD_DRIVER_FOO
@@ -312,10 +317,13 @@ ncmpi_create(MPI_Comm    comm,
     else
 #endif
     {
-        if (enable_bb_driver){
-            driver = ncbbio_inq_driver();
+#ifdef BUILD_DRIVER_DW
+        if (enable_dw_driver){
+            driver = ncdwio_inq_driver();
         }
-        else {
+        else
+#endif
+        {
             /* TODO: Use environment variable and cmode to tell the file format
              * which is later used to select the right driver. For now, we have
              * only one driver, ncmpio.
@@ -404,7 +412,7 @@ ncmpi_open(MPI_Comm    comm,
            MPI_Info    info,
            int        *ncidp)  /* OUT */
 {
-    int i, nalloc, rank, format, msg[2], status=NC_NOERR, err, enable_bb_driver = 0;
+    int i, nalloc, rank, format, msg[2], status=NC_NOERR, err;
     int safe_mode=0, mpireturn, root_omode;
     char *env_str;
     MPI_Info combined_info;
@@ -413,6 +421,9 @@ ncmpi_open(MPI_Comm    comm,
     PNC_driver *driver;
 #ifdef BUILD_DRIVER_FOO
     int enable_foo_driver=0;
+#endif
+#ifdef BUILD_DRIVER_DW
+    int enable_dw_driver = 0;
 #endif
 
     MPI_Comm_rank(comm, &rank);
@@ -491,10 +502,12 @@ ncmpi_open(MPI_Comm    comm,
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
 #endif
-        MPI_Info_get(combined_info, "nc_bb_driver", MPI_MAX_INFO_VAL-1,
+#ifdef BUILD_DRIVER_DW
+        MPI_Info_get(combined_info, "nc_dw_driver", MPI_MAX_INFO_VAL-1,
             value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
-            enable_bb_driver = 1;
+            enable_dw_driver = 1;
+#endif
     }
 #ifdef BUILD_DRIVER_FOO
     if (enable_foo_driver)
@@ -507,10 +520,13 @@ ncmpi_open(MPI_Comm    comm,
         if (format == NC_FORMAT_CLASSIC ||
             format == NC_FORMAT_CDF2 ||
             format == NC_FORMAT_CDF5) {
-            if (enable_bb_driver){
-                driver = ncbbio_inq_driver();
+#ifdef BUILD_DRIVER_DW
+            if (enable_dw_driver){
+                driver = ncdwio_inq_driver();
             }
-            else {
+            else
+#endif
+            {
                 /* default is ncmpio driver */
                 driver = ncmpio_inq_driver();
             }
