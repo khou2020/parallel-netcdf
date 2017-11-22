@@ -19,7 +19,6 @@
 #include <ncdwio_driver.h>
 
 #define BUFSIZE 8388608
-//#define BUFSIZE 0
 
 /*
  * Open buffered file
@@ -133,7 +132,7 @@ int ncdwio_bufferedfile_write(NC_dw_bufferedfile *f, void *buf, size_t count){
     size_t midstart, midend;    // Start and end offset of the mid section related the file position
     size_t sblock, soff, eblock, eoff;
     size_t off, len;
-    size_t ioret;
+    ssize_t ioret;
 
     if (f->buffer != NULL){
         /* 
@@ -142,11 +141,15 @@ int ncdwio_bufferedfile_write(NC_dw_bufferedfile *f, void *buf, size_t count){
         * This can be incorrect when write region sits within a block where we will have start > end
         * In this case, we simply set start and end to 0, giving the entire region as tail
         */
-        midstart = (f->bsize - f->pos % f->bsize) % f->bsize;
+        midstart = f->pos + (f->bsize - f->pos % f->bsize) % f->bsize;
         midend = f->pos + count - (f->pos + count) % f->bsize;
         if (midstart > midend) {
             midstart = 0;
             midend = 0;
+        }
+        else{
+            midstart -= f->pos;
+            midend -= f->pos;
         }
 
         /*

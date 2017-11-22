@@ -70,10 +70,7 @@ int ncdwio_sharedfile_open(MPI_Comm comm, char *path, int flag, MPI_Info info, N
     // Remaining process opens the file
     if (f->chanel > 0){
         // Remove open flag if it's set, the first process already have the file opened
-        if (flag & O_CREAT){
-            flag ^= O_CREAT;
-        }
-        f->fd = open(path, flag, 0744);
+        f->fd = open(path, flag & (~(O_CREAT)), 0744);
         if (f->fd < 0){
             NCI_Free(f);
             err = ncmpii_error_posix2nc("open");
@@ -134,7 +131,7 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
     int sblock, eblock;   // start and end block
     off_t off; // Offset to write for current block in physical file
     size_t cnt;    // number of byte to write for current block
-    size_t ioret;
+    ssize_t ioret;
 
     // Write directly if not sharing
     if(f->nchanel == 1){
@@ -217,7 +214,7 @@ int ncdwio_sharedfile_write(NC_dw_sharedfile *f, void *buf, size_t count){
 
     // Write directly if not sharing
     if(f->nchanel == 1){
-        size_t ioret;
+        ssize_t ioret;
         ioret = write(f->fd, buf, count);
         if (ioret < 0){
             err = ncmpii_error_posix2nc("write");
@@ -271,7 +268,7 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
     int sblock, eblock;   // start and end block
     off_t off; // Offset to read for current block in physical file
     size_t cnt;    // number of byte to read for current block
-    size_t ioret;
+    ssize_t ioret;
 
     // Read directly if not sharing
     if(f->nchanel == 1){
@@ -354,7 +351,7 @@ int ncdwio_sharedfile_read(NC_dw_sharedfile *f, void *buf, size_t count){
 
     // Read directly if not sharing
     if(f->nchanel == 1){
-        size_t ioret;
+        ssize_t ioret;
         ioret = read(f->fd, buf, count);
         if (ioret < 0){
             err = ncmpii_error_posix2nc("read");

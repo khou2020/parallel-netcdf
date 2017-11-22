@@ -105,7 +105,7 @@ int ncdwio_file_write_core(NC_dw_file *f, void *buf, size_t count){
     int i, err;
     size_t sblock, soff, eblock, eoff;
     size_t off, len;
-    size_t ioret;
+    ssize_t ioret;
 
     if (f->np > 1){
         sblock = f->fpos / BLOCKSIZE;
@@ -168,7 +168,7 @@ int ncdwio_file_pwrite(NC_dw_file *f, void *buf, size_t count, size_t offset){
     int i, err;
     size_t sblock, soff, eblock, eoff;
     size_t off, len;
-    size_t ioret;
+    ssize_t ioret;
 
     if (f->np > 1){
         sblock = offset / BLOCKSIZE;
@@ -248,7 +248,7 @@ int ncdwio_file_read(NC_dw_file *f, void *buf, size_t count) {
     int i, err;
     size_t sblock, soff, eblock, eoff;
     size_t off, len;
-    size_t ioret;
+    ssize_t ioret;
 
     if (f->np > 1){
         sblock = f->fpos / BLOCKSIZE;
