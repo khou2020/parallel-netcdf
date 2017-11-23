@@ -115,7 +115,7 @@ int ncdwio_sharedfile_close(NC_dw_sharedfile *f) {
  * As a result, one shared file write operation translates to multiple writes
  * We first divide the writing region in the logical file into blocks
  * Each block in the logical file view is then mapped to corresponding block in the shared file
- * First and last block may be partial, we need to adjust offset and count of the first block and the last block 
+ * First and last block may be partial, we need to adjust write region of the first block and the last block 
  * 
  * Figure showing the case using chanel 0 with 2 chanels
  * logical file view: |B0      |B1      |B2      |B3      |...
@@ -124,16 +124,18 @@ int ncdwio_sharedfile_close(NC_dw_sharedfile *f) {
  *                       offset        offset + count
  * Block map: B0 -> B0, B1 -> B2, B2 -> B4 ...
  * Physical file:     |B0  ----|B1      |B2------|B3      |B4---      |B5      |B6      |
+ *                         ^   ^        ^        ^        ^     ^
+ *               offstart(s) offend(e) (s)      (e)      (s)   (e)
  * Dashed line shows write coverage
  */
 int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t offset){
     int i, err;
     int sblock, eblock;   // start and end block
-    off_t off; // Offset to write for current block in physical file
-    size_t cnt;    // number of byte to write for current block
+    off_t offstart, offend; // Start and end offset to write for current block in physical file
     ssize_t ioret;
 
     // Write directly if not sharing
+    /*
     if(f->nchanel == 1){
         ioret = pwrite(f->fd, buf, count, offset);
         if (ioret < 0){
@@ -146,6 +148,7 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
         }
         return NC_NOERR;
     }
+    */
 
     /* Calculate first and last blocks
      * Offset / Block size = Block number
@@ -156,40 +159,48 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
     /* Write each block to the file
      * We first compute the mapped offset of current block in the shared file
      * The count is set to blocksize
-     * For the first block, offset is increased by the offset within the block to handle partial block
-     * For first and last block, count must be adjusted to match actual write size
-     * After adjusting offset and count, we write the block to the correct location
+     * For the first block, start offset is increased by the offset within the block to handle partial block
+     * For last block, end offset must be adjusted
+     * After adjusting start and end offset, we write the block to the correct location
      * Local blocknumber * nchanel = global blocknumber
      * global blocknumber * blocksize = global offset
      * Offset % Block size = Offset within the block
      */
     for(i = sblock; i <= eblock; i++){
-        // Compute physical offset and count
-        off = i * f->nchanel * f->bsize;
-        cnt = f->bsize;
-        if (i == sblock){   // First block can be partial
-            // The block offset of the end of writing region is the amount to skip for the first block
-            off += offset % f->bsize;
-            cnt -= offset % f->bsize;
+        /* Block boundary are inclusive, as a result, final block is always partial (can be empty)
+         * In this case, we can assume offend will always be larger than offstart 
+         */
+        // Compute physical offset of th eblock
+        offstart = i * f->nchanel * f->bsize;
+        // A block can be first and last block at the same time due to short write region
+        // Last block must be partial
+        // NOTE: offend must be computed before offstart, we reply on unadjusted offstart to mark the start position of the block
+        if (i == eblock){  
+            // The local block offset of the end of writing region is the write size of final block
+            offend = offstart + (offset + count) % f->bsize;
         }
-        else if (i == eblock){  // Last block can be partial
-            // The block offset of the end of writing region is the write size of final block
-            cnt = (offset + count) % f->bsize;
+        else{
+            offend = offstart + f->bsize;
+        }
+        // First block can be partial
+        if (i == sblock){   
+            // The local block offset of the start of writing region is the amount to skip for the first block
+            offstart += offset % f->bsize;
         }
 
         // Write to file
-        ioret = pwrite(f->fd, buf, cnt, off);
+        ioret = pwrite(f->fd, buf, offend - offstart, offstart);
         if (ioret < 0){
             err = ncmpii_error_posix2nc("write");
             if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EWRITE);
             DEBUG_RETURN_ERROR(err);
         }
-        if (ioret != cnt){
+        if (ioret != offend - offstart){
             DEBUG_RETURN_ERROR(NC_EWRITE);
         }
 
         // We increase the buffer pointer by amount writen, so it always points to the data of next block
-        buf += cnt;
+        buf += offend - offstart;
     }
 
     // Record the file size as the largest location ever reach by IO operation
@@ -213,7 +224,7 @@ int ncdwio_sharedfile_write(NC_dw_sharedfile *f, void *buf, size_t count){
     int err;
 
     // Write directly if not sharing
-    if(f->nchanel == 1){
+    if(f->nchanel == 1 && 0){
         ssize_t ioret;
         ioret = write(f->fd, buf, count);
         if (ioret < 0){
@@ -252,7 +263,7 @@ int ncdwio_sharedfile_write(NC_dw_sharedfile *f, void *buf, size_t count){
  * As a result, one shared file read operation translates to multiple reads
  * We first divide the reading region in the logical file into blocks
  * Each block in the logical file view is then mapped to corresponding block in the shared file
- * First and last block may be partial, we need to adjust offset and count of the first block and the last block 
+ * First and last block may be partial, we need to adjust read region of the first block and the last block 
  * 
  * Figure showing the case using chanel 0 with 2 chanels
  * logical file view: |B0      |B1      |B2      |B3      |...
@@ -261,16 +272,18 @@ int ncdwio_sharedfile_write(NC_dw_sharedfile *f, void *buf, size_t count){
  *                       offset        offset + count
  * Block map: B0 -> B0, B1 -> B2, B2 -> B4 ...
  * Physical file:     |B0  ----|B1      |B2------|B3      |B4---      |B5      |B6      |
- * Dashed line shows read coverage
+ *                         ^   ^        ^        ^        ^     ^
+ *               offstart(s) offend(e) (s)      (e)      (s)   (e)
+ * Dashed line shows write coverage
  */
 int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t offset){
     int i, err;
     int sblock, eblock;   // start and end block
-    off_t off; // Offset to read for current block in physical file
-    size_t cnt;    // number of byte to read for current block
+    off_t offstart, offend; // Start and end offset to write for current block in physical file
     ssize_t ioret;
 
     // Read directly if not sharing
+    /*
     if(f->nchanel == 1){
         ioret = pread(f->fd, buf, count, offset);
         if (ioret < 0){
@@ -283,6 +296,7 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
         }
         return NC_NOERR;
     }
+    */
 
     /* Calculate first and last blocks
      * Offset / Block size = Block number
@@ -290,43 +304,51 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
     sblock = offset / f->bsize;
     eblock = (offset + count) / f->bsize;
 
-    /* Read each block from the file
+    /* Write each block to the file
      * We first compute the mapped offset of current block in the shared file
      * The count is set to blocksize
-     * For the first block, offset is increased by the offset within the block to handle partial block
-     * For first and last block, count must be adjusted to match actual read size
-     * After adjusting offset and count, we read the block from the correct location
+     * For the first block, start offset is increased by the offset within the block to handle partial block
+     * For last block, end offset must be adjusted
+     * After adjusting start and end offset, we write the block to the correct location
      * Local blocknumber * nchanel = global blocknumber
      * global blocknumber * blocksize = global offset
      * Offset % Block size = Offset within the block
      */
     for(i = sblock; i <= eblock; i++){
-        // Compute physical offset and count
-        off = i * f->nchanel * f->bsize;
-        cnt = f->bsize;
-        if (i == sblock){   // First block can be partial
-            // The block offset of the end of writing region is the amount to skip for the first block
-            off += offset % f->bsize;
-            cnt -= offset % f->bsize;
+        /* Block boundary are inclusive, as a result, final block is always partial (can be empty)
+         * In this case, we can assume offend will always be larger than offstart 
+         */
+        // Compute physical offset of th eblock
+        offstart = i * f->nchanel * f->bsize;
+        // A block can be first and last block at the same time due to short write region
+        // Last block must be partial
+        // NOTE: offend must be computed before offstart, we reply on unadjusted offstart to mark the start position of the block
+        if (i == eblock){  
+            // The local block offset of the end of writing region is the write size of final block
+            offend = offstart + (offset + count) % f->bsize;
         }
-        else if (i == eblock){  // Last block can be partial
-            // The block offset of the end of writing region is the read size of final block
-            cnt = (offset + count) % f->bsize;
+        else{
+            offend = offstart + f->bsize;
+        }
+        // First block can be partial
+        if (i == sblock){   
+            // The local block offset of the start of writing region is the amount to skip for the first block
+            offstart += offset % f->bsize;
         }
 
         // Read from file
-        ioret = pread(f->fd, buf, cnt, off);
+        ioret = pread(f->fd, buf, offend - offstart, offstart);
         if (ioret < 0){
             err = ncmpii_error_posix2nc("read");
             if (err == NC_EFILE) DEBUG_ASSIGN_ERROR(err, NC_EREAD);
             DEBUG_RETURN_ERROR(err);
         }
-        if (ioret != cnt){
+        if (ioret != offend - offstart){
             DEBUG_RETURN_ERROR(NC_EREAD);
         }
 
         // We increase the buffer pointer by amount readn, so it always points to the location for next block
-        buf += cnt;
+        buf += offend - offstart;
     }
 
     // Record the file size as the largest location ever reach by IO operation
@@ -350,7 +372,7 @@ int ncdwio_sharedfile_read(NC_dw_sharedfile *f, void *buf, size_t count){
     int err;
 
     // Read directly if not sharing
-    if(f->nchanel == 1){
+    if(f->nchanel == 1 && 0){
         ssize_t ioret;
         ioret = read(f->fd, buf, count);
         if (ioret < 0){
@@ -389,7 +411,7 @@ int ncdwio_sharedfile_seek(NC_dw_sharedfile *f, off_t offset, int whence){
     /* Move file pointer if not sharing, so write and read can function properly without doing pwrite/read
      * Logical file position is not tracked in this case because it's equal to physical position
      */
-    if(f->nchanel == 1){
+    if(f->nchanel == 1 && 0){
         ioret = lseek(f->fd, offset, whence);
         if (ioret < 0){
             err = ncmpii_error_posix2nc("lseek");
