@@ -350,10 +350,10 @@ int ncdwio_log_close(NC_dw *ncdwp) {
     ncdwp->total_time += t2 - t1;
     ncdwp->close_time += t2 - t1;
 
-    ncmpii_update_bb_counter(ncbbp->total_time, ncbbp->create_time, ncbbp->enddef_time, ncbbp->put_time, ncbbp->flush_time, ncbbp->close_time,
-    ncbbp->flush_replay_time, ncbbp->flush_data_rd_time, ncbbp->flush_put_time, ncbbp->flush_wait_time,
-    ncbbp->put_data_wr_time, ncbbp->put_meta_wr_time, ncbbp->put_num_wr_time,
-    ncbbp->total_data, ncbbp->total_meta, ncbbp->max_buffer);
+    ncmpii_update_bb_counter(ncdwp->total_time, ncdwp->create_time, ncdwp->enddef_time, ncdwp->put_time, ncdwp->flush_time, ncdwp->close_time,
+    ncdwp->flush_replay_time, ncdwp->flush_data_rd_time, ncdwp->flush_put_time, ncdwp->flush_wait_time,
+    ncdwp->put_data_wr_time, ncdwp->put_meta_wr_time, ncdwp->put_num_wr_time,
+    ncdwp->total_data, ncdwp->total_meta, ncdwp->max_buffer);
 
 
 #ifdef PNETCDF_DEBUG
