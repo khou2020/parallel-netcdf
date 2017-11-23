@@ -39,7 +39,7 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     double t1, t2;
 #endif
     DIR *logdir;
-    size_t ioret, headersize;
+    ssize_t ioret, headersize;
     NC_dw_metadataheader *headerp;
 
 #ifdef PNETCDF_PROFILING
@@ -430,7 +430,7 @@ int ncdwio_log_flush(NC_dw* ncdwp) {
 #ifdef PNETCDF_PROFILING
     double t1, t2; 
 #endif
-    size_t ioret;
+    ssize_t ioret;
     //NC_req *putlist;
     NC_dw_metadataheader *headerp;
 

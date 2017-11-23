@@ -41,10 +41,6 @@ C_SRCS    = utf8proc.c \
 			stageout.c \
 			accounting.c
 
-if PNETCDF_PROFILING
-    C_SRCS += profiling.c
-endif
-
 libcommon_la_SOURCES = $(C_SRCS) $(H_SRCS)
 nodist_libcommon_la_SOURCES = $(M4_SRCS:.m4=.c)
 
