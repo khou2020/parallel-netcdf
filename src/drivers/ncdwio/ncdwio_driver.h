@@ -188,12 +188,12 @@ typedef struct NC_dw {
     int isflushing;   /* If log is flushing */
     MPI_Offset max_ndims;
     NC_dw_put_list putlist;
-#ifdef PNETCDF_DEBUG
+    MPI_Offset recdimsize;
+    MPI_Offset flushbuffersize;
+#ifdef PNETCDF_PROFILING
     /* Profiling information */
     MPI_Offset total_data;
     MPI_Offset total_meta;
-    MPI_Offset recdimsize;
-    MPI_Offset flushbuffersize;
     MPI_Offset max_buffer;
     double total_time;
     double create_time;

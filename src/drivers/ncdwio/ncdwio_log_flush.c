@@ -216,9 +216,11 @@ int log_flush(NC_dw *ncdwp) {
     if (ncdwp->flushbuffersize > 0 && databuffersize > ncdwp->flushbuffersize){
         databuffersize = ncdwp->flushbuffersize;
     }
+#ifdef PNETCDF_PROFILING
     if (ncdwp->max_buffer < databuffersize){
         ncdwp->max_buffer = databuffersize;
     }
+#endif
 
     /* Allocate buffer */
     databuffer = (char*)NCI_Malloc(databuffersize);

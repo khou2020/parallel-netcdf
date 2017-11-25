@@ -132,6 +132,7 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
 
     /* Set log file descriptor to NULL */
 
+#ifdef PNETCDF_PROFILING
     /* Performance counters */
     ncdwp->total_time = 0;
     ncdwp->create_time = 0;
@@ -147,6 +148,7 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     ncdwp->put_meta_wr_time = 0;
     ncdwp->put_num_wr_time = 0;
     ncdwp->max_buffer = 0;
+#endif
 
     /* Misc */
     ncdwp->rank = rank;
