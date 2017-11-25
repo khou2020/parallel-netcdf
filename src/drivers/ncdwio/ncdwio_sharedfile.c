@@ -135,7 +135,6 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
     ssize_t ioret;
 
     // Write directly if not sharing
-    /*
     if(f->nchanel == 1){
         ioret = pwrite(f->fd, buf, count, offset);
         if (ioret < 0){
@@ -148,7 +147,6 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
         }
         return NC_NOERR;
     }
-    */
 
     /* Calculate first and last blocks
      * Offset / Block size = Block number
@@ -224,7 +222,7 @@ int ncdwio_sharedfile_write(NC_dw_sharedfile *f, void *buf, size_t count){
     int err;
 
     // Write directly if not sharing
-    if(f->nchanel == 1 && 0){
+    if(f->nchanel == 1){
         ssize_t ioret;
         ioret = write(f->fd, buf, count);
         if (ioret < 0){
@@ -283,7 +281,6 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
     ssize_t ioret;
 
     // Read directly if not sharing
-    /*
     if(f->nchanel == 1){
         ioret = pread(f->fd, buf, count, offset);
         if (ioret < 0){
@@ -296,7 +293,6 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
         }
         return NC_NOERR;
     }
-    */
 
     /* Calculate first and last blocks
      * Offset / Block size = Block number
@@ -372,7 +368,7 @@ int ncdwio_sharedfile_read(NC_dw_sharedfile *f, void *buf, size_t count){
     int err;
 
     // Read directly if not sharing
-    if(f->nchanel == 1 && 0){
+    if(f->nchanel == 1){
         ssize_t ioret;
         ioret = read(f->fd, buf, count);
         if (ioret < 0){
@@ -411,7 +407,7 @@ int ncdwio_sharedfile_seek(NC_dw_sharedfile *f, off_t offset, int whence){
     /* Move file pointer if not sharing, so write and read can function properly without doing pwrite/read
      * Logical file position is not tracked in this case because it's equal to physical position
      */
-    if(f->nchanel == 1 && 0){
+    if(f->nchanel == 1){
         ioret = lseek(f->fd, offset, whence);
         if (ioret < 0){
             err = ncmpii_error_posix2nc("lseek");
