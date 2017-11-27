@@ -1479,6 +1479,7 @@ AC_CONFIG_FILES(Makefile \
                 src/utils/ncmpidump/Makefile \
                 src/utils/ncmpigen/Makefile \
                 src/utils/ncmpilogdump/Makefile \
+                src/utils/ncmpizip/Makefile \
                 src/utils/pnetcdf-config \
                 src/packaging/Makefile \
                 src/packaging/pnetcdf.pc \
