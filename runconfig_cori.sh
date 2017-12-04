@@ -5,4 +5,5 @@
                 TESTMPIRUN="srun -n NP" TESTSEQRUN="srun -n 1" \
                 TESTOUTDIR="$SCRATCH" \
 		--disable-shared --disable-debug \
-                --enable-profiling --enable-dwdriver 
+                --enable-profiling --enable-dwdriver \
+                --enable-staging

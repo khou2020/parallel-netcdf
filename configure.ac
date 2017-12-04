@@ -111,6 +111,7 @@ AH_TEMPLATE([DISABLE_IN_PLACE_SWAP],    [Define if to disable in-place byte swap
 AH_TEMPLATE([ENABLE_SUBFILING],         [Define if to enable subfiling feature])
 AH_TEMPLATE([BUILD_DRIVER_DW],          [Define if to enable datawarp burst buffer feature])
 AH_TEMPLATE([PNETCDF_PROFILING],        [Define if to enable datawarp burst buffer feature])
+AH_TEMPLATE([ENABLE_DWSTAGING],        [Define if to enable datawarp staging api wrapper])
 AH_TEMPLATE([NC_DW_SHARED_LOG],         [Define if to enable bb driver shared log file feature])
 AH_TEMPLATE([PNC_MALLOC_TRACE],         [Define if to enable malloc tracing])
 AH_TEMPLATE([HAVE_FUNC_MACRO],          [Define if C++ macro __func__ is defined])
@@ -1323,7 +1324,7 @@ AC_SUBST(BUILD_DRIVER_DW)
 AM_CONDITIONAL(BUILD_DRIVER_DW, [test x$enable_dwdriver = xyes])
 
 AC_ARG_ENABLE([profiling],
-   [AS_HELP_STRING([--enable_profiling],
+   [AS_HELP_STRING([--enable-profiling],
                    [Enable time and memory profiling. @<:@default: disabled@:>@])],
    [enable_profiling=${enableval}], [enable_profiling=no]
 )
@@ -1335,6 +1336,20 @@ if test "x$enable_profiling" = "xyes" ; then
 fi
 AC_SUBST(PNETCDF_PROFILING)
 AM_CONDITIONAL(PNETCDF_PROFILING, [test x$enable_profiling = xyes])
+
+AC_ARG_ENABLE([staging],
+   [AS_HELP_STRING([--enable-staging],
+                   [Enable time and memory profiling. @<:@default: disabled@:>@])],
+   [enable_staging=${enableval}], [enable_staging=no]
+)
+
+ENABLE_DWSTAGING=0
+if test "x$enable_staging" = "xyes" ; then
+   AC_DEFINE(ENABLE_DWSTAGING)
+   ENABLE_DWSTAGING=1
+fi
+AC_SUBST(ENABLE_DWSTAGING)
+AM_CONDITIONAL(ENABLE_DWSTAGING, [test x$enable_staging = xyes])
 
 AC_ARG_ENABLE([erange-fill],
    [AS_HELP_STRING([--disable-erange-fill],
