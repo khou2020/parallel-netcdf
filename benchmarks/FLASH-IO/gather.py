@@ -8,6 +8,7 @@ NN = "number_of_nodes"
 NP = "number_of_processes"
 
 xname = {NP: "Number of Processes", 
+         DRIVER: "IO Driver",
          "dw_blocking_coll": "DW Driver Log Per Process", 
          "dw_shared_blocking_coll": "DW Driver Shared Log", 
          "ncmpi_blocking_coll": "Ncmpi Blocking Collective", 
@@ -196,7 +197,7 @@ def plot_stage_np_mode(fout, recs:list, filter:dict):
     ys = ["total_time_mean", "flash_time_mean", "stage_time"]
     xys = {"total_time_mean": "Total Time", "flash_time_mean": "Time Writting to BB", "stage_time": "Time Staging Out"}
 
-    fout.write("Sec, ")
+    fout.write("DW Stagin Time Breakdown, Time (Sec), ")
     for k in filter:
         fout.write(str(k) + ": " + str(filter[k]) + ",")
     fout.write("\n")
@@ -236,65 +237,87 @@ def plot_stage_np_mode(fout, recs:list, filter:dict):
                     fout.write(", ")
             fout.write("\n")
 
-def plot_dw_np(fout, recs:list, filter:dict):
+def plot_dw_np_cmp(fout, recs:list, filter:dict):
     table = {}
     cnt = {}
     xs = set()
+    x2s = set()
     ys = set()
     for rec in recs:
         drop = False
         for k in filter:
-            if (k not in rec or rec[k] != filter[k]):
-                drop = True
+            drop = True
+            if (k in rec):
+                for f in list(filter[k]):
+                    if rec[k] == f:
+                        drop = False
+            if drop:
                 break
         if not drop:
             x = rec[NP]
+            x2 = rec[DRIVER]
             xs.add(x)
-            if x not in table:
-                table[x] = rec
-                cnt[x] = 1
+            x2s.add(x2)
+            k = str(x) + "/" + str(x2)
+            if k not in table:
+                table[k] = rec
+                cnt[k] = 1
             else:
-                cnt[x] += 1
-                if (table[x][TOTALTIME] > rec[TOTALTIME]):
-                    table[x] = rec
+                cnt[k] += 1
+                if (table[k][TOTALTIME] > rec[TOTALTIME]):
+                    table[k] = rec
 
     xs = sorted(list(xs))
+    x2s = sorted(list(x2s))
     
     ys = ["dw_total_time_mean", "dw_create_time_mean", "dw_enddef_time_mean", "dw_put_time_mean", "dw_flush_time_mean", "dw_close_time_mean", 
           "dw_put_data_wr_time_mean", "dw_put_meta_wr_time_mean", "dw_put_num_wr_time_mean", 
           "dw_flush_replay_time_mean", "dw_flush_data_rd_time_mean", "dw_flush_put_time_mean", "dw_flush_wait_time_mean"]
+    xys = {"dw_total_time_mean": "Time in DW Driver", "dw_create_time_mean": "Time Creating Log", "dw_enddef_time_mean": "Time Enddef", "dw_put_time_mean": "Time Writing Log", "dw_flush_time_mean": "Time Flushing Log", "dw_close_time_mean": "Time Closing Log", 
+           "dw_put_data_wr_time_mean": "Time Writing Data", "dw_put_meta_wr_time_mean": "Time Writing Metadata", "dw_put_num_wr_time_mean": "Time Updateing Num", 
+           "dw_flush_replay_time_mean": "Time Replaying Log", "dw_flush_data_rd_time_mean": "Time Reading Data", "dw_flush_put_time_mean": "Time Calling Put", "dw_flush_wait_time_mean": "Time Waiting"}
+    xx2s = {"dw": "Log Per Process", 
+            "dw_shared": "Shared Log", }
 
-    fout.write("Sec, ")
+    fout.write("DW Driver Time Breakdown, Time (Sec), ")
     for k in filter:
         fout.write(str(k) + ": " + str(filter[k]) + ",")
     fout.write("\n")
-    fout.write(xname[NP] +  ", ")
+    fout.write(xname[NP] +  ", " + xname[DRIVER] + ", ")
     for y in ys:
-        fout.write(str(y) + ", ")
+        fout.write(str(xys[y]) + ", ")
     fout.write("\n")
     for x in xs:
-        fout.write(str(x) + ", ")
-        for y in ys:
-            if (y in table[x]):
-                fout.write(str(table[x][y]))
-            fout.write(", ")
-        fout.write("\n")
+        fout.write(str(xname[x]))
+        for x2 in x2s:
+            fout.write(", " + str(xx2s[x2]) + ", ")
+            k = str(x) + "/" + str(x2)
+            if k in table:
+                for y in ys:
+                    if (y in table[k]):
+                        fout.write(str(table[k][y]))
+                    fout.write(", ")
+            fout.write("\n")
 
     fout.write("Runs, ")
     for k in filter:
         fout.write(str(k) + ": " + str(filter[k]) + ",")
     fout.write("\n")
-    fout.write(xname[NP] +  ", ")
+    fout.write(xname[NP] +  ", " + xname[DRIVER] + ", ")
     for y in ys:
-        fout.write(str(y) + ", ")
+        fout.write(str(xys[y]) + ", ")
     fout.write("\n")
     for x in xs:
-        fout.write(str(x) + ", ")
-        for y in ys:
-            if (y in table[x]):
-                fout.write(str(cnt[x]))
-            fout.write(", ")
-        fout.write("\n")
+        fout.write(str(xname[x]))
+        for x2 in x2s:
+            fout.write(", " + str(xx2s[x2]) + ", ")
+            k = str(x) + "/" + str(x2)
+            if k in table:
+                for y in ys:
+                    if (y in table[k]):
+                        fout.write(str(cnt[k]))
+                    fout.write(", ")
+            fout.write("\n")
 
 def main(argv:list):
     dir = 'C:/Users/x3276/OneDrive/Research/Log io/Result/flash'
@@ -307,10 +330,8 @@ def main(argv:list):
     with open('result.csv', 'w') as fout:
         filter = {}
         plot_driver_np(fout, recs, filter)
-        filter = {DRIVER: 'dw'}
-        plot_dw_np(fout, recs, filter)
-        filter = {DRIVER: 'dw_shared'}
-        plot_dw_np(fout, recs, filter)
+        filter = {DRIVER: ['dw', 'dw_shared']}
+        plot_dw_np_cmp(fout, recs, filter)
         filter = {DRIVER: 'stage'}
         plot_stage_np_mode(fout, recs, filter)
 
