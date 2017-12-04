@@ -1,30 +1,54 @@
 import os, sys
 
+TOTALTIME = "total_time_mean"
+IOSIZE = "total_io_size"
+IOMODE = "io_mode"
+DRIVER = "io_driver"
+NN = "number_of_nodes"
+NP = "number_of_processes"
+
+xname = {NP: "Number of Processes", 
+         "dw_blocking_coll": "DW Driver Log Per Process", 
+         "dw_shared_blocking_coll": "DW Driver Shared Log", 
+         "ncmpi_blocking_coll": "Ncmpi Blocking Collective", 
+         "ncmpi_nonblocking_coll": "Ncmpi Nonblocking Collective", 
+         "ncmpi_blocking_indep": "Ncmpi Blocking Independent", 
+         "ncmpi_nonblocking_indep": "Ncmpi Nonblocking Independent", 
+         "stage_blocking_coll": "DW Stage Out Blocking Collective", 
+         "stage_blocking_indep": "DW Stage Out Blocking Independent", 
+         "stage_nonblocking_coll": "DW Stage Out Nonblocking Collective", 
+         "stage_nonblocking_indep": "DW Stage Out Nonblocking Independent", 
+         256: "256 Processes",
+         512: "512 Processes",
+         1024: "1024 Processes",
+         2048: "2048 Processes",
+         4096: "4096 Processes",
+         8192: "8192 Processes",
+        }
+
+
 def gather(dir:str):
     recs = []
     for filename in os.listdir(dir):
         if filename.endswith(".txt"):
             path = os.path.join(dir, filename)
             rec = {}
-            bestrec = None
+            currec = None
             drop = False
             with open(path, 'r') as fin:
+                stageouttime = 0
                 for line in fin:
-                    if (line[:42] == '--++---+----+++-----++++---+++--+-++--+---'):
-                        if (bestrec != None):
-                            recs.append(bestrec)
-                        bestrec = None
-                    elif (line[:40] == '-----+-----++------------+++++++++--+---'):
-                        if (not drop):
-                            if (bestrec == None or ('total_time' not in bestrec and 'total_time_max' not in bestrec)):
-                                bestrec = rec
+                    if (line[:40] == '-----+-----++------------+++++++++--+---'):
+                        if (rec[DRIVER] == "stage"):
+                            if rec["stage_time"] == 0:
+                                rec["stage_time"] = stageouttime
+                                rec["total_time_mean"] = rec["flash_time_mean"] + stageouttime
+                                rec["total_time_min"] = rec["flash_time_mean"] + stageouttime
+                                rec["total_time_max"] = rec["flash_time_mean"] + stageouttime
                             else:
-                                if ('total_time' in bestrec and bestrec['total_time'] > rec['total_time']):
-                                    bestrec = rec
-                                elif ('total_time_max' in bestrec and bestrec['total_time_max'] > rec['total_time_max']):
-                                    bestrec = rec
+                                stageouttime = rec["stage_time"]
+                        recs.append(rec)
                         rec = {}
-                        drop = False
                     elif (line[:3] == '#%$'):
                         tokens = line.split(sep = ':')
                         val = tokens[2].strip()
@@ -43,193 +67,253 @@ def gather(dir:str):
                         drop = True
     return recs
 
-def plot(fout, recs:list, filter:dict, x:str, y:str, v:str, highisbetter:bool = False):
-    table = {}
-    cats = set()
+def plot_driver_np(fout, recs:list, filter:dict):
+    cnt = {}
+    time = {}
+    size = {}
+    xs = set()
+    ys = set()
     for rec in recs:
         drop = False
         for k in filter:
             if (k not in rec or rec[k] != filter[k]):
                 drop = True
                 break
-        if (x not in rec or y not in rec or v not in rec):
-            drop = True
-        if (not drop):
-            cats.add(rec[y])
-            if (rec[x] not in table):
-                table[rec[x]] = {}
-            if (rec[y] not in table[rec[x]]):
-                table[rec[x]][rec[y]] = rec[v]
+        if not drop:
+            x = rec[NP]
+            y = rec[DRIVER] + "_" + rec[IOMODE]
+            k = str(x) + "/" + str(y)
+            xs.add(x)
+            ys.add(y)
+            if k not in cnt:
+                cnt[k] = 1
+                time[k] = rec[TOTALTIME]
+                size[k] = rec[IOSIZE]
             else:
-                if (highisbetter):
-                    table[rec[x]][rec[y]] = max([table[rec[x]][rec[y]], rec[v]])
-                else:
-                    table[rec[x]][rec[y]] = min([table[rec[x]][rec[y]], rec[v]])
+                cnt[k] += 1
+                if (time[k] > rec[TOTALTIME]):
+                    time[k] = rec[TOTALTIME]
+                    size[k] = rec[IOSIZE]
+    xs = sorted(list(xs))
+    ys = sorted(list(ys))
     
-    fout.write(str(v) + ',')
-    for f in filter:
-        fout.write(f + '=' + str(filter[f]) + '; ')
-    fout.write('\n')
-    fout.write(str(x) + '\\' + str(y) + ', ')
-    for v in sorted(list(cats)):
-        fout.write(str(v) + ', ')
-    fout.write('\n')
-    for u in sorted(table.keys()):
-        fout.write(str(u) + ', ')
-        for v in sorted(list(cats)):
-            if v in table[u]:
-                fout.write(str(table[u][v]))
-            fout.write(', ')
-        fout.write('\n')
-    fout.write('\n')
+    fout.write("End to End IO Time,	Time (sec), ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] + ", ")
+    for y in ys:
+        fout.write(str(xname[y]) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(xname[x]) + ", ")
+        for y in ys:
+            k = str(x) + "/" + str(y)
+            if (k in time):
+                fout.write(str(time[k]))
+            fout.write(", ")
+        fout.write("\n")
 
-def plot1d(fout, recs:list, filter:dict, x:str, vals:list):
+    fout.write("GiB, ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] + ", ")
+    for y in ys:
+        fout.write(str(xname[y]) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(xname[x]) + ", ")
+        for y in ys:
+            k = str(x) + "/" + str(y)
+            if (k in size):
+                fout.write(str(size[k]))
+            fout.write(", ")
+        fout.write("\n")
+
+    fout.write("End to End IO Bandwidth, Bandwidth (GiB/s), ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] + ", ")
+    for y in ys:
+        fout.write(str(xname[y]) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(xname[x]) + ", ")
+        for y in ys:
+            k = str(x) + "/" + str(y)
+            if (k in time and k in size):
+                fout.write(str(size[k] / time[k]))
+            fout.write(", ")
+        fout.write("\n")
+
+    fout.write("Runs, ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] + ", ")
+    for y in ys:
+        fout.write(str(xname[y]) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(xname[x]) + ", ")
+        for y in ys:
+            k = str(x) + "/" + str(y)
+            if (k in cnt):
+                fout.write(str(cnt[k]))
+            fout.write(", ")
+        fout.write("\n")
+
+def plot_stage_np_mode(fout, recs:list, filter:dict):
     table = {}
-    complete = set()
+    cnt = {}
+    xs = set()
+    x2s = set()
+    ys = set()
     for rec in recs:
         drop = False
         for k in filter:
             if (k not in rec or rec[k] != filter[k]):
                 drop = True
                 break
-        if (x not in rec):
-            drop = True
-                        
-        if (not drop):
-            if (rec[x] not in table or rec[x] not in complete):
-                table[rec[x]] = rec
-            for v in vals:
-                if (v not in rec):
-                    drop = True
-            if (not drop):
-                complete.add(rec[x])
+        if not drop:
+            x = rec[NP]
+            x2 = rec[IOMODE]
+            xs.add(x)
+            x2s.add(x2)
+            k = str(x) + "_" + str(x2)
+            if k not in table:
+                table[k] = rec
+                cnt[k] = 1
+            else:
+                cnt[k] += 1
+                if (table[k][TOTALTIME] > rec[TOTALTIME]):
+                    table[k] = rec
 
+    xs = sorted(list(xs))
+    x2s = sorted(list(x2s))
+    ys = ["total_time_mean", "flash_time_mean", "stage_time"]
+    xys = {"total_time_mean": "Total Time", "flash_time_mean": "Time Writting to BB", "stage_time": "Time Staging Out"}
+
+    fout.write("Sec, ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] + ", " + IOMODE + ", ")
+    for y in ys:
+        fout.write(str(xys[y]) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(xname[x]))
+        for x2 in x2s:
+            fout.write(", " + str(x2) + ", ")
+            k = str(x) + "_" + str(x2)
+            if (k in table):
+                for y in ys:
+                    if (y in table[k]):
+                        fout.write(str(table[k][y]))
+                    fout.write(", ")
+            fout.write("\n")
+
+    fout.write("Runs, ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] +  ", " + IOMODE + ", ")
+    for y in ys:
+        fout.write(str(xys[y]) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(xname[x]))
+        for x2 in x2s:
+            fout.write(", " + str(x2) + ", ")
+            k = str(x) + "_" + str(x2)
+            if (k in table):
+                for y in ys:
+                    if (y in table[k]):
+                        fout.write(str(cnt[k]))
+                    fout.write(", ")
+            fout.write("\n")
+
+def plot_dw_np(fout, recs:list, filter:dict):
+    table = {}
+    cnt = {}
+    xs = set()
+    ys = set()
+    for rec in recs:
+        drop = False
+        for k in filter:
+            if (k not in rec or rec[k] != filter[k]):
+                drop = True
+                break
+        if not drop:
+            x = rec[NP]
+            xs.add(x)
+            if x not in table:
+                table[x] = rec
+                cnt[x] = 1
+            else:
+                cnt[x] += 1
+                if (table[x][TOTALTIME] > rec[TOTALTIME]):
+                    table[x] = rec
+
+    xs = sorted(list(xs))
     
-    fout.write(vals[0] + ',')
-    for f in filter:
-        fout.write(f + '=' + str(filter[f]) + '; ')
-    fout.write('\n')
-    fout.write(str(x) + ', ')
-    for v in vals:
-        fout.write(str(v) + ', ')
-    fout.write('\n')
-    for u in sorted(table.keys()):
-        fout.write(str(u) + ', ')
-        for v in vals:
-            if v in table[u]:
-                fout.write(str(table[u][v]))
-            fout.write(', ')
-        fout.write('\n')
-    fout.write('\n')
+    ys = ["dw_total_time_mean", "dw_create_time_mean", "dw_enddef_time_mean", "dw_put_time_mean", "dw_flush_time_mean", "dw_close_time_mean", 
+          "dw_put_data_wr_time_mean", "dw_put_meta_wr_time_mean", "dw_put_num_wr_time_mean", 
+          "dw_flush_replay_time_mean", "dw_flush_data_rd_time_mean", "dw_flush_put_time_mean", "dw_flush_wait_time_mean"]
+
+    fout.write("Sec, ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] +  ", ")
+    for y in ys:
+        fout.write(str(y) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(x) + ", ")
+        for y in ys:
+            if (y in table[x]):
+                fout.write(str(table[x][y]))
+            fout.write(", ")
+        fout.write("\n")
+
+    fout.write("Runs, ")
+    for k in filter:
+        fout.write(str(k) + ": " + str(filter[k]) + ",")
+    fout.write("\n")
+    fout.write(xname[NP] +  ", ")
+    for y in ys:
+        fout.write(str(y) + ", ")
+    fout.write("\n")
+    for x in xs:
+        fout.write(str(x) + ", ")
+        for y in ys:
+            if (y in table[x]):
+                fout.write(str(cnt[x]))
+            fout.write(", ")
+        fout.write("\n")
 
 def main(argv:list):
-    dir = 'C:/Users/x3276/OneDrive/Research/Log io/Result/FLASH/64_8M'
+    dir = 'C:/Users/x3276/OneDrive/Research/Log io/Result/flash'
 
     if len(argv) > 1:
         dir = argv[1]
     
     recs = gather(dir)
     
-    for rec in recs:
-        if 'total_time' in rec and 'total_io_size' in rec:
-            rec['total_bandwidth'] = rec['total_io_size'] / rec['total_time'] / 1024
-
     with open('result.csv', 'w') as fout:
-        '''
-        filter = {'io_driver': 'ncmpi'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_time')
-        filter = {'io_driver': 'bb'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_time')
-        filter = {'io_driver': 'stage'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_time')
-        filter = {'io_driver': 'ncmpi'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_io_size')
-        filter = {'io_driver': 'bb'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_io_size')
-        filter = {'io_driver': 'stage'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_io_size')
-        filter = {'io_driver': 'ncmpi'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
-        filter = {'io_driver': 'bb'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
-        filter = {'io_driver': 'stage'}
-        plot(fout, recs, filter, 'number_of_processes', 'io_mode', 'total_bandwidth')
-        filter = {'io_driver': 'bb'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_time', 'bb_wr_time', 'bb_flush_time', 'bb_rd_time', 'bb_replay_time', 'bb_api_time', 'total_time'])
-        filter = {'io_driver': 'stage'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
+        filter = {}
+        plot_driver_np(fout, recs, filter)
+        filter = {DRIVER: 'dw'}
+        plot_dw_np(fout, recs, filter)
+        filter = {DRIVER: 'dw_shared'}
+        plot_dw_np(fout, recs, filter)
+        filter = {DRIVER: 'stage'}
+        plot_stage_np_mode(fout, recs, filter)
 
-        filter = {'experiment': 'bb_timing_breakdown'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
-
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_mean', 'bb_put_meta_wr_time_mean', 'bb_put_num_wr_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_var', 'bb_put_meta_wr_time_var', 'bb_put_num_wr_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_max', 'bb_put_meta_wr_time_max', 'bb_put_num_wr_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_min', 'bb_put_meta_wr_time_min', 'bb_put_num_wr_time_min'])
-
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_mean', 'bb_flush_data_rd_time_mean', 'bb_flush_put_time_mean', 'bb_flush_wait_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_var', 'bb_flush_data_rd_time_var', 'bb_flush_put_time_var', 'bb_flush_wait_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_max', 'bb_flush_data_rd_time_max', 'bb_flush_put_time_max', 'bb_flush_wait_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_min', 'bb_flush_data_rd_time_min', 'bb_flush_put_time_min', 'bb_flush_wait_time_min'])
-
-        filter = {'io_driver': 'stage', 'io_mode': 'blocking_coll'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
-
-        filter = {'io_driver': 'stage', 'io_mode': 'blocking_indep'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
-
-        filter = {'io_driver': 'stage', 'io_mode': 'nonblocking_coll'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
-
-        filter = {'io_driver': 'stage', 'io_mode': 'nonblocking_indep'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'flash_time', 'stage_time'])
-        '''
-
-        filter = {'shared_log': 0, 'io_driver': 'bb'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
-
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_mean', 'bb_put_meta_wr_time_mean', 'bb_put_num_wr_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_var', 'bb_put_meta_wr_time_var', 'bb_put_num_wr_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_max', 'bb_put_meta_wr_time_max', 'bb_put_num_wr_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_min', 'bb_put_meta_wr_time_min', 'bb_put_num_wr_time_min'])
-
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_mean', 'bb_flush_data_rd_time_mean', 'bb_flush_put_time_mean', 'bb_flush_wait_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_var', 'bb_flush_data_rd_time_var', 'bb_flush_put_time_var', 'bb_flush_wait_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_max', 'bb_flush_data_rd_time_max', 'bb_flush_put_time_max', 'bb_flush_wait_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_min', 'bb_flush_data_rd_time_min', 'bb_flush_put_time_min', 'bb_flush_wait_time_min'])
-
-        filter = {'shared_log': 1, 'io_driver': 'bb'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
-
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_mean', 'bb_put_meta_wr_time_mean', 'bb_put_num_wr_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_var', 'bb_put_meta_wr_time_var', 'bb_put_num_wr_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_max', 'bb_put_meta_wr_time_max', 'bb_put_num_wr_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_put_data_wr_time_min', 'bb_put_meta_wr_time_min', 'bb_put_num_wr_time_min'])
-
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_mean', 'bb_flush_data_rd_time_mean', 'bb_flush_put_time_mean', 'bb_flush_wait_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_var', 'bb_flush_data_rd_time_var', 'bb_flush_put_time_var', 'bb_flush_wait_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_max', 'bb_flush_data_rd_time_max', 'bb_flush_put_time_max', 'bb_flush_wait_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'bb_flush_replay_time_min', 'bb_flush_data_rd_time_min', 'bb_flush_put_time_min', 'bb_flush_wait_time_min'])
-
-        filter = {'io_driver': 'ncmpi', 'io_mode': 'blocking_coll'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
-        filter = {'io_driver': 'ncmpi', 'io_mode': 'nonblocking_coll'}
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_mean', 'bb_total_time_mean', 'bb_create_time_mean', 'bb_enddef_time_mean', 'bb_put_time_mean', 'bb_flush_time_mean', 'bb_close_time_mean'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_var', 'bb_total_time_var', 'bb_create_time_var', 'bb_enddef_time_var', 'bb_put_time_var', 'bb_flush_time_var', 'bb_close_time_var'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_max', 'bb_total_time_max', 'bb_create_time_max', 'bb_enddef_time_max', 'bb_put_time_max', 'bb_flush_time_max', 'bb_close_time_max'])
-        plot1d(fout, recs, filter, 'number_of_processes', ['total_io_size', 'total_time_min', 'bb_total_time_min', 'bb_create_time_min', 'bb_enddef_time_min', 'bb_put_time_min', 'bb_flush_time_min', 'bb_close_time_min'])
-
+        
 if __name__=='__main__':
     main(sys.argv)
