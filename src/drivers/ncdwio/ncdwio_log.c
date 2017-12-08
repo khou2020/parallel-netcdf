@@ -147,6 +147,8 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     ncdwp->put_data_wr_time = 0;
     ncdwp->put_meta_wr_time = 0;
     ncdwp->put_num_wr_time = 0;
+    ncdwp->total_meta = 0;
+    ncdwp->total_data = 0;
     ncdwp->max_buffer = 0;
 #endif
 
