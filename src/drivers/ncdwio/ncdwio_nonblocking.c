@@ -104,12 +104,12 @@ int ncdwio_put_list_resize(NC_dw *ncdwp){
     /* Realloc reqs and ids */
     ptr = NCI_Realloc(lp->reqs, 
                             nsize * sizeof(NC_dw_put_req));
-    if (ptr = NULL){
+    if (ptr == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     lp->reqs = (NC_dw_put_req*)ptr;
     ptr = NCI_Realloc(lp->ids, nsize * SIZEOF_INT);
-    if (ptr = NULL){
+    if (ptr == NULL){
         DEBUG_RETURN_ERROR(NC_ENOMEM);
     }
     lp->ids = (int*)ptr;
