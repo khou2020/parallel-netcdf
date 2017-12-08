@@ -1,3 +1,4 @@
 ./configure --prefix=/home/khl7265/local/ncmpi_eval \
 		--disable-shared --enable-debug \
-                --enable-profiling --enable-dwdriver 
+                --enable-profiling --enable-dwdriver \
+		--disable-staging 
