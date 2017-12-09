@@ -1,9 +1,19 @@
+/*
+ *  Copyright (C) 2017, Northwestern University and Argonne National Laboratory
+ *  See COPYRIGHT notice in top-level directory.
+ */
+/* $Id$ */
+
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
+
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <mpi.h>
-// NOTE: Icl is default compiler on cori, we assume compiling on cori when using icl
-#ifdef __INTEL_COMPILER
+
+#ifdef ENABLE_DWSTAGING
 #include <datawarp.h>
 #endif
 
@@ -18,7 +28,7 @@ int ncmpi_stage_out(char* bb, char* pfs, double *iotime) {
     int comp, pend, defer, fail;
     double st, et;
 
-#ifdef __INTEL_COMPILER
+#ifdef ENABLE_DWSTAGING
     st = MPI_Wtime();
     
     /* Perform stage out */   

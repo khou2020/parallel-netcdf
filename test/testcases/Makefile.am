@@ -65,9 +65,10 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                mix_collectives \
                large_var_cdf5 \
                tst_max_var_dims \
-			   iput_all_kinds \
-			   highdim \
-               wait
+	       iput_all_kinds \
+	       highdim \
+               wait \
+	       debug
 
 if BUILD_DRIVER_DW
    TESTPROGRAMS += bb_nonblocking \
