@@ -8,7 +8,7 @@
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * This program tests nonblocking functionality of bb driver
- * Flaushed requests can not be canceled, canceled request can't be waited
+ * Flushed requests can not be canceled, canceled request can't be waited
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <stdio.h>
