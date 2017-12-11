@@ -229,7 +229,7 @@ ncdwio_iget_var(void             *ncdp,
     if (err != NC_NOERR) return err;
 
     // Translate from ncmpio id to ncdwio id
-    *reqid *= 2;
+    *reqid = *reqid * 2 + 1;
 
     return NC_NOERR;
 }
@@ -264,7 +264,7 @@ ncdwio_iput_var(void             *ncdp,
     
     // Translate putlist id to ncdwio id
     if (reqid != NULL){
-        *reqid = id * 2 + 1;
+        *reqid = id * 2;
     }
 
     /* We must link the request object to corresponding log entries 
@@ -459,7 +459,7 @@ ncdwio_iget_varn(void               *ncdp,
     if (err != NC_NOERR) return err;
 
     // Translate form ncmpio id to ncdwio id
-    *reqid *= 2;
+    *reqid = *reqid * 2 + 1;
 
     return NC_NOERR;
 }
@@ -493,7 +493,7 @@ ncdwio_iput_varn(void               *ncdp,
     
     // Translate putlist id to ncdwio id
     if (reqid != NULL){
-        *reqid = id * 2 + 1;
+        *reqid = id * 2;
     }
     
     /* We must link the request object to corresponding log entries 

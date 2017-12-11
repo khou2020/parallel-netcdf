@@ -525,7 +525,7 @@ ncdwio_cancel(void *ncdp,
      */
     nput = 0;
     for(i = 0; i < num_req; i++){
-        if (req_ids[i] & 1){    // Odd id means a put request
+        if ((req_ids[i] & 1) == 0 || req_ids[i] == NC_REQ_NULL){    // Even id means a put request or NULL request
             // We are swapping req_ids[nput] with req_ids[i]
             swapidx[nput] = i;
             // Perform swap
@@ -541,13 +541,20 @@ ncdwio_cancel(void *ncdp,
     if (nput > 0){
         /* Cancel the request one by one */
         for(i = 0; i < nput; i++){
-            /* Try canceling the request
-             * Cancelation can fail if the request is already flushed to the file
-             */
-            err = ncdwio_cancel_put_req(ncdwp, (req_ids[i] / 2), &stat);
-            if (status == NC_NOERR){
-                status = err;
+            // Skip NULL requests
+            if (req_ids[i] == NC_REQ_NULL){
+                stat = NC_NOERR;
             }
+            else{
+                /* Try canceling the request
+                * Cancelation can fail if the request is already flushed to the file
+                */
+                err = ncdwio_cancel_put_req(ncdwp, (req_ids[i] / 2), &stat);
+                if (status == NC_NOERR){
+                    status = err;
+                }
+            }
+
             if (statuses != NULL){
                 statuses[i] = stat;
             }
@@ -591,6 +598,13 @@ ncdwio_cancel(void *ncdp,
             tmp = statuses[i];
             statuses[i] = statuses[j];
             statuses[j] = tmp;
+        }
+    }
+
+    /* If no error happened, set req_ids to NC_REQ_NULL */
+    if (status == NC_NOERR && req_ids != NULL){
+        for(i = 0; i < num_req; i++){
+            req_ids[i] = NC_REQ_NULL;
         }
     }
     
@@ -675,7 +689,7 @@ ncdwio_wait(void *ncdp,
      */
     nput = 0;
     for(i = 0; i < num_reqs; i++){
-        if (req_ids[i] & 1){    // Odd id means a put request
+        if ((req_ids[i] & 1) == 0 || req_ids[i] == NC_REQ_NULL){    // Even id means a put request or NULL request
             // We are swapping req_ids[nput] with req_ids[i]
             swapidx[nput] = i;
             // Perform swap
@@ -691,12 +705,18 @@ ncdwio_wait(void *ncdp,
     if (nput > 0){
         /* Handle the request one by one */
         for(i = 0; i < nput; i++){
-            // Handle request
-            // Cancelation can fail if the request is already flushed to the file
-            err = ncdwio_handle_put_req(ncdwp, (req_ids[i] / 2), &stat);
-            if (status == NC_NOERR){
-                status = err;
+            // Handle request, skiping NULL requests
+            if (req_ids[i] == NC_REQ_NULL){
+                stat = NC_NOERR;
             }
+            else{
+                // Waiting can fail if there's problem writing request to file
+                err = ncdwio_handle_put_req(ncdwp, (req_ids[i] / 2), &stat);
+                if (status == NC_NOERR){
+                    status = err;
+                }
+            }
+
             if (statuses != NULL){
                 statuses[i] = stat;
             }
@@ -748,6 +768,13 @@ ncdwio_wait(void *ncdp,
             tmp = statuses[i];
             statuses[i] = statuses[j];
             statuses[j] = tmp;
+        }
+    }
+
+    /* If no error happened, set req_ids to NC_REQ_NULL */
+    if (status == NC_NOERR && req_ids != NULL){
+        for(i = 0; i < num_reqs; i++){
+            req_ids[i] = NC_REQ_NULL;
         }
     }
     
