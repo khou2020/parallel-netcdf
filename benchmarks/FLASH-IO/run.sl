@@ -11,7 +11,7 @@ RUNS=(1) # Number of runs
 OUTDIR=/global/cscratch1/sd/khl7265/FS_64_8M/flash
 BBDIR=${DW_JOB_STRIPED}flash
 NN=${SLURM_NNODES}
-let NP=NN*4
+let NP=NN*8
 #let NP=NN*32
 
 echo "mkdir -p ${OUTDIR}"
@@ -59,6 +59,8 @@ do
 
                 echo "ls -lah ${OUTDIR}"
                 ls -lah ${OUTDIR}
+                echo "ls -lah ${BBDIR}"
+                ls -lah ${BBDIR}
 
                 unset PNETCDF_HINTS
                             
