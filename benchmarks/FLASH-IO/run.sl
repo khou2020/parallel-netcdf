@@ -4,6 +4,7 @@
 #SBATCH -C haswell
 #SBATCH -t 00:10:00
 #SBATCH -o flash_1.txt
+#SBATCH -L scratch
 #DW jobdw capacity=1289GiB access_mode=striped type=scratch pool=sm_pool
 
 RUNS=(1) # Number of runs
