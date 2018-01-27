@@ -31,8 +31,7 @@
 #include "tests.inc"
 
         call error('usage: nf90_test [-hrv] [-n <MAX_NMPT>]')
-        call error('       nf90_test [-c]')
-        call error('   [-h] Print help' )
+        call error('       nf90_test [-h] Print help' )
         call error('   [-c] Create file test.nc (Do not do tests)' )
         call error('   [-1] test CDF-1 format' )
         call error('   [-2] test CDF-2 format' )
@@ -416,9 +415,7 @@
         external        test_nf90mpi_rename_att
         external        test_nf90mpi_del_att
         external        test_nf90mpi_set_fill
-#if 0
         external        test_nf90mpi_set_default_format
-#endif
         external        nc_ignorefpe
 
         call MPI_INIT(err)                        
@@ -431,7 +428,6 @@
 
         nfailsTotal = 0
         call getarg(0, progname)
-        create_file = .false.   !/* file test.nc will normally already exist */
         readonly = .false.      !/* assume may write in test dir as default */
         verbose = .false.
         max_nmpt = 20
@@ -455,9 +451,7 @@
                     lastopt = index(arg, ' ') - 1
                     do 2, iopt = 2, lastopt
                         opt = arg(iopt:iopt)
-                        if (opt .eq. 'c') then
-                            create_file = .true.
-                        else if (opt .eq. 'r') then
+                        if (opt .eq. 'r') then
                             readonly = .true.
                         else if (opt .eq. 'v') then
                             verbose = .true.
@@ -510,11 +504,9 @@
 !       /* Initialize global variables defining test file */
         call init_gvars
 
-        if ( create_file ) then
-            call write_file(testfile)
+        call write_file(testfile)
+        if (nfailsTotal .GT. 0) then
             call MPI_Info_free(info, err)
-            if (nfailsTotal .eq. 0) &
-                 call ud_exit(0)
             call ud_exit(1)
         end if
 
@@ -834,10 +826,8 @@
             call test('nf90mpi_rename_att', test_nf90mpi_rename_att)
             call test('nf90mpi_del_att', test_nf90mpi_del_att)
             call test('nf90mpi_set_fill', test_nf90mpi_set_fill)
-#if 0
             call test('nf90mpi_set_default_format', &
-                      test_nf90mpi_set_default_format);
-#endif
+                      test_nf90mpi_set_default_format)
         end if
 
         call MPI_Info_free(info, err)

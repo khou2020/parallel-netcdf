@@ -1,29 +1,34 @@
 #!/bin/sh
+#
+# Copyright (C) 2003, Northwestern University and Argonne National Laboratory
+# See COPYRIGHT notice in top-level directory.
+#
 
+# Exit immediately if a command exits with a non-zero status.
 set -e
 
-VALIDATOR=../../src/utils/ncmpivalid/ncmpivalid
+VALIDATOR=../../src/utils/ncvalidator/ncvalidator
 
-for j in 0 1 ; do { \
-    export PNETCDF_SAFE_MODE=$$j ; \
-    for i in ${TESTPROGRAMS}; do { \
-        ${TESTSEQRUN} ./$i            ${TESTOUTDIR}/testfile.nc ; \
-        ${TESTSEQRUN} ${VALIDATOR} -q ${TESTOUTDIR}/testfile.nc ; \
-} ; done ; } ; done
+${TESTSEQRUN} ./put_all_kinds ${TESTOUTDIR}/put_all_kinds.nc
+${TESTSEQRUN} ${VALIDATOR} -q ${TESTOUTDIR}/put_all_kinds.nc.cdf1
+${TESTSEQRUN} ${VALIDATOR} -q ${TESTOUTDIR}/put_all_kinds.nc.cdf2
+${TESTSEQRUN} ${VALIDATOR} -q ${TESTOUTDIR}/put_all_kinds.nc.cdf5
 
 NCMPIGEN=../../src/utils/ncmpigen/ncmpigen
 NCMPIDIFF=../../src/utils/ncmpidiff/ncmpidiff
 
-echo "rm -f ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc"
-rm -f ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
-echo "${TESTSEQRUN} ${NCMPIGEN} -v 2 -o ${TESTOUTDIR}/redef1.nc ${srcdir}/redef-good.ncdump"
+# remove the file system type prefix name if there is any.
+OUT_PATH=`echo "$TESTOUTDIR" | cut -d: -f2-`
+
+rm -f ${OUT_PATH}/testfile.nc ${OUT_PATH}/redef1.nc
 ${TESTSEQRUN} ${NCMPIGEN} -v 2 -o ${TESTOUTDIR}/redef1.nc ${srcdir}/redef-good.ncdump
 echo "${TESTSEQRUN} ./redef1 ${TESTOUTDIR}/testfile.nc"
 ${TESTSEQRUN} ./redef1 ${TESTOUTDIR}/testfile.nc
 echo "${TESTSEQRUN} ${NCMPIDIFF} -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc"
 ${TESTSEQRUN} ${NCMPIDIFF} -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
-echo "diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc"
-diff -q ${TESTOUTDIR}/testfile.nc ${TESTOUTDIR}/redef1.nc
+diff -q ${OUT_PATH}/testfile.nc ${OUT_PATH}/redef1.nc
+
+${TESTSEQRUN} ${VALIDATOR} -q ${TESTOUTDIR}/testfile.nc
 
 ./put_all_kinds ${TESTOUTDIR}/blocking
 ./iput_all_kinds ${TESTOUTDIR}/nonblocking

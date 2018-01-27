@@ -17,7 +17,6 @@ libpnetcdf_la_SOURCES =
 libpnetcdf_la_LIBADD  = ../dispatchers/libdispatchers.la
 libpnetcdf_la_LIBADD += ../drivers/common/libcommon.la
 libpnetcdf_la_LIBADD += ../drivers/ncmpio/libncmpio.la
-libpnetcdf_la_LIBADD += ../drivers/ncdwio/libncdwio.la
 if BUILD_DRIVER_FOO
 libpnetcdf_la_LIBADD += ../drivers/ncfoo/libncfoo.la
 endif
@@ -55,9 +54,6 @@ endif
 ../drivers/ncmpio/libncmpio.la:
 	set -e; cd ../drivers/ncmpio && $(MAKE) $(MFLAGS)
 
-../drivers/ncdwio/libncdwio.la:
-	set -e; cd ../drivers/ncdwio && $(MAKE) $(MFLAGS)
-
 ../drivers/ncfoo/libncfoo.la:
 	set -e; cd ../drivers/ncfoo && $(MAKE) $(MFLAGS)
 
@@ -69,6 +65,8 @@ endif
 
 ../binding/f90/libf90.la:
 	set -e; cd ../binding/f90 && $(MAKE) $(MFLAGS)
+
+CLEANFILES = a.out
 
 tests-local: all
 

@@ -34,8 +34,7 @@ TESTPROGRAMS = t_nc \
                tst_small \
                tst_names \
                tst_atts3 \
-               tst_atts \
-               tst_nofill
+               tst_atts
 
 nc_test_SOURCES = nc_test.c error.c util.c
 nodist_nc_test_SOURCES = tests.h $(M4_SRCS:.m4=.c)
@@ -52,7 +51,11 @@ M4FLAGS += -I${top_srcdir}/m4
 tests.h: tests.h.m4 Makefile
 	$(M4) $(M4FLAGS) $< > $@
 
+<<<<<<< HEAD
 check_PROGRAMS = $(TESTPROGRAMS) nc_test
+=======
+check_PROGRAMS = $(TESTPROGRAMS) tst_nofill nc_test
+>>>>>>> master
 
 # autimake 1.11.3 has not yet implemented AM_TESTS_ENVIRONMENT
 # For newer versions, we can use AM_TESTS_ENVIRONMENT instead
@@ -63,14 +66,23 @@ TESTS_ENVIRONMENT  = TESTPROGRAMS="$(TESTPROGRAMS)" ; export TESTPROGRAMS;
 TESTS_ENVIRONMENT += TESTSEQRUN="$(TESTSEQRUN)" ; export TESTSEQRUN;
 TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
 
-TESTS = seq_runs.sh
+TESTS = $(TESTPROGRAMS) seq_runs.sh
+TEST_EXTENSIONS = .sh
+LOG_COMPILER = $(srcdir)/wrap_runs.sh
+SH_LOG_COMPILER =
+
+NC_FILES = $(TESTPROGRAMS:%=$(TESTOUTDIR)/%.nc)
 
 CLEANFILES = tests.h $(M4_SRCS:.m4=.c) \
-             test.nc testfile.nc scratch.nc testfile.nc.2 \
-             testfile.nc.nofill testfile.nc.fill core core.* \
-             *.gcda *.gcno *.gcov gmon.out
+             $(TESTOUTDIR)/test.nc \
+             $(TESTOUTDIR)/scratch.nc \
+             $(TESTOUTDIR)/tooth-fairy.nc \
+             $(TESTOUTDIR)/tst_nofill.nc.fill \
+             $(TESTOUTDIR)/tst_nofill.nc.nofill \
+             $(TESTOUTDIR)/tst_atts3.nc.2 \
+             core core.* *.gcda *.gcno *.gcov gmon.out $(NC_FILES)
 
-EXTRA_DIST = error.h $(M4_SRCS) $(M4_HFILES) README seq_runs.sh
+EXTRA_DIST = error.h $(M4_SRCS) $(M4_HFILES) README seq_runs.sh wrap_runs.sh
 
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests

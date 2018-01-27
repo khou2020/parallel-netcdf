@@ -222,8 +222,10 @@
       NF_ENOTBUILT      = -128, & ! Attempt to use feature that was not turned on when netCDF was built.
       NF_EDISKLESS      = -129, & ! Error in using diskless  access.
       NF_ECANTEXTEND    = -130, & ! Attempt to extend dataset during ind. I/O operation.
-      NF_EMPI           = -131    ! MPI operation failed.
-
+      NF_EMPI           = -131, & ! MPI operation failed.
+      NF_EFILTER        = -132, & ! Filter operation failed.
+      NF_ERCFILE        = -133, & ! RC file failure
+      NF_ENULLPAD       = -134    ! Header Bytes not Null-Byte padded
 
 ! PnetCDF error codes start here
       integer, parameter, public :: &
@@ -262,11 +264,12 @@
       NF_ENOTRECVAR               = -233, & ! Attempting operation only for record variables */
       NF_ENOTFILL                 = -234, & ! Attempting to fill a variable when its fill mode is off */
       NF_EINVAL_OMODE             = -235, & ! Invalid file open mode
-      NF_EPENDING                 = -236    ! Pending nonblocking request is found at file close
+      NF_EPENDING                 = -236, & ! Pending nonblocking request is found at file close
+      NF_EMAX_REQ                 = -237    ! Size of I/O request exceeds INT_MAX
 
 ! header inconsistency error starts in -250
       integer, parameter, public :: &
-      NF_EMULTIDEFINE             = -250, & ! NC definitions on multiprocesses conflict
+      NF_EMULTIDEFINE             = -250, & ! NC definitions inconsistent among processes
       NF_EMULTIDEFINE_OMODE       = -251, & ! inconsistent file open modes
       NF_EMULTIDEFINE_DIM_NUM     = -252, & ! inconsistent number of dimensions
       NF_EMULTIDEFINE_DIM_SIZE    = -253, & ! inconsistent size of dimension
@@ -274,7 +277,7 @@
       NF_EMULTIDEFINE_VAR_NUM     = -255, & ! inconsistent number of variables
       NF_EMULTIDEFINE_VAR_NAME    = -256, & ! inconsistent variable name
       NF_EMULTIDEFINE_VAR_NDIMS   = -257, & ! inconsistent variable's number of dimensions
-      NF_EMULTIDEFINE_VAR_DIMIDS  = -258, & ! inconsistent variable's dimid
+      NF_EMULTIDEFINE_VAR_DIMIDS  = -258, & ! inconsistent variable's dimension IDs
       NF_EMULTIDEFINE_VAR_TYPE    = -259, & ! inconsistent variable's data type
       NF_EMULTIDEFINE_VAR_LEN     = -260, & ! inconsistent variable's size
       NF_EMULTIDEFINE_NUMRECS     = -261, & ! inconsistent number of records

@@ -40,9 +40,8 @@ ncmpio_open(MPI_Comm     comm,
             void       **ncpp)
 {
     char *env_str;
-    int i, mpiomode, err, mpireturn;
+    int i, mpiomode, err, status=NC_NOERR, mpireturn;
     MPI_File fh;
-    MPI_Comm dup_comm;
     MPI_Info info_used;
     NC *ncp=NULL;
 
@@ -79,17 +78,10 @@ ncmpio_open(MPI_Comm     comm,
     if (mpireturn != MPI_SUCCESS)
         return ncmpii_error_mpi2nc(mpireturn, "MPI_File_open");
 
-    /* duplicate MPI communicator as user may free it later */
-    mpireturn = MPI_Comm_dup(comm, &dup_comm);
-    if (mpireturn != MPI_SUCCESS)
-        return ncmpii_error_mpi2nc(mpireturn, "MPI_Comm_dup");
-
     /* get the file info used by MPI-IO */
     mpireturn = MPI_File_get_info(fh, &info_used);
-    if (mpireturn != MPI_SUCCESS) {
-        MPI_Comm_free(&dup_comm);
+    if (mpireturn != MPI_SUCCESS)
         return ncmpii_error_mpi2nc(mpireturn, "MPI_File_get_info");
-    }
 
     /* Now the file has been successfully opened, allocate/set NC object */
 
@@ -135,7 +127,7 @@ ncmpio_open(MPI_Comm     comm,
 #endif
 
     ncp->iomode         = omode;
-    ncp->comm           = dup_comm;
+    ncp->comm           = comm;  /* reuse comm duplicated in dispatch layer */
     ncp->mpiinfo        = info_used;
     ncp->mpiomode       = mpiomode;
     ncp->collective_fh  = fh;
@@ -160,7 +152,8 @@ ncmpio_open(MPI_Comm     comm,
 
     /* read header from file into NC object pointed by ncp -------------------*/
     err = ncmpio_hdr_get_NC(ncp);
-    if (err != NC_NOERR) { /* fatal error */
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) { /* fatal error */
         ncmpio_close_files(ncp, 0);
         ncmpio_free_NC(ncp);
         return err;
@@ -215,6 +208,6 @@ ncmpio_open(MPI_Comm     comm,
 
     *ncpp = (void*)ncp;
 
-    return NC_NOERR;
+    return status;
 }
 

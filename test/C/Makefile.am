@@ -26,18 +26,22 @@ check_PROGRAMS = $(TESTPROGRAMS)
 
 # autimake 1.11.3 has not yet implemented AM_TESTS_ENVIRONMENT
 # For newer versions, we can use AM_TESTS_ENVIRONMENT instead
-# AM_TESTS_ENVIRONMENT  = TESTPROGRAMS="$(TESTPROGRAMS)" ; export TESTPROGRAMS;
-# AM_TESTS_ENVIRONMENT += TESTSEQRUN="$(TESTSEQRUN)" ; export TESTSEQRUN;
-# AM_TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
-TESTS_ENVIRONMENT  = TESTPROGRAMS="$(TESTPROGRAMS)" ; export TESTPROGRAMS;
-TESTS_ENVIRONMENT += TESTSEQRUN="$(TESTSEQRUN)" ; export TESTSEQRUN;
+TESTS_ENVIRONMENT  = TESTSEQRUN="$(TESTSEQRUN)" ; export TESTSEQRUN;
 TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
 
-TESTS = seq_runs.sh
+TESTS = $(check_PROGRAMS)
+LOG_COMPILER = $(srcdir)/wrap_runs.sh
 
-EXTRA_DIST = seq_runs.sh
+# Dependency: pres_temp_4D_rd reads the output file from pres_temp_4D_wr.
+# To support parallel "make -jN check", we add dependencies below and automake
+# states it currently works only for tests that end in one of the suffixes
+# listed in TEST_EXTENSIONS. $(EXEEXT) are appended to work around.
+pres_temp_4D_rd$(EXEEXT).log: pres_temp_4D_wr$(EXEEXT).log
 
-CLEANFILES = testfile.nc core core.* *.gcda *.gcno *.gcov gmon.out
+EXTRA_DIST = wrap_runs.sh
+
+CLEANFILES = $(TESTOUTDIR)/pres_temp_4D.nc \
+             core core.* *.gcda *.gcno *.gcov gmon.out
 
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests
@@ -48,7 +52,7 @@ ptest ptests ptest4: $(TESTPROGRAMS)
 	for j in 0 1 ; do { \
 	export PNETCDF_SAFE_MODE=$$j ; \
 	set -e ; for i in $(TESTPROGRAMS); do ( \
-	$(TESTMPIRUN4) ./$$i $(TESTOUTDIR)/testfile.nc ; \
+	$(TESTMPIRUN4) ./$$i $(TESTOUTDIR)/pres_temp_4D.nc ; \
 	) ; done ; } ; done
 
 ptest2 ptest6 ptest8 ptest10:

@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 2003, Northwestern University and Argonne National Laboratory
  *  See COPYRIGHT notice in top-level directory.
- * 
+ *
  * $Id$
  *
  * @configure_input@
@@ -19,10 +19,12 @@
 #define PNETCDF_RELEASE_DATE  "DIST_DATE"
 
 /* list of PnetCDF features enabled/disabled at configure time */
-#define PNETCDF_ERANGE_FILL       @ENABLE_ERANGE_FILL@
-#define PNETCDF_SUBFILING         @ENABLE_SUBFILING@
-#define PNETCDF_RELAX_COORD_BOUND @RELAX_COORD_BOUND@
-#define PNETCDF_DEBUG_MODE        @PNETCDF_DEBUG@
+#define PNETCDF_ERANGE_FILL              @ENABLE_ERANGE_FILL@
+#define PNETCDF_SUBFILING                @ENABLE_SUBFILING@
+#define PNETCDF_RELAX_COORD_BOUND        @RELAX_COORD_BOUND@
+#define PNETCDF_DEBUG_MODE               @PNETCDF_DEBUG@
+#define PNETCDF_LARFE_REQ                @ENABLE_LARGE_REQ@
+#define PNETCDF_NULL_BYTE_HEADER_PADDING @ENABLE_NULL_BYTE_HEADER_PADDING@
 
 
 #if defined(__cplusplus)
@@ -91,7 +93,7 @@ typedef int nc_type;
 #define NC_FILL_BYTE	((signed char)-127)
 #define NC_FILL_CHAR	((char)0)
 #define NC_FILL_SHORT	((short)-32767)
-#define NC_FILL_INT	(-2147483647L)
+#define NC_FILL_INT	(-2147483647)
 #define NC_FILL_FLOAT	(9.9692099683868690e+36f) /* near 15 * 2^119 */
 #define NC_FILL_DOUBLE	(9.9692099683868690e+36)
 #define NC_FILL_UBYTE   (255)
@@ -401,7 +403,7 @@ referenced data out of range for the rank of the specified
 variable. For example, an edge length that is larger than the
 corresponding dimension length minus the corner index will cause an
 error. */
-#define NC_EEDGE	(-57)
+#define NC_EEDGE	(-57)      /**< Start+count exceeds dimension bound */
 #define NC_ESTRIDE	(-58)	   /**< Illegal stride */
 #define NC_EBADNAME	(-59)	   /**< Attribute or variable name contains illegal characters */
 /* N.B. following must match value in ncx.h */
@@ -443,8 +445,7 @@ by the desired type. */
    needed. */
 #define NC4_FIRST_ERROR  (-100)
 
-/** Error at HDF5 layer. */
-#define NC_EHDFERR       (-101)
+#define NC_EHDFERR       (-101)    /**< Error at HDF5 layer. */
 #define NC_ECANTREAD     (-102)    /**< Can't read. */
 #define NC_ECANTWRITE    (-103)    /**< Can't write. */
 #define NC_ECANTCREATE   (-104)    /**< Can't create. */
@@ -456,8 +457,7 @@ by the desired type. */
 #define NC_EATTEXISTS    (-110)    /**< Attribute already exists. */
 #define NC_ENOTNC4       (-111)    /**< Attempting netcdf-4 operation on netcdf-3 file. */
 
-/** Attempting netcdf-4 operation on strict nc3 netcdf-4 file. */
-#define NC_ESTRICTNC3    (-112)
+#define NC_ESTRICTNC3    (-112)    /** Attempting netcdf-4 operation on strict nc3 netcdf-4 file. */
 #define NC_ENOTNC3       (-113)    /**< Attempting netcdf-3 operation on netcdf-4 file. */
 #define NC_ENOPAR        (-114)    /**< Parallel operation on file opened for non-parallel access. */
 #define NC_EPARINIT      (-115)    /**< Error initializing for parallel access. */
@@ -478,7 +478,10 @@ by the desired type. */
 #define NC_ECANTEXTEND   (-130)    /**< Attempt to extend dataset during ind. I/O operation. */
 #define NC_EMPI          (-131)    /**< MPI operation failed. */
 
-#define NC4_LAST_ERROR   (-131)
+#define NC_EFILTER       (-132)    /**< Filter operation failed. */
+#define NC_ERCFILE       (-133)    /**< RC file failure */
+#define NC_ENULLPAD      (-134)    /**< Header Bytes not Null-Byte padded */
+#define NC4_LAST_ERROR   (-135)
 
 /* This is used in netCDF-4 files for dimensions without coordinate
  * vars. */
@@ -530,6 +533,10 @@ by the desired type. */
 #define NC_FORMAT_CDF5  5
 #endif
 
+#ifndef NC_ENULLPAD
+#define NC_ENULLPAD      (-134)    /**< Header Bytes not Null-Byte padded */
+#endif
+
 /* PnetCDF Error Codes: */
 #define NC_ESMALL			(-201) /**< size of MPI_Offset too small for format */
 #define NC_ENOTINDEP			(-202) /**< Operation not allowed in collective data mode */
@@ -567,10 +574,11 @@ by the desired type. */
 #define NC_ENOTFILL			(-234) /**< Attempting to fill a variable when its fill mode is off */
 #define NC_EINVAL_OMODE			(-235) /**< Invalid file open mode */
 #define NC_EPENDING			(-236) /**< Pending nonblocking request is found at file close */
+#define NC_EMAX_REQ			(-237) /**< Size of I/O request exceeds INT_MAX */
 /* add new error here */
 
 /* header inconsistency errors start from -250 */
-#define NC_EMULTIDEFINE			(-250) /**< NC definitions on multiprocesses conflict */
+#define NC_EMULTIDEFINE			(-250) /**< NC definitions inconsistent among processes */
 #define NC_EMULTIDEFINE_OMODE		(-251) /**< inconsistent file open modes among processes */
 #define NC_EMULTIDEFINE_DIM_NUM		(-252) /**< inconsistent number of dimensions */
 #define NC_EMULTIDEFINE_DIM_SIZE	(-253) /**< inconsistent size of dimension */
@@ -578,7 +586,7 @@ by the desired type. */
 #define NC_EMULTIDEFINE_VAR_NUM		(-255) /**< inconsistent number of variables */
 #define NC_EMULTIDEFINE_VAR_NAME	(-256) /**< inconsistent variable name */
 #define NC_EMULTIDEFINE_VAR_NDIMS	(-257) /**< inconsistent variable's number of dimensions */
-#define NC_EMULTIDEFINE_VAR_DIMIDS	(-258) /**< inconsistent variable's dimid */
+#define NC_EMULTIDEFINE_VAR_DIMIDS	(-258) /**< inconsistent variable's dimension IDs */
 #define NC_EMULTIDEFINE_VAR_TYPE	(-259) /**< inconsistent variable's data type */
 #define NC_EMULTIDEFINE_VAR_LEN		(-260) /**< inconsistent variable's size */
 #define NC_EMULTIDEFINE_NUMRECS		(-261) /**< inconsistent number of records */

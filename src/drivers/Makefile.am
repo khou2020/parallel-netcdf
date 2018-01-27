@@ -6,7 +6,7 @@
 #
 # @configure_input@
 
-SUBDIRS = include common ncmpio 
+SUBDIRS = include common ncmpio
 
 if BUILD_DRIVER_FOO
    SUBDIRS += ncfoo

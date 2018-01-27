@@ -35,17 +35,27 @@ check_PROGRAMS = $(TESTPROGRAMS) tst_open_cdf5 tst_corrupt
 TESTS_ENVIRONMENT  = TESTPROGRAMS="$(TESTPROGRAMS)" ; export TESTPROGRAMS;
 TESTS_ENVIRONMENT += TESTSEQRUN="$(TESTSEQRUN)" ; export TESTSEQRUN;
 TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
+TESTS_ENVIRONMENT += BAD_FILES="$(BAD_FILES)" ; export BAD_FILES;
 
-TESTS = seq_runs.sh
+TESTS = cdf_type dim_cdf12 seq_runs.sh xfail_runs.sh
+TEST_EXTENSIONS = .sh
+LOG_COMPILER = $(srcdir)/wrap_runs.sh
+SH_LOG_COMPILER =
 
-CLEANFILES = testfile.nc core core.* *.gcda *.gcno *.gcov gmon.out
+BAD_FILES = bad_begin.nc5 \
+            bad_xtype.nc1 bad_xtype.nc2 bad_xtype.nc5 \
+            bad_ndims.nc1 bad_ndims.nc2 bad_ndims.nc5 \
+            bad_dimid.nc1 bad_dimid.nc2 bad_dimid.nc5 \
+            bad_nattrs.nc1 bad_nattrs.nc2 bad_nattrs.nc5
 
-EXTRA_DIST = seq_runs.sh test_cdf1.nc test_cdf2.nc test_cdf5.nc \
-             bad_begin.nc5 \
-             bad_xtype.nc1 bad_xtype.nc2 bad_xtype.nc5 \
-             bad_ndims.nc1 bad_ndims.nc2 bad_ndims.nc5 \
-             bad_dimid.nc1 bad_dimid.nc2 bad_dimid.nc5 \
-             bad_nattrs.nc1 bad_nattrs.nc2 bad_nattrs.nc5
+XFAIL_TESTS = xfail_runs.sh
+
+CLEANFILES = $(TESTOUTDIR)/cdf_type.nc $(TESTOUTDIR)/dim_cdf12.nc \
+             core core.* *.gcda *.gcno *.gcov gmon.out
+
+EXTRA_DIST = wrap_runs.sh seq_runs.sh xfail_runs.sh \
+             test_cdf1.nc test_cdf2.nc test_cdf5.nc \
+             $(BAD_FILES)
 
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests
@@ -54,11 +64,11 @@ TESTMPIRUN4  = `echo $(TESTMPIRUN) | $(SED) -e 's/NP/4/g'`
 
 ptest ptests ptest4: $(TESTPROGRAMS)
 	export PNETCDF_SAFE_MODE=0 && $(TESTMPIRUN4) ./test_inq_format $(srcdir)
-	export PNETCDF_SAFE_MODE=0 && $(TESTMPIRUN4) ./cdf_type $(TESTOUTDIR)/testfile.nc
-	export PNETCDF_SAFE_MODE=0 && $(TESTMPIRUN4) ./dim_cdf12 $(TESTOUTDIR)/testfile.nc
+	export PNETCDF_SAFE_MODE=0 && $(TESTMPIRUN4) ./cdf_type $(TESTOUTDIR)/cdf_type.nc
+	export PNETCDF_SAFE_MODE=0 && $(TESTMPIRUN4) ./dim_cdf12 $(TESTOUTDIR)/dim_cdf12.nc
 	export PNETCDF_SAFE_MODE=1 && $(TESTMPIRUN4) ./test_inq_format $(srcdir)
-	export PNETCDF_SAFE_MODE=1 && $(TESTMPIRUN4) ./cdf_type $(TESTOUTDIR)/testfile.nc
-	export PNETCDF_SAFE_MODE=1 && $(TESTMPIRUN4) ./dim_cdf12 $(TESTOUTDIR)/testfile.nc
+	export PNETCDF_SAFE_MODE=1 && $(TESTMPIRUN4) ./cdf_type $(TESTOUTDIR)/cdf_type.nc
+	export PNETCDF_SAFE_MODE=1 && $(TESTMPIRUN4) ./dim_cdf12 $(TESTOUTDIR)/dim_cdf12.nc
 
 ptest2 ptest6 ptest8 ptest10:
 

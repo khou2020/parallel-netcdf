@@ -67,7 +67,10 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                tst_max_var_dims \
 	           iput_all_kinds \
 	           highdim \
-               wait 
+               wait \
+               tst_info \
+               tst_vars_fill \
+               tst_def_var_fill
 
 if BUILD_DRIVER_DW
    TESTPROGRAMS += dw_nonblocking \
@@ -76,13 +79,11 @@ if BUILD_DRIVER_DW
                    dw_many_reqs
 endif
 
-M4_SRCS  = put_all_kinds.m4 erange_fill.m4 iput_all_kinds.m4
+M4_SRCS  = put_all_kinds.m4 erange_fill.m4 tst_vars_fill.m4
 
-TESTPROGRAMS += put_all_kinds \
-				iput_all_kinds
-nodist_put_all_kinds_SOURCES = put_all_kinds.c 
-nodist_iput_all_kinds_SOURCES = iput_all_kinds.c
+nodist_put_all_kinds_SOURCES = put_all_kinds.c
 nodist_erange_fill_SOURCES = erange_fill.c
+nodist_tst_vars_fill_SOURCES = tst_vars_fill.c
 
 if ENABLE_ERANGE_FILL
    M4FLAGS += -DERANGE_FILL
@@ -119,17 +120,9 @@ if HAVE_MPI_MOD
     test_vardf90_SOURCES = test_vardf90.f90
        varn_real_SOURCES = varn_real.f90
 endif
-   check_PROGRAMS = $(TESTPROGRAMS)
-   check_PROGRAMS += bigrecords
-if RUN_LARGE_FILE_TEST
-   TESTPROGRAMS += bigrecords
-endif
-   bigrecords_SOURCES = bigrecords.f
-else
-   check_PROGRAMS = $(TESTPROGRAMS)
 endif
 
-check_PROGRAMS += redef1
+check_PROGRAMS = $(TESTPROGRAMS) put_all_kinds redef1 tst_vars_fill
 
 # autimake 1.11.3 has not yet implemented AM_TESTS_ENVIRONMENT
 # For newer versions, we can use AM_TESTS_ENVIRONMENT instead
@@ -140,13 +133,22 @@ TESTS_ENVIRONMENT  = TESTPROGRAMS="$(TESTPROGRAMS)" ; export TESTPROGRAMS;
 TESTS_ENVIRONMENT += TESTSEQRUN="$(TESTSEQRUN)" ; export TESTSEQRUN;
 TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
 
-TESTS = seq_runs.sh
+TESTS = $(TESTPROGRAMS) seq_runs.sh
+TEST_EXTENSIONS = .sh
+LOG_COMPILER = $(srcdir)/wrap_runs.sh
+SH_LOG_COMPILER =
+
+NC_FILES = $(TESTPROGRAMS:%=$(TESTOUTDIR)/%.nc)
 
 CLEANFILES = $(M4_SRCS:.m4=.c) core core.* *.gcda *.gcno *.gcov gmon.out \
-             testfile.nc testfile.nc.cdf1 testfile.nc.cdf2 testfile.nc.cdf5 \
-             redef1.nc redef2.nc
+             $(TESTOUTDIR)/testfile.nc \
+             $(TESTOUTDIR)/redef1.nc \
+             $(TESTOUTDIR)/put_all_kinds.nc.cdf1 \
+             $(TESTOUTDIR)/put_all_kinds.nc.cdf2 \
+             $(TESTOUTDIR)/put_all_kinds.nc.cdf5 \
+             $(NC_FILES)
 
-EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump
+EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump wrap_runs.sh
 
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests
@@ -164,21 +166,21 @@ ptest ptest4: $(TESTPROGRAMS)
 	for j in 0 1 ; do { \
 	export PNETCDF_SAFE_MODE=$$j ; \
 	set -e; for i in $(TESTPROGRAMS); do ( \
-	$(TESTMPIRUN4) ./$$i $(TESTOUTDIR)/testfile.nc ; \
+	$(TESTMPIRUN4) ./$$i $(TESTOUTDIR)/$$i.nc ; \
 	) ; done ; } ; done
 
 ptest2: $(TESTPROGRAMS)
 	for j in 0 1 ; do { \
 	export PNETCDF_SAFE_MODE=$$j ; \
 	set -e; for i in $(TESTPROGRAMS); do ( \
-	$(TESTMPIRUN2) ./$$i $(TESTOUTDIR)/testfile.nc ; \
+	$(TESTMPIRUN2) ./$$i $(TESTOUTDIR)/$$i.nc ; \
 	) ; done ; } ; done
 
 ptest6: $(TESTPROGRAMS)
 	for j in 0 1 ; do { \
 	export PNETCDF_SAFE_MODE=$$j ; \
 	set -e; for i in $(TESTPROGRAMS); do ( \
-	$(TESTMPIRUN_6) ./$$i $(TESTOUTDIR)/testfile.nc ; \
+	$(TESTMPIRUN_6) ./$$i $(TESTOUTDIR)/$$i.nc ; \
 	) ; done ; } ; done
 
 ptests: ptest2 ptest4 ptest6

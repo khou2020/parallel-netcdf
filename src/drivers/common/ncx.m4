@@ -261,6 +261,12 @@ define(`FillDefaultValue', `ifelse(
 #endif
 #endif /* _SX */
 
+/* Note nada[] is used to fill the padding. However, CDF file format
+ * specifications require different contents between header and data sections.
+ * It says "Header padding uses null (\x00) bytes. In data, padding uses
+ * variable's fill value." Please be warned that PnetCDF has not implemented
+ * this for data section and still uses nadap[] for padding.
+ */
 static const char nada[X_ALIGN] = {0, 0, 0, 0};
 
 #ifndef WORDS_BIGENDIAN
@@ -451,10 +457,15 @@ swap8b(void *dst, const void *src)
     op = (uint32_t*)((char*)dst+4);
     *op = SWAP4(*op);
 #else
+    uint64_t tmp = *(uint64_t*)src;
+    tmp = SWAP8(tmp);
+    memcpy(dst, &tmp, 8);
+
+    /* Codes below will cause "break strict-aliasing rules" in gcc
     uint64_t *op = (uint64_t*)dst;
-    /* copy over, make the below swap in-place */
     *op = *(uint64_t*)src;
     *op = SWAP8(*op);
+    */
 #endif
 
 #if 0

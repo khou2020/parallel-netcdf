@@ -53,7 +53,6 @@ MPI_Offset gatt_len[NGATTS];
 /* 
  * command-line options
  */
-static int  create_file;	/* if 1, create file test.nc */
 int  read_only;		/* if 1, don't try to change files */
 int  verbose;		/* if 1, print details of tests */
 int  max_nmpt;		/* max. number of messages per test */
@@ -62,8 +61,8 @@ int  max_nmpt;		/* max. number of messages per test */
  * Misc. global variables
  */
 int  nfails;		/* number of failures in specific test */
-char testfile[128];
-char scratch[128];
+char testfile[256];
+char scratch[256];
 MPI_Comm comm = MPI_COMM_WORLD; /* mpi communicator for parallel-netcdf */
 MPI_Info info;
 
@@ -126,6 +125,7 @@ int
 main(int argc, char *argv[])
 {
     extern char *optarg;
+    char *cmd_str;
     int cdf_format, c;
     int numGatts, numTypes, numVars;
     int nfailsTotal = 0;        /* total number of failures */
@@ -141,18 +141,14 @@ main(int argc, char *argv[])
     MPI_Init(&argc, &argv);
 
     cdf_format = 1; 	/* 1: CDF-1, 2: CDF-2 5: CDF-5 */
-    create_file = 0;            /* file test.nc will normally already exist */
     read_only = 0;               /* assume may write in test dir as default */
     verbose = 0;
     max_nmpt = 8;
     strcpy(testfile, "test.nc");    /* read-only testfile */
     strcpy(scratch, "scratch.nc");  /* writable scratch file */
 
-    while ((c = getopt(argc, argv, "c25hrn:d:v")) != -1)
+    while ((c = getopt(argc, argv, "25hrn:d:v")) != -1)
       switch(c) {
-	case 'c':		/* Create file test.nc */
-	  create_file = 1;
-	  break;
 	case 'r':		/* just perform read-only tests */
 	  read_only = 1;
 	  break;
@@ -200,20 +196,14 @@ main(int argc, char *argv[])
     /* Initialize global variables defining test file */
     init_gvars(numGatts, numTypes, numVars);
 
-    if ( create_file ) {
-	write_file(testfile, numGatts, numVars);
-        MPI_Info_free(&info);
-	MPI_Finalize();
-	return nfailsTotal > 0;
-    }
+    /* delete testfile file and ignore the error if not exist */
+    unlink(testfile);
 
-    /* delete any existing scratch netCDF file */
-    if ( ! read_only ) {
-        if (access(scratch, F_OK) == 0)
-            unlink(scratch);
-    }
+    /* create file test.nc for testing read operations */
+    write_file(testfile, numGatts, numVars);
+    if (nfailsTotal > 0) goto fn_exit;
 
-    char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
+    cmd_str = (char*)malloc(strlen(argv[0]) + 256);
     sprintf(cmd_str, "*** TESTING C   %s for format CDF-%d ", basename(argv[0]), cdf_format);
     printf("%-66s ------ ",cmd_str);
     free(cmd_str);
@@ -390,6 +380,9 @@ main(int argc, char *argv[])
 
 	/* Test write functions */
     if (! read_only) {
+        /* delete scratch file and ignore the error if not exist */
+        unlink(scratch);
+
 	NC_TEST(ncmpi_create);
 	NC_TEST2(ncmpi_redef, numGatts, numVars);
 	/* NC_TEST(ncmpi_enddef);  redundant, as it calls test_ncmpi_redef() */
@@ -548,6 +541,7 @@ main(int argc, char *argv[])
 	NC_TEST1(ncmpi_iput_varm_longlong, numVars);
 	NC_TEST1(ncmpi_iput_varm_ulonglong, numVars);
 	NC_TEST1(ncmpi_iput_varm, numVars);
+        NC_TEST(ncmpi_set_default_format);
     }
 
 fn_exit:

@@ -235,6 +235,8 @@ ncmpi_strerror(int err)
             return "Invalid or unsupported file open mode";
         case NC_EPENDING:
             return "Pending nonblocking request is found at file close";
+        case NC_EMAX_REQ:
+            return "Size of I/O request exceeds INT_MAX";
         case NC_EMULTIDEFINE:
             return "File header is inconsistent among processes";
             /* this error means the metadata (dimension names, variable names,
@@ -530,7 +532,11 @@ nc_strerror(int ncerr1)
       case NC_EDISKLESS:
 	 return "NetCDF: Error in using diskless access";
       case NC_EMPI:
-         return "MPI operation failed";
+	 return "MPI operation failed";
+      case NC_ERCFILE:
+	 return "NetCDF: RC File Failure.";
+      case NC_ENULLPAD:
+	 return "NetCDF: File fails strict Null-Byte Header check.";
       default:
          return nc_unknown_err_msg;
    }
@@ -634,8 +640,10 @@ ncmpi_strerrno(int err)
         case (NC_EDISKLESS):			return "NC_EDISKLESS";
         case (NC_ECANTEXTEND):			return "NC_ECANTEXTEND";
         case (NC_EMPI):				return "NC_EMPI";
-        // case (NC_EURL):				return "NC_EURL";
-        // case (NC_ECONSTRAINT):			return "NC_ECONSTRAINT";
+/*
+        case (NC_EURL):				return "NC_EURL";
+        case (NC_ECONSTRAINT):			return "NC_ECONSTRAINT";
+*/
         case (NC_ESMALL):			return "NC_ESMALL";
         case (NC_ENOTINDEP):			return "NC_ENOTINDEP";
         case (NC_EINDEP):			return "NC_EINDEP";
@@ -666,6 +674,7 @@ ncmpi_strerrno(int err)
         case (NC_EINVAL_CMODE):			return "NC_EINVAL_CMODE";
         case (NC_EINVAL_OMODE):			return "NC_EINVAL_OMODE";
         case (NC_EPENDING):			return "NC_EPENDING";
+        case (NC_EMAX_REQ):			return "NC_EMAX_REQ";
         case (NC_ETYPESIZE):			return "NC_ETYPESIZE";
         case (NC_ETYPE_MISMATCH):		return "NC_ETYPE_MISMATCH";
         case (NC_ETYPESIZE_MISMATCH):		return "NC_ETYPESIZE_MISMATCH";

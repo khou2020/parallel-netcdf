@@ -25,14 +25,14 @@ static int verbose_debug;
 
 #define DEBUG_RETURN_ERROR(err) {                             \
     if (verbose_debug)                                        \
-        fprintf(stderr, "Error code %s at line %d of %s\n",   \
-        ncmpii_err_code_name(err),__LINE__,__FILE__);         \
+        fprintf(stderr, "Error at line %d of %s: %s\n",       \
+        __LINE__,__FILE__,#err);                              \
     return err;                                               \
 }
 #define DEBUG_ASSIGN_ERROR(status, err) {                     \
     if (verbose_debug)                                        \
-        fprintf(stderr, "Error code %s at line %d of %s\n",   \
-        ncmpii_err_code_name(err),__LINE__,__FILE__);         \
+        fprintf(stderr, "Error at line %d of %s: %s\n",       \
+        __LINE__,__FILE__,#err);                              \
     status = err;                                             \
 }
 
@@ -51,6 +51,7 @@ static int verbose_debug;
 #define NC_EBADDIM	(-46)	/**< Invalid dimension id or name */
 #define NC_EUNLIMPOS	(-47)	/**< NC_UNLIMITED in the wrong index */
 #define NC_ENOTNC	(-51)	/**< Not a netcdf file (file format violates CDF specification) */
+#define NC_EUNLIMIT    	(-54)	   /**< NC_UNLIMITED size already in use */
 #define NC_EVARSIZE     (-62)   /**< One or more variable sizes violate format constraints */
 
 #define NC_UNLIMITED 0L
@@ -126,8 +127,9 @@ typedef struct {
 } NC_dim;
 
 typedef struct NC_dimarray {
-    int      nalloc;    /* number allocated >= ndefined */
-    int      ndefined;  /* number of defined dimensions */
+    int      nalloc;       /* number allocated >= ndefined */
+    int      ndefined;     /* number of defined dimensions */
+    int      unlimited_id; /* ID of unlimited dimension */
     NC_dim **value;
 } NC_dimarray;
 
@@ -918,11 +920,35 @@ hdr_get_NC_name(bufferinfo  *gbp,
 
     /* handle the padding */
     if (padding > 0) {
+#ifdef STRICT_FILE_FORMAT_COMPLIANCE
+        /* CDF specification: Header padding uses null (\x00) bytes.
+         * However, prior to version 4.5.0, NetCDF did not implement this
+         * specification entirely. In particular, it has never enforced the
+         * null-byte padding for attribute values (it has for others, such as
+         * names of dimension, variables, and attributes.) It also appears that
+         * files created by SciPy NetCDF module or NetCDF Java module, both
+         * developed independent from NetCDF-C, also fail to respect this
+         * padding specification.  This becomes a problem for PnetCDF to read
+         * such netCDF files, because PnetCDF enforces the header padding from
+         * its very first release.  The files violating the padding
+         * specification will not be readable by PnetCDF of all releases prior
+         * to 1.9.0 and error code NC_EINVAL or NC_ENOTNC will be thrown when
+         * opening such files.  Note if the sizes of all attribute values of
+         * your files are aligned with 4-byte boundaries, then the files are
+         * readable by PnetCDF.  In order to keep the files in question
+         * readable by PnetCDF, checking for null-byte padding has been
+         * disabled in 1.9.0. But, we keep this checking in ncvalidator, a
+         * utility program that can report whether a CDF file violates the file
+         * format specification, including this null-byte padding. See r3516
+         * and discussion in NetCDF Github issue
+         * https://github.com/Unidata/netcdf-c/issues/657.
+         */
         memset(pad, 0, X_ALIGN-1);
         if (memcmp(gbp->pos, pad, padding) != 0) {
             free(ncstrp);
             DEBUG_RETURN_ERROR(NC_ENOTNC);
         }
+#endif
         gbp->pos = (void *)((char *)gbp->pos + padding);
     }
 
@@ -948,6 +974,7 @@ ncmpii_new_x_NC_dim(NC_string *name)
 /*----< hdr_get_NC_dim() >----------------------------------------------------*/
 static int
 hdr_get_NC_dim(bufferinfo  *gbp,
+               int          unlimited_id,
                NC_dim     **dimpp)
 {
     /* netCDF file format:
@@ -958,6 +985,7 @@ hdr_get_NC_dim(bufferinfo  *gbp,
      *              <non-negative INT64>  // CDF-5
      */
     int status;
+    long long dim_length;
     NC_string *ncstrp;
     NC_dim *dimp;
 
@@ -965,13 +993,20 @@ hdr_get_NC_dim(bufferinfo  *gbp,
     status = hdr_get_NC_name(gbp, &ncstrp);
     if (status != NC_NOERR) return status;
 
-    dimp = ncmpii_new_x_NC_dim(ncstrp);
-
     /* get dim_length */
     if (gbp->version == 5) 
-        dimp->size = get_uint64(gbp);
+        dim_length = get_uint64(gbp);
     else
-        dimp->size = get_uint32(gbp);
+        dim_length = get_uint32(gbp);
+
+    /* check if unlimited_id already set */
+    if (unlimited_id != -1 && dim_length == 0) {
+        free(ncstrp);
+        DEBUG_RETURN_ERROR(NC_EUNLIMIT);
+    }
+
+    dimp = ncmpii_new_x_NC_dim(ncstrp);
+    dimp->size = dim_length;
 
     *dimpp = dimp;
     return NC_NOERR;
@@ -1036,6 +1071,8 @@ hdr_get_NC_dimarray(bufferinfo  *gbp,
         ndefined = get_uint32(gbp);
     ncap->ndefined = (int)ndefined;
 
+    ncap->unlimited_id = -1;
+
     if (ndefined == 0) {
         if (type != NC_UNSPECIFIED)
             DEBUG_RETURN_ERROR(NC_ENOTNC);
@@ -1047,12 +1084,14 @@ hdr_get_NC_dimarray(bufferinfo  *gbp,
         ncap->nalloc = (int)ndefined;
 
         for (i=0; i<ndefined; i++) {
-            status = hdr_get_NC_dim(gbp, ncap->value + i);
+            status = hdr_get_NC_dim(gbp, ncap->unlimited_id, ncap->value + i);
             if (status != NC_NOERR) { /* error: fail to get the next dim */
                 ncap->ndefined = i;
                 ncmpii_free_NC_dimarray(ncap);
                 return status;
             }
+            if (ncap->value[i]->size == NC_UNLIMITED)
+                ncap->unlimited_id = i; /* ID of unlimited dimension */
         }
     }
 
@@ -1104,9 +1143,33 @@ hdr_get_NC_attrV(bufferinfo *gbp,
 
     /* handle the padding */
     if (padding > 0) {
+#ifdef STRICT_FILE_FORMAT_COMPLIANCE
+        /* CDF specification: Header padding uses null (\x00) bytes.
+         * However, prior to version 4.5.0, NetCDF did not implement this
+         * specification entirely. In particular, it has never enforced the
+         * null-byte padding for attribute values (it has for others, such as
+         * names of dimension, variables, and attributes.) It also appears that
+         * files created by SciPy NetCDF module or NetCDF Java module, both
+         * developed independent from NetCDF-C, also fail to respect this
+         * padding specification.  This becomes a problem for PnetCDF to read
+         * such netCDF files, because PnetCDF enforces the header padding from
+         * its very first release.  The files violating the padding
+         * specification will not be readable by PnetCDF of all releases prior
+         * to 1.9.0 and error code NC_EINVAL or NC_ENOTNC will be thrown when
+         * opening such files.  Note if the sizes of all attribute values of
+         * your files are aligned with 4-byte boundaries, then the files are
+         * readable by PnetCDF.  In order to keep the files in question
+         * readable by PnetCDF, checking for null-byte padding has been
+         * disabled in 1.9.0. But, we keep this checking in ncvalidator, a
+         * utility program that can report whether a CDF file violates the file
+         * format specification, including this null-byte padding. See r3516
+         * and discussion in NetCDF Github issue
+         * https://github.com/Unidata/netcdf-c/issues/657.
+         */
         memset(pad, 0, X_ALIGN-1);
         if (memcmp(gbp->pos, pad, (size_t)padding) != 0)
             DEBUG_RETURN_ERROR(NC_ENOTNC);
+#endif
         gbp->pos = (void *)((char *)gbp->pos + padding);
     }
 
@@ -1660,6 +1723,7 @@ ncmpii_err_code_name(int err)
       case NC_EBADDIM:   return "NC_EBADDIM";
       case NC_EUNLIMPOS: return "NC_EUNLIMPOS";
       case NC_ENOTNC:    return "NC_ENOTNC";
+      case NC_EUNLIMIT:  return "NC_EUNLIMIT";
       case NC_EVARSIZE : return "NC_EVARSIZE";
       default:
          printf("Unknown error code %d\n",err);
@@ -1840,7 +1904,8 @@ int main(int argc, char *argv[])
     /* read the header from file */
     err = ncmpii_hdr_get_NC(fd, ncp);
     if (err != NC_NOERR) {
-        fprintf(stderr,"Error: %s\n", ncmpii_err_code_name(err));
+        fprintf(stderr,"Error when reading header of file \"%s\": %s\n",
+                filename, ncmpii_err_code_name(err));
         exit(1);
     }
 

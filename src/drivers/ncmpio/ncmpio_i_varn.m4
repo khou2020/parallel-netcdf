@@ -27,6 +27,7 @@ dnl
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
+#include <limits.h> /* INT_MAX */
 #include <assert.h>
 
 #include <mpi.h>
@@ -55,6 +56,7 @@ igetput_varn(NC                *ncp,
              int                reqMode)
 {
     int i, j, el_size, status=NC_NOERR, free_cbuf=0, isSameGroup, reqid;
+    int leadIndx;
     void *cbuf=NULL;
     char *bufp;
     MPI_Offset **_counts=NULL;
@@ -115,13 +117,17 @@ igetput_varn(NC                *ncp,
 
         if (status != NC_NOERR) return status;
 
-        if (bufcount != (int)bufcount) DEBUG_RETURN_ERROR(NC_EINTOVERFLOW)
+#ifndef ENABLE_LARGE_REQ
+        if (bufcount * bnelems * el_size > INT_MAX)
+            DEBUG_RETURN_ERROR(NC_EMAX_REQ)
+#endif
 
         /* check if buftype is contiguous, if not, pack to one, cbuf */
         if (! iscontig_of_ptypes && bnelems > 0) {
             int position = 0;
             MPI_Offset packsize = bnelems*el_size;
-            if (packsize != (int)packsize) DEBUG_RETURN_ERROR(NC_EINTOVERFLOW)
+            if (packsize > INT_MAX) DEBUG_RETURN_ERROR(NC_EINTOVERFLOW)
+            if (bufcount > INT_MAX) DEBUG_RETURN_ERROR(NC_EINTOVERFLOW)
 
             cbuf = NCI_Malloc((size_t)packsize);
             free_cbuf = 1;
@@ -150,6 +156,9 @@ igetput_varn(NC                *ncp,
     }
     /* from this point forward, _counts != NULL */
 
+    /* obtain the ID of new request to be created */
+    leadIndx = fIsSet(reqMode, NC_REQ_RD) ? ncp->numGetReqs : ncp->numPutReqs;
+
     /* break buf into num pieces */
     reqid = NC_REQ_NULL;
     isSameGroup=0;
@@ -175,6 +184,7 @@ igetput_varn(NC                *ncp,
 
     if (free_cbuf) { /* cbuf != buf, cbuf is temp allocated */
         if (fIsSet(reqMode, NC_REQ_RD)) {
+<<<<<<< HEAD:src/drivers/ncmpio/ncmpio_i_varn.m4
             /* Set the last lead request object to let wait() unpack cbuf to
              * buf and free cbuf */
             for (i=ncp->numGetReqs-1; i>=0; i--)
@@ -184,20 +194,25 @@ igetput_varn(NC                *ncp,
             ncp->get_list[i].userBuf  = buf;
             ncp->get_list[i].bufcount = (int)bufcount;
             MPI_Type_dup(buftype, &ncp->get_list[i].buftype);
+=======
+            /* first lead request must unpack cbuf to buf and free cbuf at
+             * wait()
+             */
+            if (bufcount > INT_MAX) DEBUG_RETURN_ERROR(NC_EINTOVERFLOW)
+            ncp->get_list[leadIndx].bufcount = (int)bufcount;
+            ncp->get_list[leadIndx].flag    |= NC_REQ_BUF_TO_BE_FREED;
+            ncp->get_list[leadIndx].userBuf  = buf;
+            MPI_Type_dup(buftype, &ncp->get_list[leadIndx].buftype);
+>>>>>>> master:src/drivers/ncmpio/ncmpio_i_varn.m4
         }
         else { /* write request */
             if (fIsSet(reqMode, NC_REQ_NBB))
                 /* cbuf has been copied to the attached buffer, so it is safe
                  * to free cbuf now */
                 NCI_Free(cbuf);
-            else {
-                for (i=ncp->numPutReqs-1; i>=0; i--)
-                    if (ncp->put_list[i].num_recs > 0)
-                        break;
-                assert(i >= 0);
-                /* Set the last request object to let wait() to free cbuf */
-                ncp->put_list[i].tmpBuf = cbuf;
-            }
+            else
+                /* first lead request must free cbuf at wait() */
+                ncp->put_list[leadIndx].flag |= NC_REQ_BUF_TO_BE_FREED;
         }
     }
 

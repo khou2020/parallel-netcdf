@@ -527,7 +527,7 @@ hdr_get_NC_name(bufferinfo  *gbp, char **namep)
      * NON_NEG    = <non-negative INT> |  // CDF-1 and CDF-2
      *              <non-negative INT64>  // CDF-5
      */
-    int err, nchars, padding, bufremain, strcount;
+    int err=NC_NOERR, nchars, padding, bufremain, strcount;
     char *cpos;
 
     *namep = NULL;
@@ -598,26 +598,47 @@ hdr_get_NC_name(bufferinfo  *gbp, char **namep)
 
     /* handle the padding */
     if (padding > 0) {
-        /* CDF specification: Header padding uses null (\x00) bytes. */
+        /* CDF specification: Header padding uses null (\x00) bytes.
+	 * However, prior to version 4.5.0, NetCDF did not implement this
+	 * specification entirely. In particular, it has never enforced the
+	 * null-byte padding for attribute values (it has for others, such as
+	 * names of dimension, variables, and attributes.) It also appears that
+	 * files created by SciPy NetCDF module or NetCDF Java module, both
+	 * developed independent from NetCDF-C, also fail to respect this
+	 * padding specification.  This becomes a problem for PnetCDF to read
+	 * such netCDF files, because PnetCDF enforces the header padding from
+	 * its very first release.  The files violating the padding
+	 * specification will not be readable by PnetCDF of all releases prior
+	 * to 1.9.0 and error code NC_EINVAL or NC_ENOTNC will be thrown when
+	 * opening such files.  Note if the sizes of all attribute values of
+	 * your files are aligned with 4-byte boundaries, then the files are
+	 * readable by PnetCDF.  In order to keep the files in question
+	 * readable by PnetCDF, checking for null-byte padding has been
+	 * disabled in 1.9.0. But, we keep this checking in ncvalidator, a
+	 * utility program that can report whether a CDF file violates the file
+	 * format specification, including this null-byte padding. See r3516
+	 * and discussion in NetCDF Github issue
+	 * https://github.com/Unidata/netcdf-c/issues/657.
+         */
+#ifdef ENABLE_NULL_BYTE_HEADER_PADDING
         char pad[X_ALIGN-1];
         memset(pad, 0, X_ALIGN-1);
         if (memcmp(gbp->pos, pad, (size_t)padding) != 0) {
 #ifdef PNETCDF_DEBUG
             fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, non-zero padding found\n",__FILE__,__func__,__LINE__);
 #endif
-            NCI_Free(*namep);
-            *namep = NULL;
-            DEBUG_RETURN_ERROR(NC_ENOTNC)
+            DEBUG_ASSIGN_ERROR(err, NC_ENULLPAD) /* not a fatal error */
         }
+#endif
         gbp->pos = (void *)((char *)gbp->pos + padding);
     }
 
-    return NC_NOERR;
+    return err;
 }
 
 /*----< hdr_get_NC_dim() >---------------------------------------------------*/
 static int
-hdr_get_NC_dim(bufferinfo *gbp, NC_dim **dimpp)
+hdr_get_NC_dim(bufferinfo *gbp, int unlimited_id, NC_dim **dimpp)
 {
     /* netCDF file format:
      *  ...
@@ -626,7 +647,7 @@ hdr_get_NC_dim(bufferinfo *gbp, NC_dim **dimpp)
      * NON_NEG    = <non-negative INT> |  // CDF-1 and CDF-2
      *              <non-negative INT64>  // CDF-5
      */
-    int err;
+    int err, status=NC_NOERR;
     char *name;
     NC_dim *dimp;
     MPI_Offset dim_length;
@@ -635,7 +656,8 @@ hdr_get_NC_dim(bufferinfo *gbp, NC_dim **dimpp)
 
     /* get name */
     err = hdr_get_NC_name(gbp, &name);
-    if (err != NC_NOERR) return err;
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) return err;
 
     /* get dim_length */
     if (gbp->version < 5) {
@@ -648,20 +670,30 @@ hdr_get_NC_dim(bufferinfo *gbp, NC_dim **dimpp)
         err = hdr_get_uint64(gbp, &tmp);
         dim_length = (MPI_Offset)tmp;
     }
-    if (err != NC_NOERR) { /* frees dim */
+    if (err != NC_NOERR) { /* free space allocated for name */
         NCI_Free(name);
         return err;
     }
 
+    /* check if unlimited_id already set */
+    if (unlimited_id != -1 && dim_length == 0) {
+        NCI_Free(name);
+        return NC_EUNLIMIT;
+    }
+
     /* allocate and initialize NC_dim object */
     dimp = (NC_dim*) NCI_Malloc(sizeof(NC_dim));
-    if (dimp == NULL) DEBUG_RETURN_ERROR(NC_ENOMEM)
+    if (dimp == NULL) {
+        NCI_Free(name);
+        DEBUG_RETURN_ERROR(NC_ENOMEM)
+    }
     dimp->name     = name;
     dimp->name_len = strlen(name);
     dimp->size     = dim_length;
 
     *dimpp = dimp;
-    return NC_NOERR;
+
+    return status;
 }
 
 /*----< hdr_get_NC_dimarray() >----------------------------------------------*/
@@ -686,7 +718,7 @@ hdr_get_NC_dimarray(bufferinfo *gbp, NC_dimarray *ncap)
      * NON_NEG      = <non-negative INT> |        // CDF-1 and CDF-2
      *                <non-negative INT64>        // CDF-5
      */
-    int i, err, ndefined=0;
+    int i, err, status=NC_NOERR, ndefined=0;
     size_t alloc_size;
     NC_tag tag = NC_UNSPECIFIED;
 
@@ -740,8 +772,9 @@ hdr_get_NC_dimarray(bufferinfo *gbp, NC_dimarray *ncap)
     if (ncap->value == NULL) DEBUG_RETURN_ERROR(NC_ENOMEM)
 
     for (i=0; i<ndefined; i++) {
-        err = hdr_get_NC_dim(gbp, ncap->value + i);
-        if (err != NC_NOERR) { /* error: fail to get the next dim */
+        err = hdr_get_NC_dim(gbp, ncap->unlimited_id, ncap->value + i);
+        if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+        else if (err != NC_NOERR) { /* error: fail to get the next dim */
             ncmpio_free_NC_dimarray(ncap);
             return err;
         }
@@ -749,7 +782,7 @@ hdr_get_NC_dimarray(bufferinfo *gbp, NC_dimarray *ncap)
             ncap->unlimited_id = i; /* ID of unlimited dimension */
     }
 
-    return NC_NOERR;
+    return status;
 }
 
 /*----< hdr_get_NC_attrV() >-------------------------------------------------*/
@@ -769,7 +802,7 @@ hdr_get_NC_attrV(bufferinfo *gbp, NC_attr *attrp)
      * doubles = [DOUBLE ...]
      * padding = <0, 1, 2, or 3 bytes to next 4-byte boundary>
      */
-    int xsz, padding, bufremain;
+    int err=NC_NOERR, xsz, padding, bufremain;
     void *value = attrp->xvalue;
     MPI_Offset nbytes;
 
@@ -811,18 +844,41 @@ hdr_get_NC_attrV(bufferinfo *gbp, NC_attr *attrp)
 
     /* handle the padding */
     if (padding > 0) {
-        /* CDF specification: Header padding uses null (\x00) bytes. */
+        /* CDF specification: Header padding uses null (\x00) bytes.
+	 * However, prior to version 4.5.0, NetCDF did not implement this
+	 * specification entirely. In particular, it has never enforced the
+	 * null-byte padding for attribute values (it has for others, such as
+	 * names of dimension, variables, and attributes.) It also appears that
+	 * files created by SciPy NetCDF module or NetCDF Java module, both
+	 * developed independent from NetCDF-C, also fail to respect this
+	 * padding specification.  This becomes a problem for PnetCDF to read
+	 * such netCDF files, because PnetCDF enforces the header padding from
+	 * its very first release.  The files violating the padding
+	 * specification will not be readable by PnetCDF of all releases prior
+	 * to 1.9.0 and error code NC_EINVAL or NC_ENOTNC will be thrown when
+	 * opening such files.  Note if the sizes of all attribute values of
+	 * your files are aligned with 4-byte boundaries, then the files are
+	 * readable by PnetCDF.  In order to keep the files in question
+	 * readable by PnetCDF, checking for null-byte padding has been
+	 * disabled in 1.9.0. But, we keep this checking in ncvalidator, a
+	 * utility program that can report whether a CDF file violates the file
+	 * format specification, including this null-byte padding. See r3516
+	 * and discussion in NetCDF Github issue
+	 * https://github.com/Unidata/netcdf-c/issues/657.
+         */
+#ifdef ENABLE_NULL_BYTE_HEADER_PADDING
         char pad[X_ALIGN-1];
         memset(pad, 0, X_ALIGN-1);
         if (memcmp(gbp->pos, pad, (size_t)padding) != 0) {
 #ifdef PNETCDF_DEBUG
             fprintf(stderr,"Error in file %s func %s line %d: NetCDF header corrupted, non-zero padding found\n",__FILE__,__func__,__LINE__);
 #endif
-            DEBUG_RETURN_ERROR(NC_ENOTNC)
+            DEBUG_ASSIGN_ERROR(err, NC_ENULLPAD)
         }
+#endif
         gbp->pos = (void *)((char *)gbp->pos + padding);
     }
-    return NC_NOERR;
+    return err;
 }
 
 /*----< hdr_get_NC_attr() >--------------------------------------------------*/
@@ -837,7 +893,7 @@ hdr_get_NC_attr(bufferinfo *gbp, NC_attr **attrpp)
      * NON_NEG = <non-negative INT> |  // CDF-1 and CDF-2
      *           <non-negative INT64>  // CDF-5
      */
-    int err;
+    int err, status=NC_NOERR;
     char *name;
     nc_type type;
     MPI_Offset nelems;
@@ -845,7 +901,8 @@ hdr_get_NC_attr(bufferinfo *gbp, NC_attr **attrpp)
 
     /* get name */
     err = hdr_get_NC_name(gbp, &name);
-    if (err != NC_NOERR) return err;
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) return err;
 
     /* get nc_type */
     err = hdr_get_nc_type(gbp, &type);
@@ -873,14 +930,16 @@ hdr_get_NC_attr(bufferinfo *gbp, NC_attr **attrpp)
 
     /* get [values ...] */
     err = hdr_get_NC_attrV(gbp, attrp);
-    if (err != NC_NOERR) {
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) {
         ncmpio_free_NC_attr(attrp);
         NCI_Free(attrp);
         return err;
     }
 
     *attrpp = attrp;
-    return NC_NOERR;
+
+    return status;
 }
 
 /*----< hdr_get_NC_attrarray() >---------------------------------------------*/
@@ -905,7 +964,7 @@ hdr_get_NC_attrarray(bufferinfo *gbp, NC_attrarray *ncap)
      * NON_NEG      = <non-negative INT> |        // CDF-1 and CDF-2
      *                <non-negative INT64>        // CDF-5
      */
-    int i, err, ndefined=0;
+    int i, err, status=NC_NOERR, ndefined=0;
     size_t alloc_size;
     NC_tag tag = NC_UNSPECIFIED;
 
@@ -959,13 +1018,14 @@ hdr_get_NC_attrarray(bufferinfo *gbp, NC_attrarray *ncap)
     /* get [attr ...] */
     for (i=0; i<ndefined; i++) {
         err = hdr_get_NC_attr(gbp, ncap->value + i);
-        if (err != NC_NOERR) { /* Error: fail to get the next att */
+        if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+        else if (err != NC_NOERR) { /* Error: fail to get the next att */
             ncmpio_free_NC_attrarray(ncap);
             return err;
         }
     }
 
-    return NC_NOERR;
+    return status;
 }
 
 /*----< hdr_get_NC_var() >---------------------------------------------------*/
@@ -990,13 +1050,14 @@ hdr_get_NC_var(bufferinfo  *gbp,
      * NON_NEG     = <non-negative INT> |  // CDF-1 and CDF-2
      *               <non-negative INT64>  // CDF-5
      */
-    int dim, ndims, err;
+    int dim, ndims, err, status=NC_NOERR;
     char *name;
     NC_var *varp;
 
     /* get name */
     err = hdr_get_NC_name(gbp, &name);
-    if (err != NC_NOERR) return err;
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) return err;
 
     /* nelems (number of dimensions) */
     if (gbp->version < 5) {
@@ -1051,7 +1112,8 @@ hdr_get_NC_var(bufferinfo  *gbp,
 
     /* get vatt_list */
     err = hdr_get_NC_attrarray(gbp, &varp->attrs);
-    if (err != NC_NOERR) goto fn_exit;
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) goto fn_exit;
 
     /* get nc_type */
     err = hdr_get_nc_type(gbp, &varp->xtype);
@@ -1106,7 +1168,7 @@ fn_exit:
     else
         *varpp = varp;
 
-    return err;
+    return (err == NC_NOERR) ? status : err;
 }
 
 /*----< hdr_get_NC_vararray() >----------------------------------------------*/
@@ -1135,7 +1197,7 @@ hdr_get_NC_vararray(bufferinfo  *gbp,
      * NON_NEG     = <non-negative INT> |        // CDF-1 and CDF-2
      *               <non-negative INT64>        // CDF-5
      */
-    int i, err, ndefined=0;
+    int i, err, status=NC_NOERR, ndefined=0;
     size_t alloc_size;
     NC_tag tag = NC_UNSPECIFIED;
 
@@ -1189,14 +1251,15 @@ hdr_get_NC_vararray(bufferinfo  *gbp,
     /* get [var ...] */
     for (i=0; i<ndefined; i++) {
         err = hdr_get_NC_var(gbp, ncap->value + i, f_ndims);
-        if (err != NC_NOERR) { /* Error: fail to get the next var */
+        if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+        else if (err != NC_NOERR) { /* Error: fail to get the next var */
             ncmpio_free_NC_vararray(ncap);
             return err;
         }
         ncap->value[i]->varid = i;
     }
 
-    return NC_NOERR;
+    return status;
 }
 
 /*----< ncmpio_hdr_len_NC() >------------------------------------------------*/
@@ -1256,7 +1319,7 @@ ncmpio_hdr_len_NC(const NC *ncp)
 int
 ncmpio_hdr_get_NC(NC *ncp)
 {
-    int err;
+    int err, status=NC_NOERR;
     bufferinfo getbuf;
     char magic[NC_MAGIC_LEN];
 
@@ -1351,15 +1414,18 @@ ncmpio_hdr_get_NC(NC *ncp)
 
     /* get dim_list from getbuf into ncp */
     err = hdr_get_NC_dimarray(&getbuf, &ncp->dims);
-    if (err != NC_NOERR) goto fn_exit;
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) goto fn_exit;
 
     /* get gatt_list from getbuf into ncp */
     err = hdr_get_NC_attrarray(&getbuf, &ncp->attrs);
-    if (err != NC_NOERR) goto fn_exit;
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) goto fn_exit;
 
     /* get var_list from getbuf into ncp */
     err = hdr_get_NC_vararray(&getbuf, &ncp->vars, ncp->dims.ndefined);
-    if (err != NC_NOERR) goto fn_exit;
+    if (err == NC_ENULLPAD) status = NC_ENULLPAD; /* non-fatal error */
+    else if (err != NC_NOERR) goto fn_exit;
 
     /* get the un-aligned size occupied by the file header */
     ncp->xsz = ncmpio_hdr_len_NC(ncp);
@@ -1384,6 +1450,6 @@ fn_exit:
     ncp->get_size += getbuf.get_size;
     NCI_Free(getbuf.base);
 
-    return err;
+    return (err == NC_NOERR) ? status : err;
 }
 

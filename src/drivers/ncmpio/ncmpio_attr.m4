@@ -32,6 +32,7 @@ dnl
 #include <stdlib.h>
 #endif
 #include <string.h>
+#include <limits.h>  /* INT_MAX */
 #include <assert.h>
 
 #include <mpi.h>
@@ -141,14 +142,18 @@ ncmpio_free_NC_attrarray(NC_attrarray *ncap)
 
     assert(ncap != NULL);
 
-    for (i=0; i<ncap->ndefined; i++) {
-        ncmpio_free_NC_attr(ncap->value[i]);
-        NCI_Free(ncap->value[i]);
-    }
-
-    /* attributes can be deleted, thus ncap->value can still be allocated
-     * while ncap->ndefined == 0 */
     if (ncap->value != NULL) {
+        /* when error is detected reading NC_ATTRIBUTE tag, ncap->ndefined can
+         * be > 0 and ncap->value is still NULL
+         */
+        for (i=0; i<ncap->ndefined; i++) {
+            if (ncap->value[i] == NULL) continue;
+            ncmpio_free_NC_attr(ncap->value[i]);
+            NCI_Free(ncap->value[i]);
+        }
+
+        /* attributes can be deleted, thus ncap->value can still be allocated
+         * while ncap->ndefined == 0 */
         NCI_Free(ncap->value);
         ncap->value = NULL;
     }
@@ -984,10 +989,12 @@ ncmpio_put_att(void         *ncdp,
     xsz = x_len_NC_attrV(xtype, nelems);
     /* xsz is the total aligned size of this attribute */
 
-    if (xsz != (int)xsz) {
-        DEBUG_ASSIGN_ERROR(err, NC_EINTOVERFLOW)
+#ifndef ENABLE_LARGE_REQ
+    if (xsz > INT_MAX) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAX_REQ)
         goto err_check;
     }
+#endif
 
     /* create a normalized character string */
     err = ncmpii_utf8_normalize(name, &nname);

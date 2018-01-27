@@ -33,6 +33,7 @@ dnl
 #include <stdlib.h>
 #endif
 #include <string.h> /* memcpy() */
+#include <limits.h> /* INT_MAX */
 #include <assert.h>
 
 #include <mpi.h>
@@ -120,90 +121,51 @@ put_varm(NC               *ncp,
     int el_size, need_convert, need_swap, buftype_is_contig;
     MPI_Offset nelems=0, nbytes=0, offset=0;
     MPI_Status mpistatus;
-    MPI_Datatype etype, imaptype, filetype=MPI_BYTE;
+    MPI_Datatype itype, xtype, imaptype, filetype=MPI_BYTE;
     MPI_File fh;
 
-#if 0
-    void *cbuf=NULL;
-    /* pack buf into a contiguous buffer, cbuf -----------------------------*/
-    /* If called from a true varm API or a flexible API, ncmpii_pack() packs
-     * user buf into a contiguous cbuf (need to be freed later). Otherwise,
-     * cbuf is simply set to buf. ncmpii_pack() also returns etype (MPI
-     * primitive datatype in buftype), and nelems (number of etypes in
-     * buftype * bufcount). Not cbuf may be == buf.
+    /* decode buftype to obtain the followings:
+     * itype:    element data type (MPI primitive type) in buftype
+     * bufcount: If it is -1, then this is called from a high-level API and in
+     *           this case buftype will be an MPI primitive data type.
+     *           If it is >=0, then this is called from a flexible API.
+     * nelems:   number of itypes in user buffer, buf. It is also the number
+     *           of array elements to be written to file.
+     * nbytes:   number of bytes (in external data representation) to write to
+     *           the file
+     * el_size:  byte size of itype
+     * buftype_is_contig: whether buftype is contiguous
      */
-    err = ncmpii_pack(varp->ndims, count, imap, buf, bufcount, buftype,
-                      &nelems, &etype, &cbuf);
+    err = ncmpii_buftype_decode(varp->ndims, varp->xtype, count, bufcount,
+                                buftype, &itype, &el_size, &nelems,
+                                &nbytes, &buftype_is_contig);
     if (err != NC_NOERR) goto err_check;
 
-    /* nbytes is the number of bytes (in external data representation) to
-     * be used in MPI write to the file */
-    nbytes = nelems * varp->xsz;
-
-    /* hereafter, varm has become vars for write requests */
+    /* because nelems will be used as the argument "count" in MPI-IO
+     * write calls and the argument "count" is of type int */
+    if (nelems > INT_MAX) {
+        DEBUG_ASSIGN_ERROR(err, NC_EINTOVERFLOW)
+        goto err_check;
+    }
+#ifndef ENABLE_LARGE_REQ
+    /* Not all MPI-IO libraries support single requests larger than 2 GiB */
+    if (nbytes > INT_MAX) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAX_REQ)
+        goto err_check;
+    }
+#endif
 
     if (nbytes == 0) /* this process has nothing to write */
         goto err_check;
 
-    /* type-casting/byte-swapping cbuf into xbuf ---------------------------*/
-    unsigned char fillv[8]; /* fill value in internal representation */
-    ncmpio_inq_var_fill(varp, fillv); /* find the fill value */
-
-    /* pack cbuf to xbuf, do type-casting and/or byte-swap if necessary.
-     * The contents of xbuf will be in the external representation, ready
-     * to be written to file.
-     */
-    err = ncmpii_put_cast_swap(ncp->format, nelems, varp->xtype, etype,
-                               fillv, cbuf, (cbuf != buf), &xbuf);
-    if (err != NC_NOERR && err != NC_ERANGE) {
-        if (cbuf != buf)  NCI_Free(cbuf);
-        goto err_check;
-    }
-    /* cbuf is no longer needed */
-    if (cbuf != buf && cbuf != xbuf) NCI_Free(cbuf);
-
-    /* check if user buf needs to be swapped back to its original contents
-     * after MPI write */
-    if (xbuf == buf && varp->xsz > 1) need_swap_back_buf = 1;
-#else
-    if (bufcount != (int)bufcount) {
-        DEBUG_ASSIGN_ERROR(err, NC_EINTOVERFLOW)
-        goto err_check;
-    }
-
-    /* decode buftype to obtain the followings:
-     * etype:    element data type (MPI primitive type) in buftype
-     * bufcount: If it is -1, then this is called from a high-level API and in
-     *           this case buftype will be an MPI primitive data type.
-     *           If it is >=0, then this is called from a flexible API.
-     * nelems:   number of etypes in user buffer, buf
-     * nbytes:   number of bytes (in external data representation) to write to
-     *           the file
-     * el_size:  byte size of etype
-     * buftype_is_contig: whether buftype is contiguous
-     */
-    err = ncmpii_buftype_decode(varp->ndims, varp->xtype, count, bufcount,
-                                buftype, &etype, &el_size, &nelems,
-                                &nbytes, &buftype_is_contig);
-    if (err != NC_NOERR) goto err_check;
-
-    /* because nbytes will be used as the argument "count" in MPI-IO
-     * write calls and the argument "count" is of type int */
-    if (nbytes != (int)nbytes) {
-        DEBUG_ASSIGN_ERROR(err, NC_EINTOVERFLOW)
-        goto err_check;
-    }
-
-    if (nbytes == 0) goto err_check;
-
     /* check if type conversion and Endianness byte swap is needed */
-    need_convert = ncmpii_need_convert(ncp->format, varp->xtype, etype);
-    need_swap    = ncmpii_need_swap(varp->xtype, etype);
+    need_convert = ncmpii_need_convert(ncp->format, varp->xtype, itype);
+    need_swap    = ncmpii_need_swap(varp->xtype, itype);
 
     /* check whether this is a true varm call, if yes, imaptype will be a
      * newly created MPI derived data type, otherwise MPI_DATATYPE_NULL
      */
-    err = ncmpii_create_imaptype(varp->ndims, count, imap, etype, &imaptype);
+    err = ncmpii_create_imaptype(varp->ndims, count, imap, itype, &imaptype);
     if (err != NC_NOERR) goto err_check;
 
     if (!buftype_is_contig || imaptype != MPI_DATATYPE_NULL || need_convert ||
@@ -229,14 +191,13 @@ put_varm(NC               *ncp,
 
     /* pack user buffer, buf, to xbuf, which will be used to write to file */
     err = ncmpio_pack_xbuf(ncp->format, varp, bufcount, buftype,
-                           buftype_is_contig, nelems, etype, imaptype,
+                           buftype_is_contig, nelems, itype, imaptype,
                            need_convert, need_swap, nbytes, buf, xbuf);
     if (err != NC_NOERR && err != NC_ERANGE) {
         if (xbuf != buf) NCI_Free(xbuf);
         xbuf = NULL;
         goto err_check;
     }
-#endif
 
 err_check:
     status = err;
@@ -288,9 +249,14 @@ err_check:
     memset(&mpistatus, 0, sizeof(MPI_Status));
 #endif
 
+    xtype = ncmpii_nc2mpitype(varp->xtype);
+    /* xtype is the element data type (MPI primitive type) in xbuf to be
+     * written to the variable defined in file. Note data stored in xbuf is in
+     * the external data type, ready to be written to file.
+     */
     if (fIsSet(reqMode, NC_REQ_COLL)) {
-        TRACE_IO(MPI_File_write_at_all)(fh, offset, xbuf, (int)nbytes,
-                                        MPI_BYTE, &mpistatus);
+        TRACE_IO(MPI_File_write_at_all)(fh, offset, xbuf, (int)nelems,
+                                        xtype, &mpistatus);
         if (mpireturn != MPI_SUCCESS) {
             err = ncmpii_error_mpi2nc(mpireturn, "MPI_File_write_at_all");
             /* return the first encountered error if there is any */
@@ -301,8 +267,8 @@ err_check:
         }
     }
     else {  /* reqMode == NC_REQ_INDEP */
-        TRACE_IO(MPI_File_write_at)(fh, offset, xbuf, (int)nbytes,
-                                    MPI_BYTE,  &mpistatus);
+        TRACE_IO(MPI_File_write_at)(fh, offset, xbuf, (int)nelems,
+                                    xtype, &mpistatus);
         if (mpireturn != MPI_SUCCESS) {
             err = ncmpii_error_mpi2nc(mpireturn, "MPI_File_write_at");
             /* return the first encountered error if there is any */
@@ -405,48 +371,51 @@ get_varm(NC               *ncp,
     int el_size, buftype_is_contig, need_swap=0, need_convert=0;
     MPI_Offset nelems=0, nbytes=0, offset=0;
     MPI_Status mpistatus;
-    MPI_Datatype etype, filetype=MPI_BYTE, imaptype=MPI_DATATYPE_NULL;
+    MPI_Datatype itype, xtype, filetype=MPI_BYTE, imaptype=MPI_DATATYPE_NULL;
     MPI_File fh;
 
-    if (bufcount != (int)bufcount) {
-        DEBUG_ASSIGN_ERROR(err, NC_EINTOVERFLOW)
-        goto err_check;
-    }
-
     /* decode buftype to see if we can use buf to read from file.
-     * etype:    element data type (MPI primitive type) in buftype
+     * itype:    element data type (MPI primitive type) in buftype
      * bufcount: If it is -1, then this is called from a high-level API and in
      *           this case buftype will be an MPI primitive data type.
      *           If it is >=0, then this is called from a flexible API.
-     * nelems:   number of etypes in user buffer
+     * nelems:   number of itypes in user buffer, buf. It is also the number
+     *           of array elements to be read from file.
      * nbytes:   number of bytes (in external data representation) to
      *           read from the file
-     * el_size:  size of etype
+     * el_size:  size of itype
      * buftype_is_contig: whether buftype is contiguous
      */
     err = ncmpii_buftype_decode(varp->ndims, varp->xtype, count, bufcount,
-                                buftype, &etype, &el_size, &nelems,
+                                buftype, &itype, &el_size, &nelems,
                                 &nbytes, &buftype_is_contig);
     if (err != NC_NOERR) goto err_check;
 
-    /* because nbytes will be used as the argument "count" in MPI-IO
-     * read calls and the argument "count" is of type int */
-    if (nbytes != (int)nbytes) {
+    /* because nelems will be used as the argument "count" in MPI-IO
+     * write calls and the argument "count" is of type int */
+    if (nelems > INT_MAX) {
         DEBUG_ASSIGN_ERROR(err, NC_EINTOVERFLOW)
         goto err_check;
     }
+#ifndef ENABLE_LARGE_REQ
+    /* Not all MPI-IO libraries support single requests larger than 2 GiB */
+    if (nbytes > INT_MAX) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAX_REQ)
+        goto err_check;
+    }
+#endif
 
     if (nbytes == 0) /* this process has nothing to read */
         goto err_check;
 
     /* check if type conversion and Endianness byte swap is needed */
-    need_convert = ncmpii_need_convert(ncp->format, varp->xtype, etype);
-    need_swap    = ncmpii_need_swap(varp->xtype, etype);
+    need_convert = ncmpii_need_convert(ncp->format, varp->xtype, itype);
+    need_swap    = ncmpii_need_swap(varp->xtype, itype);
 
     /* Check if this is a true varm call. If yes, construct a derived
      * datatype, imaptype.
      */
-    err = ncmpii_create_imaptype(varp->ndims, count, imap, etype, &imaptype);
+    err = ncmpii_create_imaptype(varp->ndims, count, imap, itype, &imaptype);
     if (err != NC_NOERR) goto err_check;
 
     /* If we want to use user buffer, buf, to read data from the file,
@@ -514,9 +483,14 @@ err_check:
     memset(&mpistatus, 0, sizeof(MPI_Status));
 #endif
 
+    xtype = ncmpii_nc2mpitype(varp->xtype);
+    /* xtype is the element data type (MPI primitive type) in xbuf to be
+     * read from the variable defined in file. Note xbuf will contain data read
+     * from the file and hence is in the external data type.
+     */
     if (fIsSet(reqMode, NC_REQ_COLL)) {
-        TRACE_IO(MPI_File_read_at_all)(fh, offset, xbuf, (int)nbytes,
-                                       MPI_BYTE, &mpistatus);
+        TRACE_IO(MPI_File_read_at_all)(fh, offset, xbuf, (int)nelems,
+                                       xtype, &mpistatus);
         if (mpireturn != MPI_SUCCESS) {
             err = ncmpii_error_mpi2nc(mpireturn, "MPI_File_read_at_all");
             /* return the first encountered error if there is any */
@@ -527,8 +501,8 @@ err_check:
         }
     }
     else {  /* reqMode == NC_REQ_INDEP */
-        TRACE_IO(MPI_File_read_at)(fh, offset, xbuf, (int)nbytes,
-                                   MPI_BYTE, &mpistatus);
+        TRACE_IO(MPI_File_read_at)(fh, offset, xbuf, (int)nelems,
+                                   xtype, &mpistatus);
         if (mpireturn != MPI_SUCCESS) {
             err = ncmpii_error_mpi2nc(mpireturn, "MPI_File_read_at");
             /* return the first encountered error if there is any */
@@ -552,63 +526,11 @@ err_check:
 
     /* unpack xbuf into user buffer, buf */
     err = ncmpio_unpack_xbuf(ncp->format, varp, bufcount, buftype,
-                             buftype_is_contig, nelems, etype, imaptype,
+                             buftype_is_contig, nelems, itype, imaptype,
                              need_convert, need_swap, buf, xbuf);
     if (status == NC_NOERR) status = err;
 
     if (xbuf != buf) NCI_Free(xbuf);
-
-#if 0
-    void *lbuf=NULL, *cbuf=NULL;
-    /* xbuf contains the data read from file in external data type.
-     * Check if it needs to be type-converted + byte-swapped
-     */
-    MPI_Offset insize=nelems*el_size;
-    if (insize != (int)insize && status == NC_NOERR)
-        DEBUG_ASSIGN_ERROR(status, NC_EINTOVERFLOW)
-
-    /* type-casting and/or byte-swap xbuf into cbuf ------------------------*/
-    err = ncmpii_get_cast_swap(ncp->format, nelems, varp->xtype, etype,
-          (buftype_is_contig && imaptype == MPI_DATATYPE_NULL) ? buf : NULL,
-          xbuf, &cbuf);
-    if (status == NC_NOERR) status = err;
-
-    /* done with xbuf */
-    if (xbuf != buf && xbuf != cbuf) NCI_Free(xbuf);
-
-    /* determine whether we can use cbuf as lbuf */
-    if (imaptype != MPI_DATATYPE_NULL && !buftype_is_contig)
-        /* a true varm and buftype is not contiguous: we need a separate
-         * buffer, lbuf, to unpack cbuf to lbuf using imaptype, and later
-         * unpack lbuf to buf using buftype.
-         * In this case, cbuf cannot be buf and lbuf cannot be buf.
-         */
-        lbuf = NCI_Malloc((size_t)insize);
-    else if (imaptype == MPI_DATATYPE_NULL) /* not varm */
-        lbuf = cbuf;
-    else /* varm and buftype are contiguous */
-        lbuf = buf;
-
-    /* unpacked cbuf into lbuf based on imap -------------------------------*/
-    if (imaptype != MPI_DATATYPE_NULL) {
-        /* unpack cbuf to lbuf based on imaptype */
-        int position = 0;
-        MPI_Unpack(cbuf, (int)insize, &position, lbuf, 1, imaptype,
-                   MPI_COMM_SELF);
-        MPI_Type_free(&imaptype);
-    }
-    /* done with cbuf */
-    if (cbuf != lbuf) NCI_Free(cbuf);
-
-    /* unpacked lbuf into buf based on buftype -----------------------------*/
-    if (!buftype_is_contig) {
-        int position = 0;
-        MPI_Unpack(lbuf, (int)insize, &position, buf, (int)bufcount,
-                   buftype, MPI_COMM_SELF);
-    }
-    /* done with lbuf */
-    if (lbuf != buf) NCI_Free(lbuf);
-#endif
 
     return status;
 }
