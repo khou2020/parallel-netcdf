@@ -65,19 +65,9 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                mix_collectives \
                large_var_cdf5 \
                tst_max_var_dims \
-	           iput_all_kinds \
-	           highdim \
-               wait \
                tst_info \
                tst_vars_fill \
                tst_def_var_fill
-
-if BUILD_DRIVER_DW
-   TESTPROGRAMS += dw_nonblocking \
-                   dw_bsize \
-                   dw_hints \
-                   dw_many_reqs
-endif
 
 M4_SRCS  = put_all_kinds.m4 erange_fill.m4 tst_vars_fill.m4
 

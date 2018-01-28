@@ -24,8 +24,6 @@ CLEANFILES = core core.* *.gcda *.gcno *.gcov gmon.out \
 
 TESTMPIRUN4  = `echo $(TESTMPIRUN) | $(SED) -e 's/NP/4/g'`
 
-TESTMPIRUN4  = `echo $(TESTMPIRUN) | $(SED) -e 's/NP/4/g'`
-
 ptest ptests ptest4: $(check_PROGRAMS)
 	for i in $(check_PROGRAMS); do { \
 	$(TESTMPIRUN4) ./$$i -q 10 $(TESTOUTDIR)/$$i.nc ; \

@@ -35,6 +35,10 @@ if ENABLE_SUBFILING
 SUBDIRS += subfile
 endif
 
+if BUILD_DRIVER_DW
+SUBDIRS += datawarp
+endif
+
 # below is the alternative when AM_EXTRA_RECURSIVE_TARGETS is not defined
 # TESTS_DIRS = $(SUBDIRS:%=tests-%)
 # tests: $(TESTS_DIRS)

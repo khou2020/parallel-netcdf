@@ -51,11 +51,7 @@ M4FLAGS += -I${top_srcdir}/m4
 tests.h: tests.h.m4 Makefile
 	$(M4) $(M4FLAGS) $< > $@
 
-<<<<<<< HEAD
-check_PROGRAMS = $(TESTPROGRAMS) nc_test
-=======
 check_PROGRAMS = $(TESTPROGRAMS) tst_nofill nc_test
->>>>>>> master
 
 # autimake 1.11.3 has not yet implemented AM_TESTS_ENVIRONMENT
 # For newer versions, we can use AM_TESTS_ENVIRONMENT instead

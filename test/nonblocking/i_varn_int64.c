@@ -521,12 +521,6 @@ test_varn(int ncid, int rank, int *varid)
         }
     }
 
-<<<<<<< HEAD
-    err = ncmpi_close(ncid);
-    CHECK_ERR
-
-=======
->>>>>>> master
     if (bufsize>0) free(cbuffer[0]);
     for (i=0; i<nreqs; i++) free(buffer[i]);
     free(starts[0][0]);

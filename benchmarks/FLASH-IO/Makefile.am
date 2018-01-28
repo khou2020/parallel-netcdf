@@ -62,8 +62,6 @@ CLEANFILES = core core.* \
 
 TESTMPIRUN4  = `echo $(TESTMPIRUN) | $(SED) -e 's/NP/4/g'`
 
-TESTMPIRUN4  = `echo $(TESTMPIRUN) | $(SED) -e 's/NP/4/g'`
-
 ptests ptest ptest4: $(check_PROGRAMS)
 	$(TESTMPIRUN4) ./$(check_PROGRAMS) $(RUN_QUIETLY) $(TESTOUTDIR)/flash_io_test_ ; \
 	if [ $$? = 0 ] ; then \

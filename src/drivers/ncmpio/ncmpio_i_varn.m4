@@ -184,17 +184,6 @@ igetput_varn(NC                *ncp,
 
     if (free_cbuf) { /* cbuf != buf, cbuf is temp allocated */
         if (fIsSet(reqMode, NC_REQ_RD)) {
-<<<<<<< HEAD:src/drivers/ncmpio/ncmpio_i_varn.m4
-            /* Set the last lead request object to let wait() unpack cbuf to
-             * buf and free cbuf */
-            for (i=ncp->numGetReqs-1; i>=0; i--)
-                if (ncp->get_list[i].num_recs > 0)
-                    break;
-            ncp->get_list[i].tmpBuf   = cbuf;
-            ncp->get_list[i].userBuf  = buf;
-            ncp->get_list[i].bufcount = (int)bufcount;
-            MPI_Type_dup(buftype, &ncp->get_list[i].buftype);
-=======
             /* first lead request must unpack cbuf to buf and free cbuf at
              * wait()
              */
@@ -203,7 +192,6 @@ igetput_varn(NC                *ncp,
             ncp->get_list[leadIndx].flag    |= NC_REQ_BUF_TO_BE_FREED;
             ncp->get_list[leadIndx].userBuf  = buf;
             MPI_Type_dup(buftype, &ncp->get_list[leadIndx].buftype);
->>>>>>> master:src/drivers/ncmpio/ncmpio_i_varn.m4
         }
         else { /* write request */
             if (fIsSet(reqMode, NC_REQ_NBB))

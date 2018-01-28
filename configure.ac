@@ -118,6 +118,8 @@ AH_TEMPLATE([HAVE_FUNCTION_MACRO],      [Define if C++ macro __FUNCTION__ is def
 AH_TEMPLATE([RELAX_COORD_BOUND],        [Define if relaxed coordinate check is enabled])
 AH_TEMPLATE([ENABLE_LARGE_REQ],         [Define if to enable single large MPI-IO request])
 AH_TEMPLATE([ENABLE_NULL_BYTE_HEADER_PADDING], [Define if to enable strict null-byte padding in file header])
+AH_TEMPLATE([BUILD_DRIVER_DW],          [Define if to enable datawarp burst buffer feature])  
+AH_TEMPLATE([PNETCDF_PROFILING],        [Define if to enable datawarp burst buffer feature]) 
 
 AH_TOP([#ifndef _CONFIG_H
 #define _CONFIG_H])
@@ -1324,6 +1326,20 @@ AC_ARG_ENABLE([dwdriver],
                    [Enable datawarp driver support. @<:@default: disabled@:>@])],
    [enable_dwdriver=${enableval}], [enable_dwdriver=no]
 )
+ 
+AC_ARG_ENABLE([profiling], 
+    [AS_HELP_STRING([--enable_profiling], 
+                    [Enable time and memory profiling. @<:@default: disabled@:>@])], 
+    [enable_profiling=${enableval}], [enable_profiling=no] 
+) 
+
+PNETCDF_PROFILING=0  
+if test "x$enable_profiling" = "xyes" ; then 
+    AC_DEFINE(PNETCDF_PROFILING) 
+    PNETCDF_PROFILING=1 
+fi 
+AC_SUBST(PNETCDF_PROFILING) 
+AM_CONDITIONAL(PNETCDF_PROFILING, [test x$enable_profiling = xyes]) 
 
 BUILD_DRIVER_DW=0
 if test "x$enable_dwdriver" = "xyes" ; then
@@ -1541,6 +1557,7 @@ AC_CONFIG_FILES(Makefile \
                 test/nc_test/Makefile \
                 test/cdf_format/Makefile \
                 test/header/Makefile \
+                test/datawarp/Makefile \
                 test/testcases/Makefile \
                 test/nonblocking/Makefile \
                 test/largefile/Makefile \

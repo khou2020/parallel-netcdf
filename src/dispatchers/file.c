@@ -243,6 +243,9 @@ ncmpi_create(MPI_Comm    comm,
 #ifdef BUILD_DRIVER_FOO
     int enable_foo_driver=0;
 #endif
+#ifdef BUILD_DRIVER_DW
+    int enable_dw_driver = 0;
+#endif
 
     MPI_Comm_rank(comm, &rank);
 

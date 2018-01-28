@@ -24,22 +24,11 @@ if IS_BIGENDIAN
    # AM_FCFLAGS += $(FC_DEFINE)WORDS_BIGENDIAN
 endif
 
-if ENABLE_LARGE_REQ
-   AM_CFLAGS += -DENABLE_LARGE_REQ
-endif
-
-check_PROGRAMS = large_files \
-                 large_var \
-                 large_dims_vars_attrs \
-                 high_dim_var \
-                 tst_cdf5_begin \
-                 large_coalesce
-
-if HAS_FORTRAN
-   check_PROGRAMS += bigrecords
-   AM_FFLAGS = -I$(top_builddir)/src/binding/f77
-   bigrecords_SOURCES = bigrecords.f
-endif
+check_PROGRAMS = dw_bsize \
+                 dw_hints \
+                 dw_many_reqs \
+                 dw_nonblocking \
+                 highdim
 
 EXTRA_DIST = wrap_runs.sh
 
@@ -50,7 +39,7 @@ CLEANFILES = $(NC_FILES) core core.* *.gcda *.gcno *.gcov gmon.out
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests
 
-if RUN_LARGE_FILE_TEST
+if BUILD_DRIVER_DW
 TESTPROGRAMS = $(check_PROGRAMS)
 else
 TESTPROGRAMS =
