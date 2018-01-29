@@ -6,20 +6,15 @@
 
 ===============================================================================
     Cray XC40
-<<<<<<< HEAD
-===============================================================================
 
     Cray XC30
 =======
->>>>>>> master
 ===============================================================================
 
 * Building PnetCDF on the Cray XC40 (tested on Cori @ NERSC and Theta @ ALCF)
   http://www.nersc.gov/systems/cori/
   https://www.alcf.anl.gov/theta
 
-<<<<<<< HEAD
-=======
 * Building PnetCDF on the Cray XC40 (tested on Cori @ NERSC and Theta @ ALCF)
   http://www.nersc.gov/systems/cori/
   https://www.alcf.anl.gov/theta
@@ -47,7 +42,6 @@
   http://www.nersc.gov/users/computational-systems/cori/programming/compiling-codes-on-cori/
 
 
->>>>>>> master
 * Note that the default setting of PnetCDF is to build static libraries only.
   To also build shared libraries, add "--enable-shared LDFLAGS=-dynamic" to the
   configure command and change the compile flags to "-O2".

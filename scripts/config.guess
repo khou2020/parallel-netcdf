@@ -1,14 +1,8 @@
 #! /bin/sh
 # Attempt to guess a canonical system name.
-<<<<<<< HEAD
-#   Copyright 1992-2014 Free Software Foundation, Inc.
-
-timestamp='2014-11-04'
-=======
 #   Copyright 1992-2017 Free Software Foundation, Inc.
 
 timestamp='2017-07-19'
->>>>>>> master
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -33,11 +27,7 @@ timestamp='2017-07-19'
 # Originally written by Per Bothner; maintained since 2000 by Ben Elliston.
 #
 # You can get the latest version of this script from:
-<<<<<<< HEAD
-# http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD
-=======
 # http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess
->>>>>>> master
 #
 # Please send patches to <config-patches@gnu.org>.
 
@@ -60,11 +50,7 @@ version="\
 GNU config.guess ($timestamp)
 
 Originally written by Per Bothner.
-<<<<<<< HEAD
-Copyright 1992-2014 Free Software Foundation, Inc.
-=======
 Copyright 1992-2017 Free Software Foundation, Inc.
->>>>>>> master
 
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
@@ -245,10 +231,6 @@ case "${UNAME_MACHINE}:${UNAME_SYSTEM}:${UNAME_RELEASE}:${UNAME_VERSION}" in
 	# contains redundant information, the shorter form:
 	# CPU_TYPE-MANUFACTURER-OPERATING_SYSTEM is used.
 	echo "${machine}-${os}${release}${abi}"
-	exit ;;
-    *:Bitrig:*:*)
-	UNAME_MACHINE_ARCH=`arch | sed 's/Bitrig.//'`
-	echo ${UNAME_MACHINE_ARCH}-unknown-bitrig${UNAME_RELEASE}
 	exit ;;
     *:Bitrig:*:*)
 	UNAME_MACHINE_ARCH=`arch | sed 's/Bitrig.//'`
@@ -922,11 +904,7 @@ EOF
 	exit ;;
     *:GNU/*:*:*)
 	# other systems with GNU libc and userland
-<<<<<<< HEAD
-	echo ${UNAME_MACHINE}-unknown-`echo ${UNAME_SYSTEM} | sed 's,^[^/]*/,,' | tr '[A-Z]' '[a-z]'``echo ${UNAME_RELEASE}|sed -e 's/[-(].*//'`-${LIBC}
-=======
 	echo ${UNAME_MACHINE}-unknown-`echo ${UNAME_SYSTEM} | sed 's,^[^/]*/,,' | tr "[:upper:]" "[:lower:]"``echo ${UNAME_RELEASE}|sed -e 's/[-(].*//'`-${LIBC}
->>>>>>> master
 	exit ;;
     i*86:Minix:*:*)
 	echo ${UNAME_MACHINE}-pc-minix
@@ -949,11 +927,7 @@ EOF
 	  EV68*) UNAME_MACHINE=alphaev68 ;;
 	esac
 	objdump --private-headers /bin/sh | grep -q ld.so.1
-<<<<<<< HEAD
-	if test "$?" = 0 ; then LIBC="gnulibc1" ; fi
-=======
 	if test "$?" = 0 ; then LIBC=gnulibc1 ; fi
->>>>>>> master
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
 	exit ;;
     arc:Linux:*:* | arceb:Linux:*:*)
@@ -983,12 +957,9 @@ EOF
 	exit ;;
     crisv32:Linux:*:*)
 	echo ${UNAME_MACHINE}-axis-linux-${LIBC}
-<<<<<<< HEAD
-=======
 	exit ;;
     e2k:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
->>>>>>> master
 	exit ;;
     frv:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
@@ -1001,12 +972,9 @@ EOF
 	exit ;;
     ia64:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
-<<<<<<< HEAD
-=======
 	exit ;;
     k1om:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
->>>>>>> master
 	exit ;;
     m32r*:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
@@ -1033,12 +1001,9 @@ EOF
 	eval `$CC_FOR_BUILD -E $dummy.c 2>/dev/null | grep '^CPU'`
 	test x"${CPU}" != x && { echo "${CPU}-unknown-linux-${LIBC}"; exit; }
 	;;
-<<<<<<< HEAD
-=======
     mips64el:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
 	exit ;;
->>>>>>> master
     openrisc*:Linux:*:*)
 	echo or1k-unknown-linux-${LIBC}
 	exit ;;
@@ -1070,12 +1035,9 @@ EOF
 	exit ;;
     ppcle:Linux:*:*)
 	echo powerpcle-unknown-linux-${LIBC}
-<<<<<<< HEAD
-=======
 	exit ;;
     riscv32:Linux:*:* | riscv64:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
->>>>>>> master
 	exit ;;
     s390:Linux:*:* | s390x:Linux:*:*)
 	echo ${UNAME_MACHINE}-ibm-linux-${LIBC}
@@ -1096,11 +1058,7 @@ EOF
 	echo ${UNAME_MACHINE}-dec-linux-${LIBC}
 	exit ;;
     x86_64:Linux:*:*)
-<<<<<<< HEAD
-	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
-=======
 	echo ${UNAME_MACHINE}-pc-linux-${LIBC}
->>>>>>> master
 	exit ;;
     xtensa*:Linux:*:*)
 	echo ${UNAME_MACHINE}-unknown-linux-${LIBC}
@@ -1344,25 +1302,16 @@ EOF
 	    UNAME_PROCESSOR=powerpc
 	fi
 	if test `echo "$UNAME_RELEASE" | sed -e 's/\..*//'` -le 10 ; then
-<<<<<<< HEAD
-	    if [ "$CC_FOR_BUILD" != 'no_compiler_found' ]; then
-		if (echo '#ifdef __LP64__'; echo IS_64BIT_ARCH; echo '#endif') | \
-		    (CCOPTS= $CC_FOR_BUILD -E - 2>/dev/null) | \
-		    grep IS_64BIT_ARCH >/dev/null
-=======
 	    if [ "$CC_FOR_BUILD" != no_compiler_found ]; then
 		if (echo '#ifdef __LP64__'; echo IS_64BIT_ARCH; echo '#endif') | \
 		       (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
 		       grep IS_64BIT_ARCH >/dev/null
->>>>>>> master
 		then
 		    case $UNAME_PROCESSOR in
 			i386) UNAME_PROCESSOR=x86_64 ;;
 			powerpc) UNAME_PROCESSOR=powerpc64 ;;
 		    esac
 		fi
-<<<<<<< HEAD
-=======
 		# On 10.4-10.6 one might compile for PowerPC via gcc -arch ppc
 		if (echo '#ifdef __POWERPC__'; echo IS_PPC; echo '#endif') | \
 		       (CCOPTS="" $CC_FOR_BUILD -E - 2>/dev/null) | \
@@ -1370,7 +1319,6 @@ EOF
 		then
 		    UNAME_PROCESSOR=powerpc
 		fi
->>>>>>> master
 	    fi
 	elif test "$UNAME_PROCESSOR" = i386 ; then
 	    # Avoid executing cc on OS X 10.9, as it ships with a stub
@@ -1472,12 +1420,9 @@ EOF
     x86_64:VMkernel:*:*)
 	echo ${UNAME_MACHINE}-unknown-esx
 	exit ;;
-<<<<<<< HEAD
-=======
     amd64:Isilon\ OneFS:*:*)
 	echo x86_64-unknown-onefs
 	exit ;;
->>>>>>> master
 esac
 
 cat >&2 <<EOF

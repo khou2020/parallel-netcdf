@@ -7,58 +7,6 @@ env:
         - secure: "QDKXmLZiy4nqyQ/IBsPjgNKzPAH7/p0pUhzz1DK3fROKN82158CwyjsbroC7u6+a8Y0NMUyBt/4PrQu5RvXK/Cc1Pc+8oMoxwupIMOXHWn+tcSojUn0+Vq6CO6ibS7xht+XnS/kGVhsgca3PnMNFqbydgGwipaYxiY13USzQSO2ihh1La2cUl3tyE7tCuw4QdL7BKuYNXEl+Pva0dFtR+eGj89dhCpVQr19MWO2qSOAyMnNQ+T72lq3yQI4o63MRd9/3X89zLiuCrB5gUYpqQ4c3ECbIWCgK/FHICamPnyqZeyyyxiJaRB8wFjt4/y74leborREtPuDBbnH9zzZlcSycP69wFhlvg0bfmF0HFR+OKwxLkcAEuATXqlwLEX0PLTn+iR9iJlyqxY7B5GLPx9buKGx5OJyILtKHh272rNDJXxVEOiwsf5N6fPBhfwsqWJxYOzUopb4Qv1GfCqzkQgKTIxVWTK3RrmSWlyp/KWJr03kc747epj6QMgbMJGJI8u8yM/6a8KCOnoKUTG4t9A10eppQk2Q/krTbcv3Hk46ThJYxq+3NTbjfoLr9jp7YXObkfY+g6mTmr+PUlFqk5+76hC3qbCqVUhH6KxyPcRAngOAyDjpNzd1jqJUFaRJQDXbFd6dwS54p4V2pFuseVEQrdVlZ6e59SX/022JzP5o="       
 
 addons:
-<<<<<<< HEAD
-    coverity_scan:
-        project:
-            name: "khou2020/parallel-netcdf"
-            description: "PnetCDF bb_stable branch nightly build submitted via Travis CI"
-        notification_email: kai-yuanhou2020@u.northwestern.edu
-        build_command_prepend: ./configure
-        build_command: make -s V=1 LIBTOOLFLAGS=--silent tests
-        branch_pattern: bb_stable
-
-before_install:
-    - echo -n | openssl s_client -connect scan.coverity.com:443 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' | sudo tee -a /etc/ssl/certs/ca-
-    - test -n $CC && unset CC
-    # apt-package-whitelist can be found in
-    # https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
-    - sudo add-apt-repository ppa:dns/gnu -y
-    - sudo apt-get update -qq
-    - sudo apt-get install -y gfortran
-    - sudo apt-get install -y mpich2
-    - sudo apt-get install --only-upgrade autoconf
-    - sudo apt-get install --only-upgrade automake
-    - sudo apt-get install --only-upgrade libtool
-    - autoconf --version
-    - automake --version
-    - libtool --version
-    - autoreconf -i
-# string substitute for SVN keyword LastChangedDate
-    # Below is for Redhat
-    # - DateStr=`stat -f "%Sm" -t "%F %T %z (%a, %d %b %Y)" configure.ac` ; sed -e "s/LastChangedDate/LastChangedDate: $DateStr /g" -i "" configure
-    # Below is for Ubuntu
-    # - DateStr=`date -r configure.ac +"%F %T %z (%a, %d %b %Y)"` ; sed -e "s/LastChangedDate/LastChangedDate $DateStr /g" -i configure
-    
-script:
-    # continue the above "build_command" for static library only (default)
-    - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS=--silent
-    - ls -lah /home/travis/build/khou2020/parallel-netcdf/src/utils/ncmpilogdump
-    - make -s distclean
-    # build both static and shared libraries
-    - ./configure --silent --enable-shared LDFLAGS="-Wl,--allow-shlib-undefined"
-    - make -s V=1 LIBTOOLFLAGS=--silent tests
-    - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS="--silent --enable-shared LDFLAGS='-Wl,--allow-shlib-undefined'"
-    - make -s distclean
-    # build shared library only
-    # - ./configure --silent --enable-shared --disable-static LDFLAGS="-Wl,--allow-shlib-undefined"
-    # - make -s V=1 LIBTOOLFLAGS=--silent tests
-    # - make -s V=1 LIBTOOLFLAGS=--silent distcheck DISTCHECK_CONFIGURE_FLAGS="--silent --enable-shared --disable-static LDFLAGS='-Wl,--allow-shlib-undefined'"
-    # - make -s distclean
-
-after_failure:
-    - cat /home/travis/build/khou2020/parallel-netcdf/cov-int/build-log.txt
-    - cat ./config.log
-=======
   coverity_scan:
     project:
       name: "wkliao/parallel-netcdf"
@@ -108,7 +56,6 @@ after_failure:
   - cat ./config.log
   - make -s distclean
   # - cat /home/travis/build/wkliao/parallel-netcdf/cov-int/build-log.txt
->>>>>>> master
 
 notifications:
     email: 

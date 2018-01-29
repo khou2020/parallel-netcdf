@@ -114,8 +114,6 @@ func_cc_basename ()
         compile | *[[\\/]]compile | ccache | *[[\\/]]ccache ) ;;
         distcc | *[[\\/]]distcc | purify | *[[\\/]]purify ) ;;
         \-*) ;;
-<<<<<<< HEAD
-=======
         mpicc | mpicxx | mpif77 | mpif90 | *[[\\/]]mpicc | *[[\\/]]mpicxx | *[[\\/]]mpif77 | *[[\\/]]mpif90 )
            # MPICH compilers
            #   eval "$cc_temp -show" < /dev/null >& conftest.ver
@@ -165,7 +163,6 @@ func_cc_basename ()
            # echo "cc_temp=$cc_temp func_cc_basename_result=$func_cc_basename_result"
            return
            ;;
->>>>>>> master
         *) break;;
       esac
     done
@@ -775,13 +772,8 @@ _LT_CONFIG_SAVE_COMMANDS([
     fi
 
     cfgfile=${ofile}T
-<<<<<<< HEAD
-    trap "$RM \"$cfgfile\"; exit 1" 1 2 15
-    $RM "$cfgfile"
-=======
     trap "$RM -f \"$cfgfile\"; exit 1" 1 2 15
     $RM -f "$cfgfile"
->>>>>>> master
 
     cat <<_LT_EOF >> "$cfgfile"
 #! $SHELL

@@ -12,15 +12,11 @@ if BUILD_DRIVER_FOO
    SUBDIRS += ncfoo
 endif
 
-<<<<<<< HEAD
 if BUILD_DRIVER_DW
    SUBDIRS += ncdwio
 endif
 
 DIST_SUBDIRS = include common ncmpio ncdwio ncfoo
-=======
-DIST_SUBDIRS = include common ncmpio ncfoo
->>>>>>> master
 
 # For VPATH build (parallel build), try delete all sub-directories
 distclean-local:

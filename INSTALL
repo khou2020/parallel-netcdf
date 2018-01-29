@@ -100,13 +100,7 @@ Compilers and Options
 the `configure' script does not know about.  Run `./configure --help'
 for details on some of the pertinent environment variables.
 
-<<<<<<< HEAD
-   You can give `configure' initial values for configuration parameters
-by setting variables in the command line or in the environment.  Here
-is an example:
-=======
     - REQUIRED: This compressed tar file
->>>>>>> master
 
      ./configure CC=c99 CFLAGS=-g LIBS=-lposix
 
@@ -138,19 +132,11 @@ this:
                  CXX="g++ -arch i386 -arch x86_64 -arch ppc -arch ppc64" \
                  CPP="gcc -E" CXXCPP="g++ -E"
 
-<<<<<<< HEAD
-   This is not guaranteed to produce working output in all cases, you
-may have to build one architecture at a time and combine the results
-using the `lipo' tool if you have problems.
-
-Installation Names
-==================
 =======
       gzip -dc parallel-netcdf-_PNETCDF_VERSION_.tar.gz | tar -xf -
       cd parallel-netcdf-_PNETCDF_VERSION_
 
 (c) Choose an installation directory, for example $HOME/PnetCDF
->>>>>>> master
 
    By default, `make install' installs the package's commands under
 `/usr/local/bin', include files under `/usr/local/include', etc.  You
@@ -253,30 +239,19 @@ and if that doesn't work, try
 
      ./configure CC="cc -nodtk"
 
-<<<<<<< HEAD
-   On Solaris, don't put `/usr/ucb' early in your `PATH'.  This
-directory contains several dysfunctional programs; working variants of
-these programs are available in `/usr/bin'.  So, if you need `/usr/ucb'
-in your `PATH', put it _after_ `/usr/bin'.
-=======
 (g) Add the bin subdirectory of the installation directory to your path
     environment variable in your startup script (.bashrc for bash, .cshrc for
     csh, etc.):
->>>>>>> master
 
    On Haiku, software installed for all users goes in `/boot/common',
 not `/usr/local'.  It is recommended to use the following options:
 
      ./configure --prefix=/boot/common
 
-<<<<<<< HEAD
-Specifying the System Type
-==========================
 =======
     for bash and sh:
 
       PATH=$HOME/PnetCDF/bin:$PATH ; export PATH
->>>>>>> master
 
    There may be some features `configure' cannot figure out
 automatically, but needs to determine by the type of machine the package
@@ -309,17 +284,6 @@ eventually be run) with `--host=TYPE'.
 Sharing Defaults
 ================
 
-<<<<<<< HEAD
-   If you want to set default values for `configure' scripts to share,
-you can create a site shell script called `config.site' that gives
-default values for variables like `CC', `cache_file', and `prefix'.
-`configure' looks for `PREFIX/share/config.site' if it exists, then
-`PREFIX/etc/config.site' if it exists.  Or, you can set the
-`CONFIG_SITE' environment variable to the location of the site script.
-A warning: not all `configure' scripts look for a site script.
-
-Defining Variables
-==================
 =======
 PnetCDF has a number of configure features.  A complete list of configuration
 options can be found using:
@@ -543,7 +507,6 @@ Issue with older MPI-IO implementation.
 ===========================================
 
 Please send an email to parallel-netcdf@mcs.anl.gov
->>>>>>> master
 
    Variables not defined in a site shell script can be set in the
 environment passed to `configure'.  However, some packages may run
