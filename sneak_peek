@@ -3,17 +3,29 @@ This is essentially a placeholder for the next release note ...
 ------------------------------------------------------------------------------
 
   o New features
+<<<<<<< HEAD
     * none
 
   o New APIs
+=======
+>>>>>>> master
     * none
 
+  o New Limitations
+    * none
+
+<<<<<<< HEAD
+  o New constants
+    * none
+
+=======
   o New Limitations
     * none
 
   o New constants
     * none
 
+>>>>>>> master
   o New APIs
     * none
 
@@ -83,6 +95,7 @@ This is essentially a placeholder for the next release note ...
 
   o Conformity with NetCDF library
     * none
+<<<<<<< HEAD
 
   o Conflict with NetCDF library
     * none
@@ -189,5 +202,18 @@ This is essentially a placeholder for the next release note ...
     * none
 
   o New programs for I/O benchmarks
+=======
+
+  o Conflict with NetCDF library
+    * none
+
+  o Issues related to MPI library vendors:
+    * none
+
+  o Issues related to Darshan library:
+    * none
+
+  o Clarifications
+>>>>>>> master
     * none
 

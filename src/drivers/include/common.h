@@ -87,9 +87,12 @@ ncmpii_create_imaptype(int ndims, const MPI_Offset *count,
 extern int
 ncmpii_error_mpi2nc(int mpi_errorcode, char *msg);
 
+<<<<<<< HEAD
 extern int 
 ncmpii_error_posix2nc(char *err_msg);
 
+=======
+>>>>>>> master
 extern int
 ncmpii_check_name(const char *name, int file_ver);
 

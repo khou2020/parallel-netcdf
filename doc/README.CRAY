@@ -6,14 +6,19 @@
 
 ===============================================================================
     Cray XC40
+<<<<<<< HEAD
 ===============================================================================
 
     Cray XC30
+=======
+>>>>>>> master
 ===============================================================================
 
-Building PnetCDF on the Cray XC30 (tested on Edison @ NERSC)
-http://www.nersc.gov/systems/edison-cray-xc30/
+* Building PnetCDF on the Cray XC40 (tested on Cori @ NERSC and Theta @ ALCF)
+  http://www.nersc.gov/systems/cori/
+  https://www.alcf.anl.gov/theta
 
+<<<<<<< HEAD
 =======
 * Building PnetCDF on the Cray XC40 (tested on Cori @ NERSC and Theta @ ALCF)
   http://www.nersc.gov/systems/cori/
@@ -30,6 +35,19 @@ http://www.nersc.gov/systems/edison-cray-xc30/
   http://www.nersc.gov/users/computational-systems/cori/programming/compiling-codes-on-cori/
 
 
+=======
+    ./configure --prefix=/path/to/install \
+                cross_compiling="yes" \
+                MPICC=cc MPICXX=CC MPIF77=ftn MPIF90=ftn \
+                CFLAGS="" CXXFLAGS="" FFLAGS="" FCFLAGS=""
+
+  On Cori, when using Intel-based compilers are used, NERSC recommends no
+  optimization arguments for compilation. See "Recommended flags" for Intel
+  compilers at
+  http://www.nersc.gov/users/computational-systems/cori/programming/compiling-codes-on-cori/
+
+
+>>>>>>> master
 * Note that the default setting of PnetCDF is to build static libraries only.
   To also build shared libraries, add "--enable-shared LDFLAGS=-dynamic" to the
   configure command and change the compile flags to "-O2".

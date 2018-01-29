@@ -118,8 +118,11 @@ AH_TEMPLATE([HAVE_FUNCTION_MACRO],      [Define if C++ macro __FUNCTION__ is def
 AH_TEMPLATE([RELAX_COORD_BOUND],        [Define if relaxed coordinate check is enabled])
 AH_TEMPLATE([ENABLE_LARGE_REQ],         [Define if to enable single large MPI-IO request])
 AH_TEMPLATE([ENABLE_NULL_BYTE_HEADER_PADDING], [Define if to enable strict null-byte padding in file header])
+<<<<<<< HEAD
 AH_TEMPLATE([BUILD_DRIVER_DW],          [Define if to enable datawarp burst buffer feature])  
 AH_TEMPLATE([PNETCDF_PROFILING],        [Define if to enable datawarp burst buffer feature]) 
+=======
+>>>>>>> master
 
 AH_TOP([#ifndef _CONFIG_H
 #define _CONFIG_H])
@@ -815,6 +818,7 @@ if test "x${has_fortran}" = xyes ; then
    dnl -M when Fujitsu frtpx is used. UD_FC_MODULE_FLAG fixes this problem.
    UD_FC_MODULE_FLAG
    UD_MSG_DEBUG([FC_MODINC=$FC_MODINC])
+<<<<<<< HEAD
 
    dnl AC_FC_MODULE_OUTPUT_FLAG
    dnl UD_FC_MODULE_OUTPUT_FLAG
@@ -832,6 +836,25 @@ AM_CONDITIONAL(UPPER_CASE_MOD, [test x$ac_cv_prog_f90_uppercase_mod = xyes])
 
 dnl AC_PROG_INSTALL
 
+=======
+
+   dnl AC_FC_MODULE_OUTPUT_FLAG
+   dnl UD_FC_MODULE_OUTPUT_FLAG
+   dnl UD_FC_MODULE_OUTPUT_FLAG defines FC_MODOUT
+   dnl UD_MSG_DEBUG([FC_MODOUT=$FC_MODOUT])
+
+   dnl
+   dnl Below is to check if a Fortran compiler produces module files with upper
+   dnl case file name, e.g. PNETCDF.mod. However, this does not work for Mac
+   dnl OSX file system which is case insensitive
+   dnl
+   UD_PROG_FC_UPPERCASE_MOD
+fi
+AM_CONDITIONAL(UPPER_CASE_MOD, [test x$ac_cv_prog_f90_uppercase_mod = xyes])
+
+dnl AC_PROG_INSTALL
+
+>>>>>>> master
 dnl have_yacc_lex=no
 dnl Starting from PnetCDF 1.5.0, yacc and lex is no longer needed
 dnl see comments in src/utils/ncmpigen/Makefile.in for build rules for
@@ -1018,6 +1041,7 @@ if test "$ac_cv_func_MPI_Info_dup" = no ; then
      library.  Please use an MPI library that supports MPI_Info_dup. Abort.
    -----------------------------------------------------------------------])
 fi
+<<<<<<< HEAD
 
 if test "$ac_cv_func_MPI_Info_dup" = no ; then
    AC_MSG_ERROR([
@@ -1026,6 +1050,8 @@ if test "$ac_cv_func_MPI_Info_dup" = no ; then
      library.  Please use an MPI library that supports MPI_Info_dup. Abort.
    -----------------------------------------------------------------------])
 fi
+=======
+>>>>>>> master
 
 dnl Check presence of MPI COMBINERS. These are of type int.
 AC_CHECK_DECLS([MPI_COMBINER_DUP,
@@ -1516,7 +1542,10 @@ AC_CONFIG_FILES(Makefile \
                 src/drivers/common/Makefile \
                 src/drivers/include/Makefile \
                 src/drivers/ncmpio/Makefile \
+<<<<<<< HEAD
                 src/drivers/ncdwio/Makefile \
+=======
+>>>>>>> master
                 src/drivers/ncfoo/Makefile \
                 src/binding/Makefile \
                 src/binding/cxx/Makefile \
@@ -1533,8 +1562,11 @@ AC_CONFIG_FILES(Makefile \
                 src/utils/ncmpidiff/Makefile \
                 src/utils/ncmpidump/Makefile \
                 src/utils/ncmpigen/Makefile \
+<<<<<<< HEAD
                 src/utils/ncmpilogdump/Makefile \
                 src/utils/ncmpizip/Makefile \
+=======
+>>>>>>> master
                 src/utils/pnetcdf-config \
                 src/packaging/Makefile \
                 src/packaging/pnetcdf.pc \

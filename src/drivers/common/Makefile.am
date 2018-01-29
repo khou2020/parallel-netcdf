@@ -34,8 +34,12 @@ C_SRCS    = utf8proc.c \
             dtype_decode.c \
             create_imaptype.c \
             error_mpi2nc.c \
+<<<<<<< HEAD
             error_posix2nc.c \
 			check_name.c \
+=======
+            check_name.c \
+>>>>>>> master
             pack_unpack.c \
             utils.c
 
