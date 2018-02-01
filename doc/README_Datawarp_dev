@@ -12,5 +12,7 @@
  Whever the structure of PNC_Driver changes, the code in datawarp driver must be updated to match the new interface
 
 -----------------------------------------------------------------------------
- Known issue in Datawarp module
+ Known issue in Datawarp driver
 -----------------------------------------------------------------------------
+
+Buffering of vard API is not supported. It will be forward to ncmpio directly.

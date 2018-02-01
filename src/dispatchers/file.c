@@ -56,7 +56,6 @@ new_id_PNCList(int *new_id)
     }
     if (*new_id == -1) /* Too many files open */
         DEBUG_RETURN_ERROR(NC_ENFILE)
-<<<<<<< HEAD
 
     return NC_NOERR;
 }
@@ -71,22 +70,6 @@ add_to_PNCList(PNC *pncp,
     assert(new_id >= 0);
     if (new_id >= NC_MAX_NFILES) return NC_ENFILE;
 
-=======
-
-    return NC_NOERR;
-}
-
-/*----< add_to_PNCList() >---------------------------------------------------*/
-static int
-add_to_PNCList(PNC *pncp,
-               int  new_id)
-{   
-    /* these checks below are redundant */
-    assert(pncp != NULL);
-    assert(new_id >= 0);
-    if (new_id >= NC_MAX_NFILES) return NC_ENFILE;
-
->>>>>>> master
     pnc_filelist[new_id] = pncp;  /* store the pointer */
     pnc_numfiles++;               /* increment number of files opened */
     return NC_NOERR;
@@ -260,12 +243,9 @@ ncmpi_create(MPI_Comm    comm,
 #ifdef BUILD_DRIVER_FOO
     int enable_foo_driver=0;
 #endif
-<<<<<<< HEAD
 #ifdef BUILD_DRIVER_DW
     int enable_dw_driver = 0;
 #endif
-=======
->>>>>>> master
 
     MPI_Comm_rank(comm, &rank);
 
@@ -288,8 +268,6 @@ ncmpi_create(MPI_Comm    comm,
      * path consistency is checked in MPI-IO with error code MPI_ERR_NOT_SAME
      */
     if (path == NULL || *path == '\0') DEBUG_RETURN_ERROR(NC_EBAD_FILE)
-<<<<<<< HEAD
-=======
 
     /* Check cmode consistency */
     root_cmode = cmode; /* only root's matters */
@@ -334,7 +312,6 @@ ncmpi_create(MPI_Comm    comm,
          * only one driver, ncmpio.
          */
         driver = ncmpio_inq_driver();
->>>>>>> master
 
     /* Check cmode consistency */
     root_cmode = cmode; /* only root's matters */
@@ -543,12 +520,9 @@ ncmpi_open(MPI_Comm    comm,
 #ifdef BUILD_DRIVER_FOO
     int enable_foo_driver=0;
 #endif
-<<<<<<< HEAD
 #ifdef BUILD_DRIVER_DW
     int enable_dw_driver = 0;
 #endif
-=======
->>>>>>> master
 
     MPI_Comm_rank(comm, &rank);
 
@@ -589,7 +563,6 @@ ncmpi_open(MPI_Comm    comm,
      * Only root's omode matters.
      */
     msg[1] = omode; /* only root's matters */
-<<<<<<< HEAD
 
     TRACE_COMM(MPI_Bcast)(&msg, 2, MPI_INT, 0, comm);
     NCMPII_HANDLE_ERROR("MPI_Bcast")
@@ -605,23 +578,6 @@ ncmpi_open(MPI_Comm    comm,
         DEBUG_ASSIGN_ERROR(status, NC_EMULTIDEFINE_OMODE)
     }
 
-=======
-
-    TRACE_COMM(MPI_Bcast)(&msg, 2, MPI_INT, 0, comm);
-    NCMPII_HANDLE_ERROR("MPI_Bcast")
-
-    /* check format error (a fatal error, must return now) */
-    format = msg[0];
-    if (format < 0) return format; /* all netCDF errors are negative */
-
-    /* check omode consistency */
-    root_omode = msg[1];
-    if (root_omode != omode) {
-        omode = root_omode;
-        DEBUG_ASSIGN_ERROR(status, NC_EMULTIDEFINE_OMODE)
-    }
-
->>>>>>> master
     if (safe_mode) { /* sync status among all processes */
         err = status;
         TRACE_COMM(MPI_Allreduce)(&err, &status, 1, MPI_INT, MPI_MIN, comm);
@@ -633,37 +589,29 @@ ncmpi_open(MPI_Comm    comm,
     /* combine user's info and PNETCDF_HINTS env variable */
     combine_env_hints(info, &combined_info);
 
-<<<<<<< HEAD
-=======
 #ifdef BUILD_DRIVER_FOO
->>>>>>> master
     /* check if nc_foo_driver is enabled */
     if (combined_info != MPI_INFO_NULL) {
         char value[MPI_MAX_INFO_VAL];
         int flag;
-<<<<<<< HEAD
-#ifdef BUILD_DRIVER_FOO
-=======
-
->>>>>>> master
         MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
-<<<<<<< HEAD
+    }
 #endif
 #ifdef BUILD_DRIVER_DW
+    if (combined_info != MPI_INFO_NULL) {
+        char value[MPI_MAX_INFO_VAL];
+        int flag;
         MPI_Info_get(combined_info, "nc_dw_driver", MPI_MAX_INFO_VAL-1,
             value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_dw_driver = 1;
+    }
 #endif
-    }
-#ifdef BUILD_DRIVER_FOO
-=======
-    }
 
->>>>>>> master
+#ifdef BUILD_DRIVER_FOO
     if (enable_foo_driver)
         driver = ncfoo_inq_driver();
     else
@@ -674,7 +622,6 @@ ncmpi_open(MPI_Comm    comm,
         if (format == NC_FORMAT_CLASSIC ||
             format == NC_FORMAT_CDF2 ||
             format == NC_FORMAT_CDF5) {
-<<<<<<< HEAD
 #ifdef BUILD_DRIVER_DW
             if (enable_dw_driver){
                 driver = ncdwio_inq_driver();
@@ -685,9 +632,6 @@ ncmpi_open(MPI_Comm    comm,
                 /* default is ncmpio driver */
                 driver = ncmpio_inq_driver();
             }
-=======
-        driver = ncmpio_inq_driver();
->>>>>>> master
     }
     else if (format == NC_FORMAT_NETCDF4_CLASSIC) {
         fprintf(stderr,"NC_FORMAT_NETCDF4_CLASSIC is not yet supported\n");
@@ -699,7 +643,6 @@ ncmpi_open(MPI_Comm    comm,
     }
     else { /* unrecognized file format */
         DEBUG_RETURN_ERROR(NC_ENOTNC)
-<<<<<<< HEAD
     }
 
     /* get a new ID from NCPList */
@@ -718,26 +661,6 @@ ncmpi_open(MPI_Comm    comm,
         return status;
     }
 
-=======
-    }
-
-    /* get a new ID from NCPList */
-    err = new_id_PNCList(ncidp);
-    if (err != NC_NOERR) return err;
-
-    /* calling the open subroutine */
-    err = driver->open(comm, path, omode, *ncidp, combined_info, &ncp);
-    if (status == NC_NOERR) status = err;
-    if (combined_info != MPI_INFO_NULL) MPI_Info_free(&combined_info);
-    if (status != NC_NOERR && status != NC_EMULTIDEFINE_OMODE &&
-        status != NC_ENULLPAD) {
-        /* NC_EMULTIDEFINE_OMODE and NC_ENULLPAD are not fatal error. We
-         * continue the rest open procedure */
-        *ncidp = -1;
-        return status;
-    }
-
->>>>>>> master
     /* Create a PNC object and save its driver pointer */
     pncp = (PNC*) NCI_Malloc(sizeof(PNC));
     if (pncp == NULL) {
