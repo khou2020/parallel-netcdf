@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
     err = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
     err = ncmpi_inq_file_info(ncid, &infoused); CHECK_ERR
 
-    MPI_Info_get(infoused, "nc_dw_driver", MPI_MAX_INFO_VAL - 1, hint, &flag);
+    MPI_Info_get(infoused, "nc_dw", MPI_MAX_INFO_VAL - 1, hint, &flag);
     if (flag && strcasecmp(hint, "enable") == 0){
         log_enabled = 1;
     }

@@ -397,7 +397,7 @@ ncmpi_create(MPI_Comm    comm,
             enable_foo_driver = 1;
 #endif
 #ifdef BUILD_DRIVER_DW
-        MPI_Info_get(combined_info, "nc_dw_driver", MPI_MAX_INFO_VAL-1,
+        MPI_Info_get(combined_info, "nc_dw", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_dw_driver = 1;
@@ -604,7 +604,7 @@ ncmpi_open(MPI_Comm    comm,
     if (combined_info != MPI_INFO_NULL) {
         char value[MPI_MAX_INFO_VAL];
         int flag;
-        MPI_Info_get(combined_info, "nc_dw_driver", MPI_MAX_INFO_VAL-1,
+        MPI_Info_get(combined_info, "nc_dw", MPI_MAX_INFO_VAL-1,
             value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_dw_driver = 1;

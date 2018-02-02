@@ -51,7 +51,7 @@ void ncdwio_extract_hint(NC_dw *ncdwp, MPI_Info info){
         ncdwp->hints |= NC_LOG_HINT_LOG_OVERWRITE;
     }
     // Use shared logfile (disable)
-    MPI_Info_get(info, "nc_dw_sharedlog", MPI_MAX_INFO_VAL - 1, 
+    MPI_Info_get(info, "nc_dw_shared_logs", MPI_MAX_INFO_VAL - 1, 
                  value, &flag);
     if (flag && strcasecmp(value, "enable") == 0){
         ncdwp->hints |= NC_LOG_HINT_LOG_SHARE;
@@ -85,12 +85,12 @@ void ncdwio_extract_hint(NC_dw *ncdwp, MPI_Info info){
 void ncdwio_export_hint(NC_dw *ncdwp, MPI_Info info){
     char value[MPI_MAX_INFO_VAL];
 
-    MPI_Info_set(info, "nc_dw_driver", "enable");
+    MPI_Info_set(info, "nc_dw", "enable");
     if (ncdwp->hints & NC_LOG_HINT_LOG_OVERWRITE) {
         MPI_Info_set(info, "nc_dw_overwrite", "enable");
     }
     if (ncdwp->hints & NC_LOG_HINT_LOG_SHARE) {
-        MPI_Info_set(info, "nc_dw_sharedlog", "enable");
+        MPI_Info_set(info, "nc_dw_shared_logs", "enable");
     }
     if (!(ncdwp->hints & NC_LOG_HINT_DEL_ON_CLOSE)) {
         MPI_Info_set(info, "nc_dw_del_on_close", "disable");

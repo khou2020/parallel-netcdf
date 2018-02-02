@@ -12,7 +12,7 @@ VALIDATOR=../../src/utils/ncvalidator/ncvalidator
 for j in 0 1 ; do
     export PNETCDF_SAFE_MODE=$j
     # echo "set PNETCDF_SAFE_MODE ${PNETCDF_SAFE_MODE}"
-    export PNETCDF_HINTS="nc_dw_driver=enable"
+    export PNETCDF_HINTS="nc_dw=enable"
     ${TESTSEQRUN} $1              ${TESTOUTDIR}/$1.nc
     unset PNETCDF_HINTS
     ${TESTSEQRUN} ${VALIDATOR} -q ${TESTOUTDIR}/$1.nc

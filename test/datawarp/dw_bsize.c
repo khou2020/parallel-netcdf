@@ -65,7 +65,7 @@ int main(int argc, char *argv[]){
 
     /* Initialize file info */
 	MPI_Info_create(&info);
-    MPI_Info_set(info, "nc_dw_driver", "enable");
+    MPI_Info_set(info, "nc_dw", "enable");
     MPI_Info_set(info, "nc_dw_overwrite", "enable");
     /* Set defualt buffer size to 1/16 of the rows */
     sprintf(bsize, "%u", (unsigned int)(SIZE * SIZE / 16 * sizeof(int)));

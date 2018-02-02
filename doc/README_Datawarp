@@ -41,7 +41,6 @@ nc_dw	                enable/disable	        disable                     Whether
 nc_dw_dirname	        <Valid POSIX Directory> <Current Working Directory> Where (directory) should log file be placed. This is usually set to the path where burst buffer is mounted.
 nc_dw_del_on_close	    enable/disable	        enable	                    Whether logfile should be deleted after closing the NetCDF file. It can be disabled when the scheduler will clean up the burst buffer automatically after the job is completed.
 nc_dw_flush_buffer_size <integer>	            0	                        Amount of memory that can be used to flush the log. The unit is in bytes. 0 means unlimited. Any write request that is larger than the buffer size will not be buffered, instead, it will be written to PFS directly.
-nc_dw_shared_log	    enable/disable	        disable	                    When enabled, processes within a node will share the same log file. It is recommended when the burst buffer is set to striped mode. By default, each process will create it's own log file
 
 -----------------------------------------------------------------------------
  Submitting Job that Enables DataWarp Driver

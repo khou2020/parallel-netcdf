@@ -59,7 +59,7 @@ int main(int argc, char *argv[]){
 
     /* Initialize file info */
 	MPI_Info_create(&info);
-    MPI_Info_set(info, "nc_dw_driver", "enable");
+    MPI_Info_set(info, "nc_dw", "enable");
     MPI_Info_set(info, "nc_dw_overwrite", "enable");
 
     /* Create new netcdf file */
