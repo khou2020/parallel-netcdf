@@ -1313,25 +1313,11 @@ fi
 AC_SUBST(ENABLE_SUBFILING)
 AM_CONDITIONAL(ENABLE_SUBFILING, [test x$enable_subfiling = xyes])
 
-AC_ARG_ENABLE([dwdriver],
-   [AS_HELP_STRING([--enable-dwdriver],
+AC_ARG_ENABLE([datawarp],
+   [AS_HELP_STRING([--enable-datawarp],
                    [Enable datawarp driver support. @<:@default: disabled@:>@])],
    [enable_dwdriver=${enableval}], [enable_dwdriver=no]
 )
- 
-AC_ARG_ENABLE([profiling], 
-    [AS_HELP_STRING([--enable_profiling], 
-                    [Enable time and memory profiling. @<:@default: disabled@:>@])], 
-    [enable_profiling=${enableval}], [enable_profiling=no] 
-) 
-
-PNETCDF_PROFILING=0  
-if test "x$enable_profiling" = "xyes" ; then 
-    AC_DEFINE(PNETCDF_PROFILING) 
-    PNETCDF_PROFILING=1 
-fi 
-AC_SUBST(PNETCDF_PROFILING) 
-AM_CONDITIONAL(PNETCDF_PROFILING, [test x$enable_profiling = xyes]) 
 
 BUILD_DRIVER_DW=0
 if test "x$enable_dwdriver" = "xyes" ; then
