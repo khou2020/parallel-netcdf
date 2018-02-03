@@ -39,12 +39,12 @@
 static
 int test_cdf2(char *filename)
 {
-    int err, nerrs=0, ncid, vid, dimid, dw_enabled, flag;
+    int err, nerrs=0, ncid, vid, dimid;
     unsigned char uc[1];
     signed char sc[1];
     int si[1];
 #ifdef BUILD_DRIVER_DW
-    int dw_enabled
+    int dw_enabled;
 #endif
 
     err = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, MPI_INFO_NULL, &ncid); CHECK_ERR
@@ -163,7 +163,7 @@ int test_cdf5(char *filename)
     unsigned char uc[1];
     signed char sc[1];
 #ifdef BUILD_DRIVER_DW
-    int dw_enabled
+    int dw_enabled;
 #endif
 
     err = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER|NC_64BIT_DATA, MPI_INFO_NULL, &ncid); CHECK_ERR

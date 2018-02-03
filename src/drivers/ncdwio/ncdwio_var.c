@@ -407,6 +407,11 @@ ncdwio_put_varn(void              *ncdp,
     NC_dw *ncdwp = (NC_dw*)ncdp;
     MPI_Datatype ptype = buftype;
     
+    /* It is illegal for starts to be NULL unless num is 0*/
+    if (num > 0 && starts == NULL){
+        DEBUG_RETURN_ERROR(NC_ENULLSTART)
+    }
+
     /* Resolve flexible api so we can calculate size of each put_var */
     if (bufcount != -1){
         int isderived, iscontig_of_ptypes;
@@ -485,6 +490,11 @@ ncdwio_iput_varn(void               *ncdp,
     int i, err, id;
     NC_dw *ncdwp = (NC_dw*)ncdp;
     
+    /* It is illegal for starts to be NULL unless num is 0*/
+    if (num > 0 && starts == NULL){
+        DEBUG_RETURN_ERROR(NC_ENULLSTART)
+    }
+
     // Create a new put request with id
     err = ncdwio_put_list_add(ncdwp, &id);
     if (err != NC_NOERR){
