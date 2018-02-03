@@ -166,26 +166,33 @@ define(`TEST_ERANGE_PUT',dnl
 `dnl
 static
 int test_erange_put_$1_$2(char* filename) {
-    int i, err, nerrs=0, ncid, dimid, omode, varid1, varid2, cdf, dw_enabled, flag;
+    int i, err, nerrs=0, ncid, dimid, omode, varid1, varid2, cdf;
     $1 buf[LEN], fillv=99;
     MPI_Info info=MPI_INFO_NULL;
     MPI_Comm comm=MPI_COMM_WORLD;
-    char hint[MPI_MAX_INFO_VAL];
-    MPI_Info infoused;
+#ifdef BUILD_DRIVER_DW
+    int dw_enabled;
+#endif
 
     /* create a new file */
     err = ncmpi_create(comm, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
+#ifdef BUILD_DRIVER_DW
+    {
+        int flag;
+        char hint[MPI_MAX_INFO_VAL];
+        MPI_Info infoused;
 
-    ncmpi_inq_file_info(ncid, &infoused);
-    MPI_Info_get(infoused, "nc_dw", MPI_MAX_INFO_VAL - 1, hint, &flag);
-    if (flag && strcasecmp(hint, "enable") == 0){
-        dw_enabled = 1;
+        ncmpi_inq_file_info(ncid, &infoused);
+        MPI_Info_get(infoused, "nc_dw", MPI_MAX_INFO_VAL - 1, hint, &flag);
+        if (flag && strcasecmp(hint, "enable") == 0){
+            dw_enabled = 1;
+        }
+        else{
+            dw_enabled = 0;
+        }
+        MPI_Info_free(&infoused);
     }
-    else{
-        dw_enabled = 0;
-    }
-    MPI_Info_free(&infoused);
-
+#endif
     err = ncmpi_set_fill(ncid, NC_FILL, NULL); CHECK_ERR
     err = ncmpi_def_dim(ncid, "X", LEN, &dimid); CHECK_ERR
     err = ncmpi_def_var(ncid, "var1", NC_TYPE($1), 1, &dimid, &varid1); CHECK_ERR
@@ -200,14 +207,18 @@ int test_erange_put_$1_$2(char* filename) {
     $2 wbuf[LEN];
     for (i=0; i<LEN; i++) wbuf[i] = ($2) ifelse(index(`$1',`u'), 0, `-1', `XTYPE_MAX($2)');
     err = PUT_VAR($2)(ncid, varid1, wbuf);
+#ifdef BUILD_DRIVER_DW
     if (dw_enabled){
         err = ncmpi_sync(ncid);    
     }
+#endif
     ifelse(`$1',`schar',`ifelse(`$2',`uchar',`if (cdf == NC_FORMAT_CDF2) CHECK_ERR',`EXP_ERR(NC_ERANGE)')',`EXP_ERR(NC_ERANGE)')
     err = PUT_VAR($2)(ncid, varid2, wbuf);
+#ifdef BUILD_DRIVER_DW
     if (dw_enabled){
         err = ncmpi_sync(ncid);    
     }
+#endif
     ifelse(`$1',`schar',`ifelse(`$2',`uchar',`if (cdf == NC_FORMAT_CDF2) CHECK_ERR',`EXP_ERR(NC_ERANGE)')',`EXP_ERR(NC_ERANGE)')
 
     err = ncmpi_close(ncid); CHECK_ERR

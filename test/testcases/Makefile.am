@@ -69,9 +69,10 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                tst_vars_fill \
                tst_def_var_fill
 
-M4_SRCS  = put_all_kinds.m4 erange_fill.m4 tst_vars_fill.m4
+M4_SRCS  = put_all_kinds.m4 iput_all_kinds.m4 erange_fill.m4 tst_vars_fill.m4
 
 nodist_put_all_kinds_SOURCES = put_all_kinds.c
+nodist_iput_all_kinds_SOURCES = iput_all_kinds.c
 nodist_erange_fill_SOURCES = erange_fill.c
 nodist_tst_vars_fill_SOURCES = tst_vars_fill.c
 
@@ -112,7 +113,7 @@ if HAVE_MPI_MOD
 endif
 endif
 
-check_PROGRAMS = $(TESTPROGRAMS) put_all_kinds redef1 tst_vars_fill
+check_PROGRAMS = $(TESTPROGRAMS) put_all_kinds iput_all_kinds redef1 tst_vars_fill
 
 # autimake 1.11.3 has not yet implemented AM_TESTS_ENVIRONMENT
 # For newer versions, we can use AM_TESTS_ENVIRONMENT instead
@@ -140,6 +141,9 @@ CLEANFILES = $(M4_SRCS:.m4=.c) core core.* *.gcda *.gcno *.gcov gmon.out \
              $(TESTOUTDIR)/put_all_kinds.nc.cdf1 \
              $(TESTOUTDIR)/put_all_kinds.nc.cdf2 \
              $(TESTOUTDIR)/put_all_kinds.nc.cdf5 \
+             $(TESTOUTDIR)/iput_all_kinds.nc.cdf1 \
+             $(TESTOUTDIR)/iput_all_kinds.nc.cdf2 \
+             $(TESTOUTDIR)/iput_all_kinds.nc.cdf5 \
              $(NC_FILES)
 
 EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump wrap_runs.sh
