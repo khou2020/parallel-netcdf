@@ -34,10 +34,10 @@ C_SRCS    = utf8proc.c \
             dtype_decode.c \
             create_imaptype.c \
             error_mpi2nc.c \
-            error_posix2nc.c \
 			check_name.c \
             pack_unpack.c \
-            utils.c
+            utils.c \
+            error_posix2nc.c
 
 libcommon_la_SOURCES = $(C_SRCS) $(H_SRCS)
 nodist_libcommon_la_SOURCES = $(M4_SRCS:.m4=.c)

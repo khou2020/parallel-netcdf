@@ -291,120 +291,31 @@ ncmpi_create(MPI_Comm    comm,
     /* combine user's info and PNETCDF_HINTS env variable */
     combine_env_hints(info, &combined_info);
 
-#ifdef BUILD_DRIVER_FOO
-    /* check if nc_foo_driver is enabled */
-    if (combined_info != MPI_INFO_NULL) {
-        char value[MPI_MAX_INFO_VAL];
-        int flag;
-
-        MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
-                     value, &flag);
-        if (flag && strcasecmp(value, "enable") == 0)
-            enable_foo_driver = 1;
-    }
-
-    if (enable_foo_driver)
-        driver = ncfoo_inq_driver();
-    else
-#endif
-        /* TODO: Use environment variable and cmode to tell the file format
-         * which is later used to select the right driver. For now, we have
-         * only one driver, ncmpio.
-         */
-        driver = ncmpio_inq_driver();
-
-    /* Check cmode consistency */
-    root_cmode = cmode; /* only root's matters */
-    TRACE_COMM(MPI_Bcast)(&root_cmode, 1, MPI_INT, 0, comm);
-    NCMPII_HANDLE_ERROR("MPI_Bcast")
-
-    /* Overwrite cmode with root's cmode */
-    if (root_cmode != cmode) {
-        cmode = root_cmode;
-        DEBUG_ASSIGN_ERROR(status, NC_EMULTIDEFINE_CMODE)
-    }
-
-    if (safe_mode) { /* sync status among all processes */
-        err = status;
-        TRACE_COMM(MPI_Allreduce)(&err, &status, 1, MPI_INT, MPI_MIN, comm);
-        NCMPII_HANDLE_ERROR("MPI_Allreduce")
-    }
-    /* continue to use root's cmode to create the file, but will report cmode
-     * inconsistency error, if there is any */
-
-    /* combine user's info and PNETCDF_HINTS env variable */
-    combine_env_hints(info, &combined_info);
-
-#ifdef BUILD_DRIVER_FOO
-    /* check if nc_foo_driver is enabled */
-    if (combined_info != MPI_INFO_NULL) {
-        char value[MPI_MAX_INFO_VAL];
-        int flag;
-
-        MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
-                     value, &flag);
-        if (flag && strcasecmp(value, "enable") == 0)
-            enable_foo_driver = 1;
-    }
-
-    if (enable_foo_driver)
-        driver = ncfoo_inq_driver();
-    else
-#endif
-        /* TODO: Use environment variable and cmode to tell the file format
-         * which is later used to select the right driver. For now, we have
-         * only one driver, ncmpio.
-         */
-        driver = ncmpio_inq_driver();
-
-    /* path's validity is checked in MPI-IO with error code MPI_ERR_BAD_FILE
-     * path consistency is checked in MPI-IO with error code MPI_ERR_NOT_SAME
-     */
-    if (path == NULL || *path == '\0') DEBUG_RETURN_ERROR(NC_EBAD_FILE)
-
-    /* Check cmode consistency */
-    root_cmode = cmode; /* only root's matters */
-    TRACE_COMM(MPI_Bcast)(&root_cmode, 1, MPI_INT, 0, comm);
-    NCMPII_HANDLE_ERROR("MPI_Bcast")
-
-    /* Overwrite cmode with root's cmode */
-    if (root_cmode != cmode) {
-        cmode = root_cmode;
-        DEBUG_ASSIGN_ERROR(status, NC_EMULTIDEFINE_CMODE)
-    }
-
-    if (safe_mode) { /* sync status among all processes */
-        err = status;
-        TRACE_COMM(MPI_Allreduce)(&err, &status, 1, MPI_INT, MPI_MIN, comm);
-        NCMPII_HANDLE_ERROR("MPI_Allreduce")
-    }
-    /* continue to use root's cmode to create the file, but will report cmode
-     * inconsistency error, if there is any */
-
-    /* combine user's info and PNETCDF_HINTS env variable */
-    combine_env_hints(info, &combined_info);
-
-
-    /* check if nc_foo_driver is enabled */
-    if (combined_info != MPI_INFO_NULL) {
-        char value[MPI_MAX_INFO_VAL];
-        int flag;
-
-#ifdef BUILD_DRIVER_FOO
-        MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
-                     value, &flag);
-        if (flag && strcasecmp(value, "enable") == 0)
-            enable_foo_driver = 1;
-#endif
 #ifdef BUILD_DRIVER_DW
-        MPI_Info_get(combined_info, "nc_dw", MPI_MAX_INFO_VAL-1,
-                     value, &flag);
-        if (flag && strcasecmp(value, "enable") == 0)
-            enable_dw_driver = 1;
+        /* check if nc_dw is enabled */
+        if (combined_info != MPI_INFO_NULL) {
+            char value[MPI_MAX_INFO_VAL];
+            int flag;
+
+            MPI_Info_get(combined_info, "nc_dw", MPI_MAX_INFO_VAL-1,
+                        value, &flag);
+            if (flag && strcasecmp(value, "enable") == 0)
+                enable_dw_driver = 1;
+        }
 #endif
-   }
 
 #ifdef BUILD_DRIVER_FOO
+    /* check if nc_foo_driver is enabled */
+    if (combined_info != MPI_INFO_NULL) {
+        char value[MPI_MAX_INFO_VAL];
+        int flag;
+
+        MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
+                     value, &flag);
+        if (flag && strcasecmp(value, "enable") == 0)
+            enable_foo_driver = 1;
+    }
+
     if (enable_foo_driver)
         driver = ncfoo_inq_driver();
     else
@@ -416,17 +327,14 @@ ncmpi_create(MPI_Comm    comm,
         }
         else
 #endif
-        {
-            /* TODO: Use environment variable and cmode to tell the file format
-             * which is later used to select the right driver. For now, we have
-             * only one driver, ncmpio.
-             */
-            /* default is ncmpio driver */
-            driver = ncmpio_inq_driver();
-        }
+        /* TODO: Use environment variable and cmode to tell the file format
+         * which is later used to select the right driver. For now, we have
+         * only one driver, ncmpio.
+         */
+        driver = ncmpio_inq_driver();
     }
-#if 0
-    /* refer to netCDF library's USE_REFCOUNT */
+
+#if 0 /* refer to netCDF library's USE_REFCOUNT */
     /* check whether this path is already opened */
     pncp = find_in_PNCList_by_name(path);
     if (pncp != NULL) return NC_ENFILE;
@@ -589,29 +497,31 @@ ncmpi_open(MPI_Comm    comm,
     /* combine user's info and PNETCDF_HINTS env variable */
     combine_env_hints(info, &combined_info);
 
+#ifdef BUILD_DRIVER_DW
+        /* check if nc_dw is enabled */
+        if (combined_info != MPI_INFO_NULL) {
+            char value[MPI_MAX_INFO_VAL];
+            int flag;
+
+            MPI_Info_get(combined_info, "nc_dw", MPI_MAX_INFO_VAL-1,
+                        value, &flag);
+            if (flag && strcasecmp(value, "enable") == 0)
+                enable_dw_driver = 1;
+        }
+#endif
+
 #ifdef BUILD_DRIVER_FOO
     /* check if nc_foo_driver is enabled */
     if (combined_info != MPI_INFO_NULL) {
         char value[MPI_MAX_INFO_VAL];
         int flag;
+
         MPI_Info_get(combined_info, "nc_foo_driver", MPI_MAX_INFO_VAL-1,
                      value, &flag);
         if (flag && strcasecmp(value, "enable") == 0)
             enable_foo_driver = 1;
     }
-#endif
-#ifdef BUILD_DRIVER_DW
-    if (combined_info != MPI_INFO_NULL) {
-        char value[MPI_MAX_INFO_VAL];
-        int flag;
-        MPI_Info_get(combined_info, "nc_dw", MPI_MAX_INFO_VAL-1,
-            value, &flag);
-        if (flag && strcasecmp(value, "enable") == 0)
-            enable_dw_driver = 1;
-    }
-#endif
 
-#ifdef BUILD_DRIVER_FOO
     if (enable_foo_driver)
         driver = ncfoo_inq_driver();
     else
@@ -628,10 +538,7 @@ ncmpi_open(MPI_Comm    comm,
             }
             else
 #endif
-            {
-                /* default is ncmpio driver */
-                driver = ncmpio_inq_driver();
-            }
+        driver = ncmpio_inq_driver();
     }
     else if (format == NC_FORMAT_NETCDF4_CLASSIC) {
         fprintf(stderr,"NC_FORMAT_NETCDF4_CLASSIC is not yet supported\n");
