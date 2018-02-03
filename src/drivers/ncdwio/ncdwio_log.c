@@ -305,7 +305,7 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
  * IN    ncdwp:    NC_dw structure
  */
 int ncdwio_log_enddef(NC_dw *ncdwp){   
-    int i, err;
+    int err;
 #ifdef PNETCDF_PROFILING
     double t1, t2; 
 #endif

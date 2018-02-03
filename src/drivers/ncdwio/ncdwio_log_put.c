@@ -50,7 +50,6 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     MPI_Offset esize, dataoff, recsize;
     MPI_Offset *Start, *Count, *Stride;
     MPI_Offset size;
-    ssize_t ioret;
     NC_dw_metadataentry *entryp;
     NC_dw_metadataheader *headerp;
     
@@ -229,8 +228,8 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     ncdwio_log_sizearray_append(&(ncdwp->entrydatasize), entryp->data_len);
     // Record in index
     // Entry address must be relative as metadata buffer can be reallocated
-    ncdwio_metaidx_add(ncdwp, (NC_dw_metadataentry*)((void*)entryp - 
-                       (void*)(ncdwp->metadata.buffer)));
+    ncdwio_metaidx_add(ncdwp, (NC_dw_metadataentry*)((char*)entryp - 
+                       (char*)(ncdwp->metadata.buffer)));
 
 #ifdef PNETCDF_PROFILING
     t2 = MPI_Wtime();

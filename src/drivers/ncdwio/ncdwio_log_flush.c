@@ -27,6 +27,7 @@
 /* Convert from log type to MPI type used by pnetcdf library
  * Log spec has different enum of types than MPI
  */
+int logtype2mpitype(int type, MPI_Datatype *buftype);
 int logtype2mpitype(int type, MPI_Datatype *buftype){
     /* Convert from log type to MPI type used by pnetcdf library
      * Log spec has different enum of types than MPI
@@ -133,7 +134,7 @@ int log_flush(NC_dw *ncdwp) {
      * Iterate through meta log entries
      */
     headerp = (NC_dw_metadataheader*)ncdwp->metadata.buffer;
-    entryp = (NC_dw_metadataentry*)(ncdwp->metadata.buffer + headerp->entry_begin);
+    entryp = (NC_dw_metadataentry*)(((char*)ncdwp->metadata.buffer) + headerp->entry_begin);
     for (lb = 0; lb < ncdwp->metaidx.nused;){
         for (ub = lb; ub < ncdwp->metaidx.nused; ub++) {
             if (ncdwp->metaidx.entries[ub].valid){
