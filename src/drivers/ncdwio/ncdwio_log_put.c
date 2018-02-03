@@ -58,6 +58,11 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     t1 = MPI_Wtime();
 #endif
 
+    /* it is illegal for start to be NULL */
+    if (start == NULL){
+        DEBUG_RETURN_ERROR(NC_ENULLSTART)
+    }
+
     /* Calculate data size */
     /* Get ndims */
     err = ncdwp->ncmpio_driver->inq_var(ncdwp->ncp, varid, NULL, NULL, &dim, 
