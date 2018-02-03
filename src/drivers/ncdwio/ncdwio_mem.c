@@ -81,7 +81,7 @@ char* ncdwio_log_buffer_alloc(NC_dw_buffer *bp, size_t size) {
     }
     
     /* Increase used buffer size and return the allocated space */
-    ret = bp->buffer + bp->nused;
+    ret = (char*)(((char*)bp->buffer) + bp->nused);
     bp->nused += size;
 
     return ret;

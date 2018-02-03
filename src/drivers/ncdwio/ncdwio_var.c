@@ -346,7 +346,6 @@ ncdwio_bput_var(void             *ncdp,
                int               reqMode)
 {
     int err;
-    NC_dw *ncdwp = (NC_dw*)ncdp;
     
     /* bput same as iput in bb driver */
     err = ncdwio_iput_var(ncdp, varid, start, count, stride, imap, buf, bufcount, buftype, reqid, reqMode);
@@ -434,7 +433,7 @@ ncdwio_put_varn(void              *ncdp,
         if (status == NC_NOERR){
             status = err;
         }
-        bufp += size;
+        bufp = (void*)(((char*)bufp) + size);
     }
 
     if (cbuf != buf){
@@ -558,7 +557,6 @@ ncdwio_bput_varn(void               *ncdp,
                 int                 reqMode)
 {
     int err;
-    NC_dw *ncdwp = (NC_dw*)ncdp;
    
     /* bput same as iput in bb driver */
     err = ncdwio_iput_varn(ncdp, varid, num, starts, counts, buf,

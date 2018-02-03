@@ -128,11 +128,8 @@ int ncdwio_bufferedfile_close(NC_dw_bufferedfile *f) {
  * Buffer after write:             |89  |
  */
 int ncdwio_bufferedfile_write(NC_dw_bufferedfile *f, void *buf, size_t count){
-    int i, err;
+    int err;
     size_t midstart, midend;    // Start and end offset of the mid section related the file position
-    size_t sblock, soff, eblock, eoff;
-    size_t off, len;
-    ssize_t ioret;
 
     if (f->buffer != NULL){
         /* 
@@ -184,7 +181,7 @@ int ncdwio_bufferedfile_write(NC_dw_bufferedfile *f, void *buf, size_t count){
         * Mid section may not exists due to short write region
         */
         if (midend > midstart) {
-            err = ncdwio_sharedfile_write(f->fd, buf + midstart, midend - midstart); 
+            err = ncdwio_sharedfile_write(f->fd, (void*)(((char*)buf) + midstart), midend - midstart); 
             if (err != NC_NOERR){
                 return err;
             }
@@ -196,7 +193,7 @@ int ncdwio_bufferedfile_write(NC_dw_bufferedfile *f, void *buf, size_t count){
         * Tail section may not exists due to perfectly aligned write region
         */
         if (count > midend){
-            memcpy(f->buffer + f->bused, buf + midend, count - midend);
+            memcpy((void*)(((char*)f->buffer) + f->bused), (void*)(((char*)buf) + midend), count - midend);
             f->bused += count - midend;
         }
     }

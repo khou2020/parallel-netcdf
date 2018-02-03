@@ -198,7 +198,7 @@ int ncdwio_sharedfile_pwrite(NC_dw_sharedfile *f, void *buf, size_t count, off_t
         }
 
         // We increase the buffer pointer by amount writen, so it always points to the data of next block
-        buf += offend - offstart;
+        buf = (void*)(((char*)buf) + offend - offstart);
     }
 
     // Record the file size as the largest location ever reach by IO operation
@@ -344,7 +344,7 @@ int ncdwio_sharedfile_pread(NC_dw_sharedfile *f, void *buf, size_t count, off_t 
         }
 
         // We increase the buffer pointer by amount readn, so it always points to the location for next block
-        buf += offend - offstart;
+        buf = (void*)(((char*)buf) + offend - offstart);
     }
 
     // Record the file size as the largest location ever reach by IO operation

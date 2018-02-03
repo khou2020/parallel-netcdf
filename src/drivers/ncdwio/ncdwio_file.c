@@ -103,11 +103,10 @@ ncdwio_open(MPI_Comm     comm,
            MPI_Info     info,
            void       **ncpp)
 {
-    int err, format, flag;
+    int err, format;
     void *ncp=NULL;
     NC_dw *ncdwp;
     PNC_driver *driver=NULL;
-    char value[MPI_MAX_INFO_VAL];
     
     err = ncmpi_inq_file_format(path, &format);
     if (err != NC_NOERR) return err;

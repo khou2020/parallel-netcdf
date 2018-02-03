@@ -33,14 +33,13 @@
 int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     int i, rank, np, err, flag, masterrank;
     char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX];
-    char hint[NC_LOG_PATH_MAX], value[MPI_MAX_INFO_VAL];
     char *abspath, *fname;
     int log_per_node = 0;
 #ifdef PNETCDF_PROFILING
     double t1, t2;
 #endif
     DIR *logdir;
-    ssize_t ioret, headersize;
+    ssize_t headersize;
     NC_dw_metadataheader *headerp;
 
 #ifdef PNETCDF_PROFILING
@@ -306,8 +305,7 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
  * IN    ncdwp:    NC_dw structure
  */
 int ncdwio_log_enddef(NC_dw *ncdwp){   
-    int i, maxdims, err, recdimid;
-    ssize_t ioret;
+    int i, err;
 #ifdef PNETCDF_PROFILING
     double t1, t2; 
 #endif
@@ -486,11 +484,9 @@ int ncdwio_log_close(NC_dw *ncdwp) {
  */
 int ncdwio_log_flush(NC_dw* ncdwp) {
     int err, status = NC_NOERR;
-    int numput;
 #ifdef PNETCDF_PROFILING
     double t1, t2; 
 #endif
-    ssize_t ioret;
     //NC_req *putlist;
     NC_dw_metadataheader *headerp;
 

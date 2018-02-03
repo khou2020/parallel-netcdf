@@ -174,8 +174,6 @@ int ncdwio_put_list_add(NC_dw *ncdwp, int *id) {
  * Decrease nused by 1 to mark the recycled id as unused
  */
 int ncdwio_put_list_remove(NC_dw *ncdwp, int reqid){
-    int i, tmp;
-    int tail, idx;
     NC_dw_put_list *lp = &(ncdwp->putlist);
     
     /* Mark entry as invalid 
