@@ -1505,6 +1505,7 @@ AC_CONFIG_FILES(Makefile \
                 examples/CXX/Makefile \
                 examples/F77/Makefile \
                 examples/F90/Makefile \
+                examples/datawarp/Makefile \
                 benchmarks/Makefile \
                 benchmarks/C/Makefile \
                 benchmarks/FLASH-IO/Makefile \

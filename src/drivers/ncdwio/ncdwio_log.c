@@ -34,6 +34,8 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     int i, rank, np, err, flag, masterrank;
     char logbase[NC_LOG_PATH_MAX], basename[NC_LOG_PATH_MAX];
     char *abspath, *fname;
+    char *private_path = NULL, *stripe_path = NULL;
+    char *logbasep = ".";
     int log_per_node = 0;
 #ifdef PNETCDF_PROFILING
     double t1, t2;
@@ -66,11 +68,26 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
      * filepath is absolute path to the cdf file
      */
 
+    /* Read environment variable for burst buffer path */
+    private_path = getenv("DW_JOB_PRIVATE");
+    stripe_path = getenv("DW_JOB_STRIPED");
+    
+    /* Determine log base */
+    if (ncdwp->logbase[0] != '\0'){
+        logbasep = ncdwp->logbase;
+    }
+    else if (private_path != NULL){
+        logbasep = private_path;
+    }
+    else if (stripe_path != NULL){
+        logbasep = stripe_path;
+    }
+
     /* 
      * Make sure bufferdir exists 
      * NOTE: Assume directory along netcdf file path exists
      */
-    logdir = opendir(ncdwp->logbase);
+    logdir = opendir(logbasep);
     if (logdir == NULL) {
         /* Log base does not exist or not accessible */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
@@ -83,21 +100,24 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
     }
-    abspath = realpath(ncdwp->logbase, logbase);
+    abspath = realpath(logbasep, logbase);
     if (abspath == NULL){
         /* Can not resolve absolute path */
         DEBUG_RETURN_ERROR(NC_EBAD_FILE);
     }
 
+    /* Warn if log base not set by user */
+    if (rank == 0){
+        if (ncdwp->logbase[0] == '\0'){
+            printf("Warning: Log directory not set. Using %s.\n", logbase);
+            fflush(stdout);
+        }
+    }
+
     /* Determine log to process mapping */
     if (rank == 0){
         int j;
-        char *private_path = NULL, *stripe_path = NULL;
         char abs_private_path[NC_LOG_PATH_MAX], abs_stripe_path[NC_LOG_PATH_MAX]; 
-
-        /* Read environment variable */
-        private_path = getenv("DW_JOB_PRIVATE");
-        stripe_path = getenv("DW_JOB_STRIPED");
 
         /* Resolve DW_JOB_PRIVATE and DW_JOB_STRIPED into absolute path*/
         memset(abs_private_path, 0, sizeof(abs_private_path));

@@ -107,7 +107,7 @@ int main(int argc, char** argv)
     /* Info can be freed after file creation */
     MPI_Info_free(&info); 
 
-    /* DataWarp initialize log files on the first time entering data mode */
+    /* DataWarp initialize log files on the first time we enters data mode */
     err = ncmpi_enddef(ncid);
     ERR
 

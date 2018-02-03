@@ -33,16 +33,7 @@ void ncdwio_extract_hint(NC_dw *ncdwp, MPI_Info info){
         strncpy(ncdwp->logbase, value, PATH_MAX);
     }
     else {
-        strncpy(ncdwp->logbase, ".", PATH_MAX);    
-        {
-            int rank;
-            
-            MPI_Comm_rank(ncdwp->comm, &rank);
-            if (rank == 0){
-                printf("Warning: Log directory not set. Using current working directory.\n");
-                fflush(stdout);
-            }
-        }
+        memset(ncdwp->logbase, 0, sizeof(ncdwp->logbase));
     }
     // Overwrite the logfile is already exists (disable)
     MPI_Info_get(info, "nc_dw_overwrite", MPI_MAX_INFO_VAL - 1, 
@@ -95,7 +86,7 @@ void ncdwio_export_hint(NC_dw *ncdwp, MPI_Info info){
     if (!(ncdwp->hints & NC_LOG_HINT_DEL_ON_CLOSE)) {
         MPI_Info_set(info, "nc_dw_del_on_close", "disable");
     }
-    if (strcmp(ncdwp->logbase, ".") != 0) {
+    if (ncdwp->logbase[0] != '\0') {
         MPI_Info_set(info, "nc_dw_dirname", ncdwp->logbase);
     }
     if (ncdwp->flushbuffersize > 0) {
