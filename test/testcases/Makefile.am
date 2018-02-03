@@ -125,7 +125,11 @@ TESTS_ENVIRONMENT += TESTOUTDIR="$(TESTOUTDIR)" ; export TESTOUTDIR;
 
 TESTS = $(TESTPROGRAMS) seq_runs.sh
 TEST_EXTENSIONS = .sh
+if BUILD_DRIVER_DW
+LOG_COMPILER = $(srcdir)/wrap_runs_dw.sh
+else
 LOG_COMPILER = $(srcdir)/wrap_runs.sh
+endif
 SH_LOG_COMPILER =
 
 NC_FILES = $(TESTPROGRAMS:%=$(TESTOUTDIR)/%.nc)

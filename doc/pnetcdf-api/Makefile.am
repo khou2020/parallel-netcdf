@@ -31,8 +31,7 @@ EXTRA_DIST = c_api.tex \
              multiple_io.tex \
              nonblocking.tex \
              pnetcdf-api.bbl \
-             pnetcdf-api.tex \
-             hints.tex
+             pnetcdf-api.tex
 
 CLEANFILES = *.dvi *.log *.aux *.ps $(API_GUIDE)
 
