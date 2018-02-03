@@ -7,23 +7,48 @@
 /* $Id$ */
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * This example shows how to create/open the file using the DataWarp driver.
- * It is a modified version of create_open.c under examples/C using the DataWarp driver.
+ * This example shows how to nonblocking IO with DataWarp driver.
+ * It is same as using without the DataWarp driver with the only exception that 
+ * we may not be able to cancel nonblocking requests
+ * In this example, every process write its rank to n-th cell in 3 1 X N variables.
+ * N is the number of processes.
+ * We will try to cancel the write operations on variable A, and C
+ * While we can cancel the request for variable A, we can not do so for variable C 
+ * because it is already flushed to PFS when we wait on request of variable B
  * 
  *    To compile:
- *        mpicc -O2 create_open.c -o create_open -lpnetcdf
+ *        mpicc -O2 nonblocking.c -o nonblocking -lpnetcdf
+ *
  *
  * Example commands for MPI run and outputs from running ncmpidump on the
  * netCDF file produced by this example program:
  *
- *    % mpiexec -n 4 ./create_open testfile.nc
- *    create_open.c: example of file create and open
+ *    % mpiexec -n 4 ./nonblocking testfile.nc
+ *    nonblocking.c: example of nonblocking IO
  *    Warning: Log directory not set. Using /mnt/c/Users/x3276/Desktop/parallel-netcdf/examples/datawarp.
- *    Warning: Log directory not set. Using /mnt/c/Users/x3276/Desktop/parallel-netcdf/examples/datawarp.
- * 
+ *    Canceling write on variable A, get 0 (No error)
+ *    Waiting on variable B, get 0 (No error)
+ *    Canceling write on variable C, get -306 (Nonblocking requests already flushed.)
  *    % ncmpidump testfile.nc
- *    netcdf testfile {
+ *    netcdf test {
  *    // file format: CDF-1
+ *    dimensions:
+ *            X = 1 ;
+ *            Y = 4 ;
+ *    variables:
+ *            int A(X, Y) ;
+ *            int B(X, Y) ;
+ *            int C(X, Y) ;
+ *    data:
+ *    
+ *     A =
+ *      _, _, _, _ ;
+ *    
+ *     B =
+ *      0, 1, 2, 3 ;
+ *    
+ *     C =
+ *      0, 1, 2, 3 ;
  *    }
  * 
  * Example batch script for running on Cori at NERSC using SLURM scheduler
@@ -33,10 +58,10 @@
  * #SBATCH -N 1 
  * #SBATCH -C haswell
  * #SBATCH -t 00:01:00
- * #SBATCH -o create_open_example.txt
+ * #SBATCH -o nonblocking_example.txt
  * #SBATCH -L scratch
  * #DW jobdw capacity=1289GiB access_mode=private type=scratch pool=sm_pool
- * srun -n 4 ./create_open ${SCRATCH}/testfile.nc
+ * srun -n 4 ./nonblocking ${SCRATCH}/testfile.nc
  *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -64,12 +89,19 @@ int main(int argc, char** argv)
 {
     extern int optind;
     char filename[256];
-    int i, rank, verbose=1, err, nerrs=0;
+    int i, rank, np, verbose=1, err, nerrs=0;
+    int dimid[2];
+    int varid[3];
+    MPI_Offset start[2];
+    int buffer[3];
+    int req[3];
+    int stat;
     int ncid, cmode, omode;
     MPI_Info info;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &np);
 
     /* get command-line arguments */
     while ((i = getopt(argc, argv, "hq")) != EOF)
@@ -86,18 +118,14 @@ int main(int argc, char** argv)
     if (argc > 0)  snprintf(filename, 256, "%s", argv[0]);
     else           strcpy(filename, "testfile.nc");
 
-    if (verbose && rank == 0) printf("%s: example of file create and open\n",__FILE__);
+    if (verbose && rank == 0) printf("%s: example of nonblocking IO\n",__FILE__);
 
     /* Set up the hints for DataWarp driver in ncmpi_create
      * Note that the remaining part of the code remains unchanged
-     * The DataWaro driver will not proceed if the log files already exists to prevent overwriting existing files by accident
-     * To open the file again, we need to delete the log file after file closing
-     * The default value of nc_dw_del_on_close is enable, we set it for the purpose of demonstration.
      * PnetCDF will warn if nc_dw_dirname is not set.
      */
     MPI_Info_create(&info); 
     MPI_Info_set(info, "nc_dw", "enable");
-    MPI_Info_set(info, "nc_dw_del_on_close", "enable"); 
     if (argc > 1) {
         MPI_Info_set(info, "nc_dw_dirname", argv[1]);
     }
@@ -110,31 +138,48 @@ int main(int argc, char** argv)
     /* Info can be freed after file creation */
     MPI_Info_free(&info); 
 
+    /* Fill up the variables with default value */
+    err = ncmpi_set_fill(ncid, NC_FILL, NULL); ERR
+
+    /* Define dimensions */
+    err = ncmpi_def_dim(ncid, "X", 1, dimid);    ERR
+    err = ncmpi_def_dim(ncid, "Y", np, dimid + 1);    ERR
+
+    /* Define variables */
+    err = ncmpi_def_var(ncid, "A", NC_INT, 2, dimid, varid);    ERR
+    err = ncmpi_def_var(ncid, "B", NC_INT, 2, dimid, varid + 1);    ERR
+    err = ncmpi_def_var(ncid, "C", NC_INT, 2, dimid, varid + 2);    ERR
+
     /* DataWarp initialize log files on the first time we enters data mode */
     err = ncmpi_enddef(ncid);
     ERR
 
-    /* close file */
-    err = ncmpi_close(ncid);
-    ERR
+    /* Preparing the buffer */
+    buffer[0] = buffer[1] = buffer[2] = rank;
 
-    /* Set up the hints for DataWarp driver in ncmpi_create
-     * Note that the remaining part of the code remains unchanged
-     * PnetCDF will warn if nc_dw_dirname is not set.
-     */
-    MPI_Info_create(&info); 
-    MPI_Info_set(info, "nc_dw", "enable");
-    if (argc > 1) {
-        MPI_Info_set(info, "nc_dw_dirname", argv[1]);
+    /* Do nonblocking write on variables */
+    start[0] = 0;
+    start[1] = rank;
+    err = ncmpi_iput_var1_int(ncid, varid[0], start, buffer, req);    ERR
+    err = ncmpi_iput_var1_int(ncid, varid[1], start, buffer + 1, req + 1);    ERR
+    err = ncmpi_iput_var1_int(ncid, varid[2], start, buffer + 2, req + 2);    ERR
+
+    /* Cancel first request */
+    err = ncmpi_cancel(ncid, 1, req, &stat); ERR
+    if (rank == 0){
+        printf("Canceling write on variable A, get %d (%s)\n", stat, ncmpi_strerror(stat)); fflush(stdout);
     }
 
-    /* open the newly created file for read only -----------------------------*/
-    omode = NC_WRITE;
-    err = ncmpi_open(MPI_COMM_WORLD, filename, omode, info, &ncid);
-    ERR
-
-    /* Info can be freed after file opening */
-    MPI_Info_free(&info); 
+    /* Wait second request */
+    err = ncmpi_wait_all(ncid, 1, req + 1, &stat); ERR
+    if (rank == 0){
+        printf("Waiting on variable B, get %d (%s)\n", stat, ncmpi_strerror(stat)); fflush(stdout);
+    }
+    /* Cancel third request */
+    err = ncmpi_cancel(ncid, 1, req + 2, &stat); ERR
+    if (rank == 0){
+        printf("Canceling write on variable C, get %d (%s)\n", stat, ncmpi_strerror(stat)); fflush(stdout);
+    }
 
     /* close file */
     err = ncmpi_close(ncid);
