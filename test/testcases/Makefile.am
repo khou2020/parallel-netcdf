@@ -128,12 +128,17 @@ TESTS = $(TESTPROGRAMS) seq_runs.sh
 TEST_EXTENSIONS = .sh
 if BUILD_DRIVER_DW
 LOG_COMPILER = $(srcdir)/wrap_runs_dw.sh
+TESTS += seq_runs_dw.sh
 else
 LOG_COMPILER = $(srcdir)/wrap_runs.sh
 endif
 SH_LOG_COMPILER =
 
 NC_FILES = $(TESTPROGRAMS:%=$(TESTOUTDIR)/%.nc)
+
+if BUILD_DRIVER_DW
+NC_FILES += $(TESTPROGRAMS:%=$(TESTOUTDIR)/%_dw.nc)
+endif
 
 CLEANFILES = $(M4_SRCS:.m4=.c) core core.* *.gcda *.gcno *.gcov gmon.out \
              $(TESTOUTDIR)/testfile.nc \
