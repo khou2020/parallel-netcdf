@@ -3,15 +3,11 @@
 *.o
 *.lo
 *.la
-*.nc
-*.in
 *.mod
-*.txt
 *.log
 *.cache
 *.status
 *.bin
-*.cdf
 *.aux
 *.dvi
 *.pdf
