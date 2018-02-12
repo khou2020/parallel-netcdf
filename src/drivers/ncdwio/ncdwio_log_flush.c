@@ -23,6 +23,7 @@
 #include <common.h>
 #include <stdio.h>
 #include <ncdwio_driver.h>
+#include <mpi.h>
 
 /* Convert from log type to MPI type used by pnetcdf library
  * Log spec has different enum of types than MPI
@@ -80,6 +81,7 @@ int logtype2mpitype(int type, MPI_Datatype *buftype){
 int log_flush(NC_dw *ncdwp) {
     int i, j, lb, ub, err, status = NC_NOERR;
     int *reqids, *stats;
+    int ready, ready_all;
     size_t databufferused, databuffersize, dataread;
     NC_dw_metadataentry *entryp;
     MPI_Offset *start, *count, *stride;
@@ -147,7 +149,7 @@ int log_flush(NC_dw *ncdwp) {
             }
             else{
                 // We encounter a canceled record
-                // Read unread dat in to data buffer and jump through the gap
+                // Read unread data into data buffer and jump through the gap
                 /* 
                  * Read data to buffer
                  * We read only what needed by pending requests
@@ -246,8 +248,8 @@ int log_flush(NC_dw *ncdwp) {
         t2 = MPI_Wtime();
 #endif
         /* 
-            * Wait must be called first or previous data will be corrupted
-            */
+         * Wait must be called first or previous data will be corrupted
+         */
         if (ncdwp->isindep) {
             err = ncdwp->ncmpio_driver->wait(ncdwp->ncp, j, reqids, stats, NC_REQ_INDEP); 
         }
@@ -281,6 +283,43 @@ int log_flush(NC_dw *ncdwp) {
 
         // Mark as complete
         lb = ub;
+
+        /* 
+         * In case of collective flush, we sync our status with other processes
+         */
+        if (!ncdwp->isindep){
+            if (lb >= ncdwp->metaidx.nused){
+                ready = 1;
+            }
+            else{
+                ready = 0;
+            }
+            
+            // Sync status
+            err = MPI_Allreduce(&ready, &ready_all, 1, MPI_INT, MPI_LAND, ncdwp->comm);  
+            if (err != MPI_SUCCESS){
+                DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc(err, "MPI_Allreduce"));
+            }
+        }
+    }
+
+    /* 
+     * In case of collective flush, we must continue to call wait until every process is ready
+     */
+    if (!ncdwp->isindep){
+        while(!ready_all){
+            // Participate collective wait 
+            err = ncdwp->ncmpio_driver->wait(ncdwp->ncp, 0, NULL, NULL, NC_REQ_COLL);
+            if (status == NC_NOERR) {
+                status = err;
+            }
+
+            // Sync status
+            err = MPI_Allreduce(&ready, &ready_all, 1, MPI_INT, MPI_LAND, ncdwp->comm);  
+            if (err != MPI_SUCCESS){
+                DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc(err, "MPI_Allreduce"));
+            }
+        }
     }
                
     /* Free the data buffer */ 
