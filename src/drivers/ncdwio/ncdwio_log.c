@@ -236,6 +236,7 @@ int ncdwio_log_create(NC_dw* ncdwp, MPI_Info info) {
     /* Misc */
     ncdwp->rank = rank;
     ncdwp->np = np;
+    ncdwp->maxentrysize = 0;
 
     /* Initialize metadata header */
     

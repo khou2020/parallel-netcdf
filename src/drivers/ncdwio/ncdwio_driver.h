@@ -190,6 +190,7 @@ typedef struct NC_dw {
     NC_dw_put_list putlist;
     MPI_Offset recdimsize;
     MPI_Offset flushbuffersize;
+    MPI_Offset maxentrysize;
 #ifdef PNETCDF_PROFILING
     /* Profiling information */
     MPI_Offset total_data;

@@ -43,7 +43,6 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
     int err, i, dim, elsize;
     int itype;    /* Type used in log file */
     int *dimids;
-    int skip, skip_all;
     char *buffer;
 #ifdef PNETCDF_PROFILING
     double t1, t2, t3, t4, t5; 
@@ -78,46 +77,9 @@ int ncdwio_log_put_var(NC_dw *ncdwp, int varid, const MPI_Offset start[],
         *putsize = size;
     }
 
-    /* If size of data does not fit flush buffer, we bypass the burst buffer */
-    if (ncdwp->flushbuffersize > 0 && size > ncdwp->flushbuffersize) {
-        skip = 1;
-    }
-    else{
-        skip = 0;
-    }
-
-    // In a collective put, we must sync behavior accross processes
-    if (ncdwp->isindep){
-        skip_all = skip;
-    }
-    else{
-        // Sync behavior
-        err = MPI_Allreduce(&skip, &skip_all, 1, MPI_INT, MPI_LOR, ncdwp->comm);  
-        if (err != MPI_SUCCESS){
-            DEBUG_RETURN_ERROR(ncmpii_error_mpi2nc(err, "MPI_Allreduce"));
-        }
-    }
-
-    /* If we are skipping current entry */
-    if (skip_all) {
-        int reqmode;
-
-        // Flush the log to preserve the order
-        ncdwio_log_flush(ncdwp);
-        
-        /* 
-         * Data size is considered large enough for blocking call
-         * Write to PFS directly
-         */
-        reqmode = NC_REQ_WR | NC_REQ_BLK | NC_REQ_HL | NC_REQ_INDEP;
-        if (ncdwp->isindep){
-            reqmode |= NC_REQ_INDEP;
-        }
-        else{
-            reqmode |= NC_REQ_COLL;
-        }
-        err = ncdwp->ncmpio_driver->put_var(ncdwp->ncp, varid, start, count, stride, NULL, buf, -1, buftype, reqmode);
-        return err;
+    /* Record largest entry size */
+    if (ncdwp->maxentrysize < size){
+        ncdwp->maxentrysize = size;
     }
 
     /* Update record dimension size if is record variable */

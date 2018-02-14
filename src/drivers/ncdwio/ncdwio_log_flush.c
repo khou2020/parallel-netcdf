@@ -107,6 +107,10 @@ int log_flush(NC_dw *ncdwp) {
     if (ncdwp->flushbuffersize > 0 && databuffersize > ncdwp->flushbuffersize){
         databuffersize = ncdwp->flushbuffersize;
     }
+    if (databuffersize < ncdwp->maxentrysize){
+        databuffersize = ncdwp->maxentrysize;
+    }
+    
 #ifdef PNETCDF_PROFILING
     if (ncdwp->max_buffer < databuffersize){
         ncdwp->max_buffer = databuffersize;
