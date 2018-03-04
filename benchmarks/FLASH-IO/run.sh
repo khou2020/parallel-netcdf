@@ -1,26 +1,26 @@
 #!/bin/bash
-#COBALT -t 3
+#COBALT -t 1
 #COBALT -n 1
 #COBALT --attrs mcdram=cache:numa=quad:ssds=required:ssd_size=16
 #COBALT -A ecp-testbed-01
 #COBALT -q debug-flat-quad
-#COBALT -o flash_1.txt
-#COBALT -e flash_1.txt
-
-echo "Starting Cobalt job script"
-export n_nodes=$COBALT_JOBSIZE
-export n_mpi_ranks_per_node=64
-export n_mpi_ranks=$(($n_nodes * $n_mpi_ranks_per_node))
-export n_openmp_threads_per_rank=1
-export n_hyperthreads_per_core=1
-export n_hyperthreads_skipped_between_ranks=7
+#COBALT -o flash_1_${COBALT_JOBID}.txt
+#COBALT -e flash_1_${COBALT_JOBID}.txt
 
 RUNS=(1) # Number of runs
 OUTDIR=/projects/radix-io/khou/FS_64_8M/flash
 BBDIR=/local/scratch
-PPN=64
+PPN=4
 NN=${COBALT_JOBSIZE}
 let NP=NN*PPN
+
+echo "Starting Cobalt job script"
+export n_nodes=$COBALT_JOBSIZE
+export n_mpi_ranks_per_node=${PPN}
+export n_mpi_ranks=$(($n_nodes * $n_mpi_ranks_per_node))
+export n_openmp_threads_per_rank=1
+export n_hyperthreads_per_core=1
+export n_hyperthreads_skipped_between_ranks=7
 
 echo "mkdir -p ${OUTDIR}"
 mkdir -p ${OUTDIR}
