@@ -63,8 +63,10 @@ do
 
                 echo "ls -lah ${OUTDIR}"
                 ls -lah ${OUTDIR}
-                echo "ls -lah ${BBDIR}"
-                ls -lah ${BBDIR}
+                if ["${NP}" -lt 33]; then
+                    echo "ls -lah ${BBDIR}"
+                    ls -lah ${BBDIR}
+                fi
                             
                 echo '-----+-----++------------+++++++++--+---'
             fi
@@ -83,8 +85,10 @@ do
 
                 echo "ls -lah ${OUTDIR}"
                 ls -lah ${OUTDIR}
-                echo "ls -lah ${BBDIR}"
-                ls -lah ${BBDIR}
+                if ["${NP}" -lt 33]; then
+                    echo "ls -lah ${BBDIR}"
+                    ls -lah ${BBDIR}
+                fi
                             
                 echo '-----+-----++------------+++++++++--+---'
             fi

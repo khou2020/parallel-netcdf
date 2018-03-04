@@ -1,4 +1,3 @@
-#!/bin/bash
 #SBATCH -p debug
 #SBATCH -N 1 
 #SBATCH -C haswell
