@@ -53,10 +53,28 @@ do
             if [ "x${u}" = "xblocking" ] && [ "x${v}" = "xcoll" ]; then
                 echo "rm -f ${OUTDIR}/*"
                 rm -f ${OUTDIR}/*
-                echo "rm -f ${BBDIR}/*"
-                rm -f ${BBDIR}/*
-                
+
                 aprun -n ${NP} -N ${PPN} -e PNETCDF_HINTS="nc_dw_driver=enable;nc_dw_del_on_close=disable;nc_dw_overwrite=enable;nc_dw_dirname=${BBDIR}" ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
+
+                echo "#%$: io_driver: dw"
+                echo "#%$: platform: theta"
+                echo "#%$: number_of_nodes: ${NN}"
+                echo "#%$: io_mode: ${u}_${v}"
+
+                echo "ls -lah ${OUTDIR}"
+                ls -lah ${OUTDIR}
+                echo "ls -lah ${BBDIR}"
+                ls -lah ${BBDIR}
+                            
+                echo '-----+-----++------------+++++++++--+---'
+            fi
+
+            # Dw shared
+            if [ "x${u}" = "xblocking" ] && [ "x${v}" = "xcoll" ]; then
+                echo "rm -f ${OUTDIR}/*"
+                rm -f ${OUTDIR}/*
+                
+                aprun -n ${NP} -N ${PPN} -e PNETCDF_HINTS="nc_dw_driver=enable;nc_dw_del_on_close=disable;nc_dw_overwrite=enable;nc_dw_sharedlog=enable;nc_dw_dirname=${BBDIR}" ./flash_benchmark_io ${OUTDIR}/flash_ ${u} ${v}
 
                 echo "#%$: io_driver: dw"
                 echo "#%$: platform: theta"
