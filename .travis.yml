@@ -1,10 +1,10 @@
 language: c
 
 env:
-    global:
-        # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
-        #   via the "travis encrypt" command using the project repo's public key
-        - secure: "QDKXmLZiy4nqyQ/IBsPjgNKzPAH7/p0pUhzz1DK3fROKN82158CwyjsbroC7u6+a8Y0NMUyBt/4PrQu5RvXK/Cc1Pc+8oMoxwupIMOXHWn+tcSojUn0+Vq6CO6ibS7xht+XnS/kGVhsgca3PnMNFqbydgGwipaYxiY13USzQSO2ihh1La2cUl3tyE7tCuw4QdL7BKuYNXEl+Pva0dFtR+eGj89dhCpVQr19MWO2qSOAyMnNQ+T72lq3yQI4o63MRd9/3X89zLiuCrB5gUYpqQ4c3ECbIWCgK/FHICamPnyqZeyyyxiJaRB8wFjt4/y74leborREtPuDBbnH9zzZlcSycP69wFhlvg0bfmF0HFR+OKwxLkcAEuATXqlwLEX0PLTn+iR9iJlyqxY7B5GLPx9buKGx5OJyILtKHh272rNDJXxVEOiwsf5N6fPBhfwsqWJxYOzUopb4Qv1GfCqzkQgKTIxVWTK3RrmSWlyp/KWJr03kc747epj6QMgbMJGJI8u8yM/6a8KCOnoKUTG4t9A10eppQk2Q/krTbcv3Hk46ThJYxq+3NTbjfoLr9jp7YXObkfY+g6mTmr+PUlFqk5+76hC3qbCqVUhH6KxyPcRAngOAyDjpNzd1jqJUFaRJQDXbFd6dwS54p4V2pFuseVEQrdVlZ6e59SX/022JzP5o="       
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "HHLwrxtmKjvYyqF9Kllq9EwyGA2isxluPOfOgQjGkuk8duItPlmYHBwuozKlsRAvgf9G/nsnGfn/m0s1Amj6jCf/AtAwPs4Gd9p52/EYvFmVOT5Fp6wq3LiZWGvvuyeWRFuyNFhdsbu3vREjyTFGtw4brjeZf8TW7ePqpgY7xYBhijpOAzhsH43oFylQbPqUzEvw7Z5haY7RBmeRWpv3eGGhMSSAnBQ4kgScEd6yyc2TL6QeEBfz4DGWD/0JNnZEfTKwCaOJreaWyzhRfN7jwZYAJljrfPiyBdmncLeQZ4En2NyiwgCoKXwne+EKjvZ/uz+E5npMdc/UtiTVlmGeAxr0ep5Y2bZyg1Fje/hGvqPx1namPTHQzhkQa8zAr2Jdp36l5NGynNDhqwzMLH2POQ238vEwUtJ8GPoxYctCtPBd70d91ToqAhjjbsC+Umb0DbWOGZbHeOFxpY38Ccr30Kyp3K7H0BvGwNryB48ATbxJc/YdeFZ79oJmuDoM5omMLFo6PgoRONt9UeHHFM+ayWxiubsF/6taGg+/PNz3BgbjH5DPd+r0skoplnogyJj6zV+RPg2yd1tgoJ+OBiaZj5UyGqOM7uB+OqS7UGTCMA9yrVzJ/fdMgetlUqyRhZMoQeBNPkbmCj8UcYVdfFYP3orPy+jkhUIAq3DSRMGhe/U="
 
 addons:
   coverity_scan:
@@ -58,8 +58,4 @@ after_failure:
   # - cat /home/travis/build/wkliao/parallel-netcdf/cov-int/build-log.txt
 
 notifications:
-    email: 
-        - kai-yuanhou2020@u.northwestern.edu
-branches:
-    only:
-        - master
+  email: false

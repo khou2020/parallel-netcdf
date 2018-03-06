@@ -110,8 +110,6 @@ AH_TEMPLATE([DISABLE_FILE_SYNC],        [Define if to disable MPI_File_sync])
 AH_TEMPLATE([ENABLE_IN_PLACE_SWAP],     [Define if to enable in-place byte swap])
 AH_TEMPLATE([DISABLE_IN_PLACE_SWAP],    [Define if to disable in-place byte swap])
 AH_TEMPLATE([ENABLE_SUBFILING],         [Define if to enable subfiling feature])
-AH_TEMPLATE([BUILD_DRIVER_DW],          [Define if to enable datawarp burst buffer feature])
-AH_TEMPLATE([PNETCDF_PROFILING],        [Define if to enable datawarp burst buffer feature])
 AH_TEMPLATE([PNC_MALLOC_TRACE],         [Define if to enable malloc tracing])
 AH_TEMPLATE([HAVE_FUNC_MACRO],          [Define if C++ macro __func__ is defined])
 AH_TEMPLATE([HAVE_FUNCTION_MACRO],      [Define if C++ macro __FUNCTION__ is defined])
@@ -1324,34 +1322,6 @@ fi
 AC_SUBST(ENABLE_SUBFILING)
 AM_CONDITIONAL(ENABLE_SUBFILING, [test x$enable_subfiling = xyes])
 
-AC_ARG_ENABLE([datawarp],
-   [AS_HELP_STRING([--enable-datawarp],
-                   [Enable datawarp driver support. @<:@default: disabled@:>@])],
-   [enable_dwdriver=${enableval}], [enable_dwdriver=no]
-)
-
-BUILD_DRIVER_DW=0
-if test "x$enable_dwdriver" = "xyes" ; then
-   AC_DEFINE(BUILD_DRIVER_DW)
-   BUILD_DRIVER_DW=1
-fi
-AC_SUBST(BUILD_DRIVER_DW)
-AM_CONDITIONAL(BUILD_DRIVER_DW, [test x$enable_dwdriver = xyes])
-
-AC_ARG_ENABLE([profiling],
-   [AS_HELP_STRING([--enable_profiling],
-                   [Enable time and memory profiling. @<:@default: disabled@:>@])],
-   [enable_profiling=${enableval}], [enable_profiling=no]
-)
-
-PNETCDF_PROFILING=0
-if test "x$enable_profiling" = "xyes" ; then
-   AC_DEFINE(PNETCDF_PROFILING)
-   PNETCDF_PROFILING=1
-fi
-AC_SUBST(PNETCDF_PROFILING)
-AM_CONDITIONAL(PNETCDF_PROFILING, [test x$enable_profiling = xyes])
-
 AC_ARG_ENABLE([erange-fill],
    [AS_HELP_STRING([--disable-erange-fill],
                    [Disable use of fill value when out-of-range type
@@ -1576,7 +1546,6 @@ AC_CONFIG_FILES(Makefile \
                 test/nc_test/Makefile \
                 test/cdf_format/Makefile \
                 test/header/Makefile \
-                test/datawarp/Makefile \
                 test/testcases/Makefile \
                 test/nonblocking/Makefile \
                 test/largefile/Makefile \

@@ -74,7 +74,6 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
 M4_SRCS  = put_all_kinds.m4 erange_fill.m4 tst_vars_fill.m4 iput_all_kinds.m4
 
 nodist_put_all_kinds_SOURCES = put_all_kinds.c
-nodist_iput_all_kinds_SOURCES = iput_all_kinds.c
 nodist_erange_fill_SOURCES = erange_fill.c
 nodist_tst_vars_fill_SOURCES = tst_vars_fill.c
 nodist_iput_all_kinds_SOURCES = iput_all_kinds.c
