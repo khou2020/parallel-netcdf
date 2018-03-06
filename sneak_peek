@@ -11,6 +11,24 @@ This is essentially a placeholder for the next release note ...
   o New Limitations
     * none
 
+  o Update configure options
+    * Option in-place byte-swap is expanded into the followings.
+      --enable-in-place-swap : perform byte swap on user I/O buffers whenever
+      possible. This option results in the least amount of internal memory
+      usage. However, if an immutable user buffer is used, segmentation fault
+      may occur when byte swap is performed on user buffer in place.
+      --disable-in-place-swap : when byte swap is required, an internal memory
+      space will be allocated for byte swap without altering the contents of
+      user buffer. This option will increase internal memory footprint.
+      default (neither the above option is used at the command line): an
+      internal buffer is allocated for byte swap only when the I/O request size
+      is less than 4 KiB. For larger requests, user buffers are used for
+      in-place byte swap.
+      The mode can also be changed at the run time by setting the PnetCDF hint
+      nc_in_place_swap. See New hints below for more info.
+      Note -in-place-swap option only affect applications running on Little
+      Endian machines, as no byte swap is necessary on Big Endian machines.
+
   o New constants
     * none
 
@@ -20,8 +38,15 @@ This is essentially a placeholder for the next release note ...
   o API syntax changes
     * none
 
-  o Semantics updates
-    * none
+  o API semantics updates
+    * ncmpi_put_vard and ncmpi_get_vard APIs
+      1. Now allow to write and read two or more consecutive variables in a
+         single API call. In this case, argument varid will be the ID of first
+         variable. Argument filetype should be constructed by using the
+         relative distance between any two consecutive variables. See example
+         program examples/C/vard_mvars.c.
+      2. When argument filetype is MPI_DATATYPE_NULL, the request is considered
+         a zero-length request.
 
   o New error code precedence
     * none
@@ -33,7 +58,12 @@ This is essentially a placeholder for the next release note ...
     * none
 
   o New PnetCDF hint
-    * none
+    * nc_in_place_swap -- to enable or disable in-place byte swap on Little
+      Endian architectures. The default mode is auto. See in-place byte-swap
+      option above for descriptions of the three modes. Below is an example
+      that changes the mode set at the configure time to "enable", by setting
+      the environment variable PNETCDF_HINTS with command:
+          export PNETCDF_HINTS="nc_in_place_swap=enable"
 
   o New run-time environment variables
     * none
@@ -53,6 +83,8 @@ This is essentially a placeholder for the next release note ...
       more unlimited dimensions are defined in a corrupted file.
 
   o Bug fixes
+    * Fix the calculation of new record number in put_vard API. Thanks to
+      Jim Edwards. See r3675.
     * Fix the calculation of growing size of nonblocking request queues to
       include the number of records of a record variable, as such request is
       split into multiple additional requests, one for each record. See r3651.
@@ -66,12 +98,16 @@ This is essentially a placeholder for the next release note ...
       only appears when reading files with corrupted NC tags. See r3645.
 
   o New example programs
-    * none
+    * example/C/vard_mvars.c shows an example of using a single vard API call
+      to write or read two consecutive variables.
 
   o New programs for I/O benchmarks
     * none
 
   o New test program
+    * test/testcase/test_vard_rec.c - tests ncmpi_put_vard APIs for writing a
+      record variable with one record at a time. This is to test the fix to
+      bug reported by Jim Edwards in r3675.
     * test/nonblocking/large_num_reqs.c - tests large number of nonblocking put
       and get requests (larger than NC_REQUEST_CHUNK, the constant used to grow
       the internal queues that store the nonblocking put and get requests. This

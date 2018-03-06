@@ -16,7 +16,7 @@ AM_CPPFLAGS += -I$(top_builddir)/src/include
 AM_FFLAGS    = -I$(top_builddir)/src/binding/f77
 AM_FCFLAGS   = $(FC_MODINC)$(top_builddir)/src/binding/f90
 AM_FCFLAGS  += $(FC_MODINC)$(srcdir)/../common
-AM_FCFLAGS  += -I$(top_builddir)/src/binding/f77 
+AM_FCFLAGS  += -I$(top_builddir)/src/binding/f77
 LDADD = ${top_builddir}/src/libs/libpnetcdf.la ../common/libtestutils.la -lm
 
 if SIZEOF_MPI_AINT_IS_4
@@ -51,6 +51,8 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                one_record \
                inq_recsize \
                test_vard \
+               test_vard_rec \
+               test_vard_multiple \
                varn_contig \
                ivarn \
                check_striping \
@@ -69,12 +71,13 @@ TESTPROGRAMS = ncmpi_vars_null_stride \
                tst_vars_fill \
                tst_def_var_fill
 
-M4_SRCS  = put_all_kinds.m4 iput_all_kinds.m4 erange_fill.m4 tst_vars_fill.m4
+M4_SRCS  = put_all_kinds.m4 erange_fill.m4 tst_vars_fill.m4 iput_all_kinds.m4
 
 nodist_put_all_kinds_SOURCES = put_all_kinds.c
 nodist_iput_all_kinds_SOURCES = iput_all_kinds.c
 nodist_erange_fill_SOURCES = erange_fill.c
 nodist_tst_vars_fill_SOURCES = tst_vars_fill.c
+nodist_iput_all_kinds_SOURCES = iput_all_kinds.c
 
 if ENABLE_ERANGE_FILL
    M4FLAGS += -DERANGE_FILL
@@ -113,7 +116,8 @@ if HAVE_MPI_MOD
 endif
 endif
 
-check_PROGRAMS = $(TESTPROGRAMS) put_all_kinds iput_all_kinds redef1 tst_vars_fill
+check_PROGRAMS = $(TESTPROGRAMS) put_all_kinds redef1 tst_vars_fill \
+                 iput_all_kinds
 
 # autimake 1.11.3 has not yet implemented AM_TESTS_ENVIRONMENT
 # For newer versions, we can use AM_TESTS_ENVIRONMENT instead
@@ -137,7 +141,12 @@ SH_LOG_COMPILER =
 NC_FILES = $(TESTPROGRAMS:%=$(TESTOUTDIR)/%.nc)
 
 if BUILD_DRIVER_DW
-NC_FILES += $(TESTPROGRAMS:%=$(TESTOUTDIR)/%_dw.nc)
+NC_FILES += $(TESTOUTDIR)/put_all_kinds_dw.nc.cdf1 \
+            $(TESTOUTDIR)/put_all_kinds_dw.nc.cdf2 \
+            $(TESTOUTDIR)/put_all_kinds_dw.nc.cdf5 \
+            $(TESTOUTDIR)/iput_all_kinds_dw.nc.cdf1 \
+            $(TESTOUTDIR)/iput_all_kinds_dw.nc.cdf2 \
+            $(TESTOUTDIR)/iput_all_kinds_dw.nc.cdf5
 endif
 
 CLEANFILES = $(M4_SRCS:.m4=.c) core core.* *.gcda *.gcno *.gcov gmon.out \
@@ -151,7 +160,8 @@ CLEANFILES = $(M4_SRCS:.m4=.c) core core.* *.gcda *.gcno *.gcov gmon.out \
              $(TESTOUTDIR)/iput_all_kinds.nc.cdf5 \
              $(NC_FILES)
 
-EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump wrap_runs.sh
+EXTRA_DIST = $(M4_SRCS) seq_runs.sh redef-good.ncdump \
+             wrap_runs.sh wrap_runs_dw.sh seq_runs_dw.sh
 
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests

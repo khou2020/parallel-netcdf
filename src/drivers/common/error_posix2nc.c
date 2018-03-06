@@ -8,7 +8,7 @@
 /* translate posix io error codes to PnetCDF/netCDF error codes */
 int ncmpii_error_posix2nc(char *err_msg)       /* extra error message */
 {
-    int errorclass, errorStringLen, io_errorcode;
+    int io_errorcode;
     char errorString[MPI_MAX_ERROR_STRING];
 
     /* check for specific error codes understood by PnetCDF */

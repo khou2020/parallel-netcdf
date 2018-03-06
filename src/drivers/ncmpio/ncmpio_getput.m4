@@ -117,8 +117,8 @@ put_varm(NC               *ncp,
          int               reqMode)   /* WR/RD/COLL/INDEP */
 {
     void *xbuf=NULL;
-    int mpireturn, err=NC_NOERR, status=NC_NOERR, need_swap_back_buf=0;
-    int el_size, need_convert, need_swap, buftype_is_contig;
+    int mpireturn, err=NC_NOERR, status=NC_NOERR, buftype_is_contig;
+    int el_size, need_convert, need_swap, in_place_swap, need_swap_back_buf=0;
     MPI_Offset nelems=0, nbytes=0, offset=0;
     MPI_Status mpistatus;
     MPI_Datatype itype, xtype, imaptype, filetype=MPI_BYTE;
@@ -160,7 +160,18 @@ put_varm(NC               *ncp,
 
     /* check if type conversion and Endianness byte swap is needed */
     need_convert = ncmpii_need_convert(ncp->format, varp->xtype, itype);
-    need_swap    = ncmpii_need_swap(varp->xtype, itype);
+    need_swap    = NEED_BYTE_SWAP(varp->xtype, itype);
+
+    if (fIsSet(ncp->flags, NC_MODE_SWAP_ON))
+        in_place_swap = 1;
+    else if (fIsSet(ncp->flags, NC_MODE_SWAP_OFF))
+        in_place_swap = 0;
+    else { /* mode is auto */
+        if (nbytes <= NC_BYTE_SWAP_BUFFER_SIZE)
+            in_place_swap = 0;
+        else
+            in_place_swap = 1;
+    }
 
     /* check whether this is a true varm call, if yes, imaptype will be a
      * newly created MPI derived data type, otherwise MPI_DATATYPE_NULL
@@ -168,13 +179,8 @@ put_varm(NC               *ncp,
     err = ncmpii_create_imaptype(varp->ndims, count, imap, itype, &imaptype);
     if (err != NC_NOERR) goto err_check;
 
-    if (!buftype_is_contig || imaptype != MPI_DATATYPE_NULL || need_convert ||
-#ifdef DISABLE_IN_PLACE_SWAP
-        need_swap
-#else
-        nbytes <= NC_BYTE_SWAP_BUFFER_SIZE
-#endif
-    ) {
+    if (!buftype_is_contig || imaptype != MPI_DATATYPE_NULL || need_convert
+        || (need_swap && in_place_swap == 0)) {
         xbuf = NCI_Malloc((size_t)nbytes);
         if (xbuf == NULL) {
             DEBUG_ASSIGN_ERROR(err, NC_ENOMEM)
@@ -220,8 +226,7 @@ err_check:
          * derived data type.
          */
         err = ncmpio_filetype_create_vars(ncp, varp, start, count, stride,
-                                          reqMode, NULL, &offset, &filetype,
-                                          NULL);
+                                          NULL, &offset, &filetype, NULL);
         if (err != NC_NOERR) {
             filetype = MPI_BYTE;
             nbytes   = 0;
@@ -410,7 +415,7 @@ get_varm(NC               *ncp,
 
     /* check if type conversion and Endianness byte swap is needed */
     need_convert = ncmpii_need_convert(ncp->format, varp->xtype, itype);
-    need_swap    = ncmpii_need_swap(varp->xtype, itype);
+    need_swap    = NEED_BYTE_SWAP(varp->xtype, itype);
 
     /* Check if this is a true varm call. If yes, construct a derived
      * datatype, imaptype.
@@ -454,8 +459,7 @@ err_check:
          * derived data type.
          */
         err = ncmpio_filetype_create_vars(ncp, varp, start, count, stride,
-                                          reqMode, NULL, &offset, &filetype,
-                                          NULL);
+                                          NULL, &offset, &filetype, NULL);
         if (err != NC_NOERR) {
             filetype = MPI_BYTE;
             nbytes   = 0;

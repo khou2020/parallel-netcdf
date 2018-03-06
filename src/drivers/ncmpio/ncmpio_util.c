@@ -71,6 +71,23 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
         else if (ncp->chunk < 0) ncp->chunk = 0;
     }
 
+    /* hint on setting in-place byte swap (matters only for Little Endian) */
+    MPI_Info_get(info, "nc_in_place_swap", MPI_MAX_INFO_VAL-1, value, &flag);
+    if (flag) {
+        if (strcasecmp(value, "enable") == 0) {
+            fClr(ncp->flags, NC_MODE_SWAP_OFF);
+            fSet(ncp->flags, NC_MODE_SWAP_ON);
+        }
+        else if (strcasecmp(value, "disable") == 0) {
+            fClr(ncp->flags, NC_MODE_SWAP_ON);
+            fSet(ncp->flags, NC_MODE_SWAP_OFF);
+        }
+        else if (strcasecmp(value, "auto") == 0) {
+            fClr(ncp->flags, NC_MODE_SWAP_ON);
+            fClr(ncp->flags, NC_MODE_SWAP_OFF);
+        }
+    }
+
 #ifdef ENABLE_SUBFILING
     MPI_Info_get(info, "pnetcdf_subfiling", MPI_MAX_INFO_VAL-1, value, &flag);
     if (flag && strcasecmp(value, "enable") == 0)
@@ -87,6 +104,46 @@ void ncmpio_set_pnetcdf_hints(NC *ncp, MPI_Info info)
 #endif
 }
 
+/*----< ncmpio_first_offset() >-----------------------------------------------*/
+/* Returns the file offset of the first variable element accessed by this
+ * request. Note zero-length request should never call this subroutine.
+ */
+int
+ncmpio_first_offset(const NC         *ncp,
+                    const NC_var     *varp,
+                    const MPI_Offset  start[],  /* [varp->ndims] */
+                    MPI_Offset       *offset)   /* OUT: file offset */
+{
+    int i, ndims;
+
+    ndims = varp->ndims; /* number of dimensions of this variable */
+
+    if (ndims == 0) { /* scalar variable */
+        *offset = varp->begin;
+        return NC_NOERR;
+    }
+
+    *offset = 0;
+    if (IS_RECVAR(varp)) {
+        if (ndims > 1) *offset += start[ndims - 1];
+        for (i=1; i<ndims-1; i++)
+            *offset += start[i] * varp->dsizes[i+1];
+        *offset *= varp->xsz;  /* multiply element size */
+        *offset += start[0] * ncp->recsize;
+    }
+    else {
+        if (ndims > 1) *offset += start[0] * varp->dsizes[1];
+        for (i=1; i<ndims-1; i++)
+            *offset += start[i] * varp->dsizes[i+1];
+        *offset += start[ndims-1];
+        *offset *= varp->xsz;  /* multiply element size */
+    }
+
+    *offset += varp->begin; /* beginning file offset of this variable */
+
+    return NC_NOERR;
+}
+
 /*----< ncmpio_last_offset() >-----------------------------------------------*/
 /* Returns the file offset of the last variable element accessed by this
  * request.
@@ -99,11 +156,10 @@ ncmpio_last_offset(const NC         *ncp,
                    const MPI_Offset  start[],   /* [varp->ndims] */
                    const MPI_Offset  count[],   /* [varp->ndims] */
                    const MPI_Offset  stride[],  /* [varp->ndims] */
-                   const int         reqMode,
                    MPI_Offset       *offset_ptr) /* OUT: file offset */
 {
+    int i, ndims;
     MPI_Offset offset, *last_indx=NULL;
-    int i, ndims, firstDim = 0;
 
     offset = varp->begin; /* beginning file offset of this variable */
     ndims  = varp->ndims; /* number of dimensions of this variable */
@@ -113,6 +169,7 @@ ncmpio_last_offset(const NC         *ncp,
         return NC_NOERR;
     }
 
+    /* when count == NULL, this is called from a var API */
     if (count != NULL) {
         last_indx = (MPI_Offset*) NCI_Malloc((size_t)ndims * SIZEOF_MPI_OFFSET);
 
@@ -133,9 +190,11 @@ ncmpio_last_offset(const NC         *ncp,
         last_indx = (MPI_Offset*) start;
     }
 
+    /* check NC_EINVALCOORDS and NC_EEDGE already done in dispatchers/var_getput.m4 */
+#if 0
     /* check whether last_indx is valid */
 
-    firstDim = 0;
+    int firstDim = 0;
     /* check NC_EINVALCOORDS for record dimension */
     if (varp->shape[0] == NC_UNLIMITED) {
         if (ncp->format < 5 && last_indx[0] > NC_MAX_UINT) { /* CDF-1 and 2 */
@@ -157,6 +216,7 @@ ncmpio_last_offset(const NC         *ncp,
             DEBUG_RETURN_ERROR(NC_EINVALCOORDS)
         }
     }
+#endif
 
     if (varp->shape[0] == NC_UNLIMITED)
         offset += last_indx[0] * ncp->recsize;
@@ -176,6 +236,80 @@ ncmpio_last_offset(const NC         *ncp,
     if (count != NULL) NCI_Free(last_indx);
 
     *offset_ptr = offset;
+    return NC_NOERR;
+}
+
+/*----< ncmpio_access_range() >----------------------------------------------*/
+/* Returns the file offsets of access range of this request: starting file
+ * offset and end offset (exclusive).
+ * Note zero-length request should never call this subroutine.
+ */
+int
+ncmpio_access_range(const NC         *ncp,
+                    const NC_var     *varp,
+                    const MPI_Offset  start[],   /* [varp->ndims] */
+                    const MPI_Offset  count[],   /* [varp->ndims] */
+                    const MPI_Offset  stride[],  /* [varp->ndims] */
+                    MPI_Offset       *start_off, /* OUT: start offset */
+                    MPI_Offset       *end_off)   /* OUT: end   offset */
+{
+    int i, ndims;
+    MPI_Offset *last_indx=NULL;
+
+    ndims = varp->ndims; /* number of dimensions of this variable */
+
+    if (ndims == 0) { /* scalar variable */
+        *start_off = varp->begin; /* beginning file offset of this variable */
+        *end_off   = varp->begin + varp->xsz;
+        return NC_NOERR;
+    }
+
+    assert(start != NULL);
+    assert(count != NULL);
+
+    /* find the last access index in each dimension */
+    last_indx = (MPI_Offset*) NCI_Malloc((size_t)ndims * SIZEOF_MPI_OFFSET);
+    if (stride != NULL) {
+        for (i=0; i<ndims; i++)
+            last_indx[i] = start[i] + (count[i] - 1) * stride[i];
+    }
+    else { /* stride == NULL */
+        for (i=0; i<ndims; i++)
+            last_indx[i] = start[i] + count[i] - 1;
+    }
+
+    if (IS_RECVAR(varp)) {
+        *start_off = 0;
+        *end_off = varp->begin + last_indx[0] * ncp->recsize;
+        if (ndims > 1) {
+            *start_off += start[ndims - 1];
+            *end_off   += last_indx[ndims - 1] * varp->xsz;
+        }
+        for (i=1; i<ndims-1; i++) {
+            *start_off += start[i] * varp->dsizes[i+1];
+            *end_off   += last_indx[i] * varp->dsizes[i+1] * varp->xsz;
+        }
+        *start_off *= varp->xsz;   /* multiply element size */
+        *start_off += start[0] * ncp->recsize;
+        *start_off += varp->begin; /* beginning file offset of this variable */
+    }
+    else {
+        *start_off = 0;
+        *end_off = varp->begin + last_indx[ndims-1] * varp->xsz;
+        if (ndims > 1) {
+            *start_off += start[0] * varp->dsizes[1];
+            *end_off += last_indx[0] * varp->dsizes[1] * varp->xsz;
+        }
+        for (i=1; i<ndims-1; i++) {
+            *start_off += start[i] * varp->dsizes[i+1];
+            *end_off   += last_indx[i] * varp->dsizes[i+1] * varp->xsz;
+        }
+        *start_off += start[ndims-1];
+        *start_off *= varp->xsz;   /* multiply element size */
+        *start_off += varp->begin; /* beginning file offset of this variable */
+    }
+    NCI_Free(last_indx);
+
     return NC_NOERR;
 }
 
@@ -255,7 +389,7 @@ ncmpio_pack_xbuf(int           fmt,    /* NC_FORMAT_CDF2 NC_FORMAT_CDF5 etc. */
                  void         *xbuf)   /* already allocated, in external type */
 {
     int err=NC_NOERR, el_size, position;
-    void *lbuf=NULL, *cbuf=NULL; 
+    void *lbuf=NULL, *cbuf=NULL;
     MPI_Offset ibuf_size;
 
     /* check byte size of buf (internal representation) */
@@ -425,7 +559,7 @@ ncmpio_unpack_xbuf(int           fmt,   /* NC_FORMAT_CDF2 NC_FORMAT_CDF5 etc. */
                    void         *xbuf) /* already allocated, in external type */
 {
     int err=NC_NOERR, el_size, position;
-    void *lbuf=NULL, *cbuf=NULL; 
+    void *lbuf=NULL, *cbuf=NULL;
     MPI_Offset ibuf_size;
 
     /* check byte size of buf (internal representation) */

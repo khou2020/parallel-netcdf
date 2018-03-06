@@ -18,8 +18,8 @@
 #include <testutils.h>
 #include <libgen.h>
 
-int main(int argc, char *argv[]){
-    int i, err, tmp, nerrs = 0;
+int main(int argc, char *argv[]) {
+    int err, tmp, nerrs = 0;
     int rank, np;
     int ncid, varid;
     int buffer, req1, req2, stat;
@@ -32,15 +32,15 @@ int main(int argc, char *argv[]){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &np);
-    
+
     if (argc > 2) {
         if (!rank) printf("Usage: %s [filename]\n", argv[0]);
         MPI_Finalize();
         return 1;
     }
-    
+
     /* Determine test file name */
-    if (argc > 1){
+    if (argc > 1) {
         snprintf(filename, PATH_MAX, "%s", argv[1]);
     }
     else{
@@ -49,10 +49,10 @@ int main(int argc, char *argv[]){
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
-        sprintf(cmd_str, "*** TESTING C   %s for checking log functionality when data is larger than buffer size", basename(argv[0]));
+        sprintf(cmd_str, "*** TESTING C   %s for when requests are > buffer size", basename(argv[0]));
 		printf("%-66s ------ ", cmd_str); fflush(stdout);
 		free(cmd_str);
-	}
+    }
 
      /* Initialize file info */
 	MPI_Info_create(&info);
@@ -118,15 +118,14 @@ int main(int argc, char *argv[]){
         if (rank == 0 && sum_size > 0)
             printf("heap memory allocated by PnetCDF internally has %lld bytes yet to be freed\n", sum_size);
     }
-    
-ERROR:
+
     MPI_Allreduce(MPI_IN_PLACE, &nerrs, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     if (rank == 0) {
         if (nerrs) printf(FAIL_STR, nerrs);
         else       printf(PASS_STR);
     }
-     
+
     MPI_Finalize();
-    
+
     return nerrs > 0;
 }

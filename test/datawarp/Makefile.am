@@ -28,13 +28,16 @@ check_PROGRAMS = dw_bsize \
                  dw_hints \
                  dw_many_reqs \
                  dw_nonblocking \
-                 highdim 
+                 highdim
 
 EXTRA_DIST = wrap_runs.sh
 
 NC_FILES = $(check_PROGRAMS:%=$(TESTOUTDIR)/%.nc)
+META_FILES = $(NC_FILES:%=%_*.meta)
+DATA_FILES = $(NC_FILES:%=%_*.data)
 
-CLEANFILES = $(NC_FILES) core core.* *.gcda *.gcno *.gcov gmon.out
+CLEANFILES = $(NC_FILES) core core.* *.gcda *.gcno *.gcov gmon.out \
+             $(META_FILES) $(DATA_FILES)
 
 ../common/libtestutils.la:
 	set -e; cd ../common && $(MAKE) $(MFLAGS) tests
@@ -70,6 +73,7 @@ TESTMPIRUN6  = `echo $(TESTMPIRUN) | $(SED) -e 's/NP/6/g'`
 ptest ptest4: $(TESTPROGRAMS)
 	for j in 0 ; do { \
 	export PNETCDF_SAFE_MODE=$$j ; \
+	export PNETCDF_HINTS="nc_dw=enable;nc_dw_dirname=${TESTOUTDIR}" ; \
 	set -e ; for i in $(TESTPROGRAMS) ; do ( \
 	$(RM) -f $(TESTOUTDIR)/$$i.nc ; \
 	$(TESTMPIRUN4) ./$$i $(TESTOUTDIR)/$$i.nc ; \
@@ -79,6 +83,7 @@ ptest ptest4: $(TESTPROGRAMS)
 ptest2: $(TESTPROGRAMS)
 	for j in 0 ; do { \
 	export PNETCDF_SAFE_MODE=$$j ; \
+	export PNETCDF_HINTS="nc_dw=enable;nc_dw_dirname=${TESTOUTDIR}" ; \
 	set -e ; for i in $(TESTPROGRAMS); do ( \
 	$(RM) -f $(TESTOUTDIR)/$$i.nc ; \
 	$(TESTMPIRUN2) ./$$i $(TESTOUTDIR)/$$i.nc ; \
@@ -88,6 +93,7 @@ ptest2: $(TESTPROGRAMS)
 ptest6: $(TESTPROGRAMS)
 	for j in 0 ; do { \
 	export PNETCDF_SAFE_MODE=$$j ; \
+	export PNETCDF_HINTS="nc_dw=enable;nc_dw_dirname=${TESTOUTDIR}" ; \
 	set -e ; for i in $(TESTPROGRAMS); do ( \
 	$(RM) -f $(TESTOUTDIR)/$$i.nc ; \
 	$(TESTMPIRUN6) ./$$i $(TESTOUTDIR)/$$i.nc ; \

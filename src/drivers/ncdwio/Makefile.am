@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2012, Northwestern University and Argonne National Laboratory
+# Copyright (C) 2018, Northwestern University and Argonne National Laboratory
 # See COPYRIGHT notice in top-level directory.
 #
 # $Id: Makefile.am 3283 2017-07-30 21:10:11Z wkliao $
@@ -26,8 +26,7 @@ endif
 
 M4_SRCS = #ncdwio_log_flush.m4
 
-H_SRCS = ncdwio_driver.h \
-		 bb.h
+H_SRCS = ncdwio_driver.h
 
 C_SRCS = ncdwio_attr.c \
          ncdwio_dim.c \

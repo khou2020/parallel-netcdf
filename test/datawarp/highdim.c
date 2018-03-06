@@ -7,9 +7,9 @@
 /* $Id$ */
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * This example tests writing a high dimensional int variable when log io is enabled..
- * Each process own a submatrix of size 2 * 2 * 2 * ... 1 * 1 * 1 that have as much 
- * size 2 dimensions as the buffer can accomodate.
+ * This example tests writing a high dimensional int variable when log io is
+ * enabled.  Each process own a submatrix of size 2 * 2 * 2 * ... 1 * 1 * 1
+ * that have as much size 2 dimensions as the buffer can accommodate.
  * All cell in the submatrix is it's rank + 1
  * The submatrix is combined by interleaving along the first dimension.
  * The variable will have size (2 * np) * 2 * 2 * ... 1 * 1 * 1
@@ -40,7 +40,7 @@
  *       3, 3,
  *       4, 4 ;
  *    }
- *    
+ *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 #include <stdio.h>
@@ -61,7 +61,7 @@
 char filename[PATH_MAX];
 char dimname[8];
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     int i, ret = NC_NOERR, nerr = 0;
     int rank, np, ndims;
     int ncid, varid;
@@ -73,22 +73,22 @@ int main(int argc, char *argv[]){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &np);
-    
+
     if (argc > 3) {
         if (!rank) printf("Usage: %s [filename]\n", argv[0]);
         MPI_Finalize();
         return 1;
     }
- 
+
     /* Determine ndims and test file name */
-    if (argc > 1){
+    if (argc > 1) {
         sprintf(filename, "%s", argv[1]);
     }
     else{
         sprintf(filename, "testfile.nc");
     }
 
-    if (argc > 2){
+    if (argc > 2) {
         ndims = atoi(argv[2]);
     }
     else{
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]){
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
-        sprintf(cmd_str, "*** TESTING C   %s for checking log functionality on high dimensions", basename(argv[0]));
+        sprintf(cmd_str, "*** TESTING C   %s for high dimensional variables", basename(argv[0]));
 		printf("%-66s ------ ", cmd_str); fflush(stdout);
 		free(cmd_str);
 	}
@@ -109,26 +109,26 @@ int main(int argc, char *argv[]){
     count = (MPI_Offset*)malloc(sizeof(MPI_Offset) * ndims);
     stride = (MPI_Offset*)malloc(sizeof(MPI_Offset) * ndims);
     buffer = (int*)malloc(sizeof(int) * BSIZE);
-    if (dimid == NULL || start == NULL || count == NULL || stride == NULL || buffer == NULL){
+    if (dimid == NULL || start == NULL || count == NULL || stride == NULL || buffer == NULL) {
         printf("Error at line %d in %s: malloc error\n", __LINE__, __FILE__);
         nerr++;
         goto ERROR;
     }
 
     /* Initialize buffers and calculate share among processes
-     * Each process writes a hyper retangle to the variable
+     * Each process writes a hyper rectangle to the variable
      * The variable is formed by stacking the rectangle of every processes along first dimension
      */
-    for (i = 0; i < BSIZE; i++){
+    for (i = 0; i < BSIZE; i++) {
         buffer[i] = rank + 1;
     }
-    for (i = 0, j = 2; i < ndims; i++){
+    for (i = 0, j = 2; i < ndims; i++) {
         start[i] = 0;
         stride[i] = 1;
         /* Most dimensions must be 1 for high dimensional variable
          * Set dimension size to 2 until we run out of buffer
          */
-        if (j < BSIZE){
+        if (j < BSIZE) {
             count[i] = 2;
             j <<= 1;
         }
@@ -148,10 +148,10 @@ int main(int argc, char *argv[]){
     }
 
     /* Define dimensions */
-    for(i = 0; i < ndims; i++){
+    for (i = 0; i < ndims; i++) {
         sprintf(dimname, "D%d", i);
         /* Submatrix of each process stack along the first dimension */
-        if (i == 0){
+        if (i == 0) {
             ret = ncmpi_def_dim(ncid, dimname, count[i] * np, dimid + i);
         }
         else{
@@ -171,7 +171,7 @@ int main(int argc, char *argv[]){
         nerr++;
         goto ERROR;
     }
-    
+
     /* Switch to data mode */
     ret = ncmpi_enddef(ncid);
     if (ret != NC_NOERR) {
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
         nerr++;
         goto ERROR;
     }
-    
+
     /* Write variable */
     ret = ncmpi_put_vars_int_all(ncid, varid, start, count, stride, buffer);
     if (ret != NC_NOERR) {
@@ -196,9 +196,9 @@ int main(int argc, char *argv[]){
         goto ERROR;
     }
 
-    /* Varify the result */
-    for(i = 0; i < BSIZE; i++){
-        if (buffer[i] != rank + 1){
+    /* Verify the result */
+    for (i = 0; i < BSIZE; i++) {
+        if (buffer[i] != rank + 1) {
             nerr++;
             printf("Error at line %d in %s: expecting buffer[%d] = %d but got %d\n", __LINE__, __FILE__, i, rank + 1, buffer[i]);
         }
@@ -221,7 +221,7 @@ int main(int argc, char *argv[]){
         if (rank == 0 && sum_size > 0)
             printf("heap memory allocated by PnetCDF internally has %lld bytes yet to be freed\n", sum_size);
     }
-    
+
 ERROR:
     MPI_Allreduce(MPI_IN_PLACE, &nerr, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     if (rank == 0) {
@@ -229,23 +229,13 @@ ERROR:
         else       printf(PASS_STR);
     }
 
-    if (start != NULL){
-        free(start);
-    }
-    if (count != NULL){
-        free(count);
-    }
-    if (stride != NULL){
-        free(stride);
-    }
-    if (dimid != NULL){
-        free(dimid);
-    }
-    if (buffer != NULL){
-        free(buffer);
-    }
- 
+    if (start != NULL) free(start);
+    if (count != NULL) free(count);
+    if (stride != NULL) free(stride);
+    if (dimid != NULL) free(dimid);
+    if (buffer != NULL) free(buffer);
+
     MPI_Finalize();
-    
+
     return nerr > 0;
 }

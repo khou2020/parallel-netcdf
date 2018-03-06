@@ -9,7 +9,7 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * This example shows how to create/open the file using the DataWarp driver.
  * It is a modified version of create_open.c under examples/C using the DataWarp driver.
- * 
+ *
  *    To compile:
  *        mpicc -O2 create_open.c -o create_open -lpnetcdf
  *
@@ -20,17 +20,17 @@
  *    create_open.c: example of file create and open
  *    Warning: Log directory not set. Using /mnt/c/Users/x3276/Desktop/parallel-netcdf/examples/datawarp.
  *    Warning: Log directory not set. Using /mnt/c/Users/x3276/Desktop/parallel-netcdf/examples/datawarp.
- * 
+ *
  *    % ncmpidump testfile.nc
  *    netcdf testfile {
  *    // file format: CDF-1
  *    }
- * 
+ *
  * Example batch script for running on Cori at NERSC using SLURM scheduler
- * 
+ *
  * #!/bin/bash
  * #SBATCH -p debug
- * #SBATCH -N 1 
+ * #SBATCH -N 1
  * #SBATCH -C haswell
  * #SBATCH -t 00:01:00
  * #SBATCH -o create_open_example.txt
@@ -90,14 +90,16 @@ int main(int argc, char** argv)
 
     /* Set up the hints for DataWarp driver in ncmpi_create
      * Note that the remaining part of the code remains unchanged
-     * The DataWaro driver will not proceed if the log files already exists to prevent overwriting existing files by accident
+     * The DataWarp driver will not proceed if the log files already exists
+     * to prevent overwriting existing files by accident
      * To open the file again, we need to delete the log file after file closing
-     * The default value of nc_dw_del_on_close is enable, we set it for the purpose of demonstration.
+     * The default value of nc_dw_del_on_close is enable, we set it for the
+     * purpose of demonstration.
      * PnetCDF will warn if nc_dw_dirname is not set.
      */
-    MPI_Info_create(&info); 
+    MPI_Info_create(&info);
     MPI_Info_set(info, "nc_dw", "enable");
-    MPI_Info_set(info, "nc_dw_del_on_close", "enable"); 
+    MPI_Info_set(info, "nc_dw_del_on_close", "enable");
     if (argc > 1) {
         MPI_Info_set(info, "nc_dw_dirname", argv[1]);
     }
@@ -108,7 +110,7 @@ int main(int argc, char** argv)
     ERR
 
     /* Info can be freed after file creation */
-    MPI_Info_free(&info); 
+    MPI_Info_free(&info);
 
     /* DataWarp initialize log files on the first time we enters data mode */
     err = ncmpi_enddef(ncid);
@@ -122,7 +124,7 @@ int main(int argc, char** argv)
      * Note that the remaining part of the code remains unchanged
      * PnetCDF will warn if nc_dw_dirname is not set.
      */
-    MPI_Info_create(&info); 
+    MPI_Info_create(&info);
     MPI_Info_set(info, "nc_dw", "enable");
     if (argc > 1) {
         MPI_Info_set(info, "nc_dw_dirname", argv[1]);
@@ -134,7 +136,7 @@ int main(int argc, char** argv)
     ERR
 
     /* Info can be freed after file opening */
-    MPI_Info_free(&info); 
+    MPI_Info_free(&info);
 
     /* close file */
     err = ncmpi_close(ncid);

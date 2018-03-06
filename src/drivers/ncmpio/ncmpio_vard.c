@@ -46,21 +46,30 @@ getput_vard(NC               *ncp,
             MPI_Datatype      filetype, /* access layout in the file */
             void             *buf,
             MPI_Offset        bufcount,
-            MPI_Datatype      buftype,  /* data type of the bufer */
+            MPI_Datatype      buftype,  /* data type of the buffer */
             int               reqMode)
 {
     void *cbuf=NULL;
-    int i, isderived, el_size, mpireturn, status=NC_NOERR, err=NC_NOERR;
+    int isderived, el_size, mpireturn, status=NC_NOERR, err=NC_NOERR;
     int buftype_is_contig=0, filetype_is_contig=1, is_buf_swapped=0;
-    int need_swap=0, filetype_size=0, buftype_size=0;
+    int need_swap=0, buftype_size=0;
     MPI_Offset btnelems=0, bnelems=0, offset=0, orig_bufcount=bufcount;
     MPI_Status mpistatus;
     MPI_Datatype ptype, orig_buftype=buftype;
     MPI_File fh=MPI_FILE_NULL;
-    MPI_Aint lb, extent=0, true_lb, true_extent;
+#if MPI_VERSION >= 3
+    MPI_Count filetype_size=0;
+    MPI_Count true_lb=0, true_ub=0, true_extent=0;
+#else
+    int filetype_size=0;
+    MPI_Aint true_lb=0, true_ub=0, true_extent=0;
+#endif
 
     if (filetype == MPI_DATATYPE_NULL) {
-        /* this process does zero-length I/O */
+        /* This is actually an invalid filetype that can cause
+         * MPI_File_set_view to fail. In PnetCDF, we simply consider  this as
+         * zero-length request.
+         */
         if (fIsSet(reqMode, NC_REQ_INDEP)) return NC_NOERR;
         bufcount = 0;
         goto err_check;
@@ -80,13 +89,30 @@ getput_vard(NC               *ncp,
     }
 #endif
 
+#if MPI_VERSION >= 3
+    /* MPI_Type_size_x is introduced in MPI 3.0 */
+    mpireturn = MPI_Type_size_x(filetype, &filetype_size);
+    if (mpireturn != MPI_SUCCESS) {
+        err = ncmpii_error_mpi2nc(mpireturn, "MPI_Type_size_x");
+        goto err_check;
+    }
+#else
     /* PROBLEM: argument filetype_size is a 4-byte integer, cannot be used
-     * for largefiletypes */
+     * for large filetypes. Prior to MPI 3.0 standard, argument "size" of
+     * MPI_Type_size is of type int. When int overflows, the returned value
+     * in argument "size" may be a negative. */
     mpireturn = MPI_Type_size(filetype, &filetype_size);
     if (mpireturn != MPI_SUCCESS) {
         err = ncmpii_error_mpi2nc(mpireturn, "MPI_Type_size");
         goto err_check;
     }
+    if (filetype_size < 0) { /* int overflow */
+        err = NC_EINTOVERFLOW;
+        if (fIsSet(reqMode, NC_REQ_INDEP)) return err;
+        bufcount = 0;
+        goto err_check;
+    }
+#endif
 
     if (filetype_size == 0) { /* zero-length request */
         if (fIsSet(reqMode, NC_REQ_INDEP)) return NC_NOERR;
@@ -94,22 +120,36 @@ getput_vard(NC               *ncp,
         goto err_check;
     }
 
+    /* filetype's lb may not always be 0 (e.g. created by constructor
+     * MPI_Type_create_hindexed), we need to find the true last byte accessed
+     * by this request, true_ub, in order to calculate new_numrecs.
+     */
+#if MPI_VERSION >= 3
+    /* MPI_Type_get_true_extent_x is introduced in MPI 3.0 */
+    MPI_Type_get_true_extent_x(filetype, &true_lb, &true_extent);
+#else
     MPI_Type_get_true_extent(filetype, &true_lb, &true_extent);
-    MPI_Type_get_extent(filetype, &lb, &extent);
+#endif
+    true_ub = true_lb + true_extent;
 
+    /* Starting from 1.9.1, reading/writing more than one variable in a
+     * single vard API is allowed.
+     */
+#if 0
+    /* for fixed-size variable, access cannot go beyond end of variable */
     if (!IS_RECVAR(varp)) {
-        /* for fixed-size variable, extent should not be larger than the
-         * variabe size */
+        int i;
         MPI_Offset var_size = varp->xsz;
         for (i=0; i<varp->ndims; i++)
             var_size *= varp->shape[i];
 
-        if (extent > var_size) {
+        /* filetype is relative to the starting offset of variable */
+        if (true_ub > var_size) {
             DEBUG_ASSIGN_ERROR(err, NC_ETYPESIZE)
             goto err_check;
         }
     }
-
+#endif
     cbuf = (void*) buf;
 
     /* find the element type of filetype */
@@ -125,8 +165,8 @@ getput_vard(NC               *ncp,
 
     if (buftype == MPI_DATATYPE_NULL) {
         /* In this case, bufcount is ignored and will be set to the size of
-         * filetype. Note buf's data type must match the data type of variable
-         * defined in the file - no data conversion will be done.
+         * filetype. Note buf's data type must match the external data type of
+         * variable defined in the file - no data conversion will be done.
          */
         /* set buftype to the variable's data type */
         buftype = ncmpii_nc2mpitype(varp->xtype);
@@ -184,48 +224,54 @@ getput_vard(NC               *ncp,
         }
     }
 
-    /* Check if we need byte swap cbuf in-place or (into cbuf) */
-    need_swap = ncmpii_need_swap(varp->xtype, ptype);
-    if (need_swap) {
-        if (fIsSet(reqMode, NC_REQ_WR)) {
-#ifdef DISABLE_IN_PLACE_SWAP
-            if (cbuf == buf)
-#else
-            if (cbuf == buf && filetype_size <= NC_BYTE_SWAP_BUFFER_SIZE)
-#endif
-            {
-                /* allocate cbuf and copy buf to cbuf, cbuf is to be freed */
-                cbuf = NCI_Malloc((size_t)filetype_size);
-                memcpy(cbuf, buf, (size_t)filetype_size);
-            }
-            /* perform array in-place byte swap on cbuf */
-            ncmpii_in_swapn(cbuf, bnelems, varp->xsz);
-            is_buf_swapped = (cbuf == buf) ? 1 : 0;
-            /* is_buf_swapped indicates if the contents of the original user
-             * buffer, buf, have been changed, i.e. byte swapped. */
-        }
+    /* bufcount is used as int in MPI_File_read/write */
+    if (bufcount > INT_MAX) {
+        DEBUG_ASSIGN_ERROR(err, NC_EMAX_REQ)
+        goto err_check;
     }
-    /* no type conversion */
+
+    /* Check if we need byte swap buf in-place or (into cbuf) */
+    need_swap = NEED_BYTE_SWAP(varp->xtype, ptype);
+    if (need_swap && fIsSet(reqMode, NC_REQ_WR)) {
+        if (cbuf == buf &&
+            (fIsSet(ncp->flags, NC_MODE_SWAP_OFF) ||
+             (!fIsSet(ncp->flags, NC_MODE_SWAP_ON) &&
+              filetype_size <= NC_BYTE_SWAP_BUFFER_SIZE))) {
+            /* No in-place byte swap.
+             * allocate cbuf and copy buf to cbuf, cbuf is to be freed */
+            cbuf = NCI_Malloc((size_t)filetype_size);
+            memcpy(cbuf, buf, (size_t)filetype_size);
+        }
+
+        /* perform array in-place byte swap on cbuf */
+        ncmpii_in_swapn(cbuf, bnelems, varp->xsz);
+        is_buf_swapped = (cbuf == buf) ? 1 : 0;
+        /* is_buf_swapped indicates if the contents of the original user
+         * buffer, buf, have been changed, i.e. byte swapped. */
+    }
+    /* no type conversion is allowed by vard APIs */
 
     /* set fileview's displacement to the variable's starting file offset */
     offset = varp->begin;
 
 err_check:
-    /* check API error from any proc before going into a collective call.
-     * optimization: to avoid MPI_Allreduce to check parameters at every call,
-     * we assume caller does the right thing most of the time.  If caller
-     * passed in bad parameters, we'll still conduct a zero-byte operation
-     * (everyone has to participate in the collective I/O call) but return
-     * the error at the end.
+    /* check error before going into a collective call.
+     * If an error has been detected on one or more process, we'll still
+     * conduct a zero-byte operation (everyone has to participate in the
+     * collective I/O call) but return the error at the end.
      */
     if (err != NC_NOERR || bufcount == 0 || filetype_size == 0) {
         if (fIsSet(reqMode, NC_REQ_INDEP)) {
             FINAL_CLEAN_UP  /* swap back put buffer and free temp buffers */
             return err;
         }
-        /* else for NC_REQ_COLL, must participate successive collective calls */
+        /* for NC_REQ_COLL, this process must participate successive collective
+         * MPI-IO calls as a zero-length request.
+         */
         offset = 0;
         bufcount = 0;
+        filetype = MPI_BYTE;
+        buftype  = MPI_BYTE;
     }
     status = err;
 
@@ -239,12 +285,6 @@ err_check:
     if (err != NC_NOERR) {
         bufcount = 0; /* skip this request */
         if (status == NC_NOERR) status = err;
-    }
-
-    /* bufcount is used as int in MPI_File_read/write */
-    if (bufcount > INT_MAX) {
-        DEBUG_ASSIGN_ERROR(err, NC_EMAX_REQ)
-        goto err_check;
     }
 
 #ifdef _USE_MPI_GET_COUNT
@@ -325,12 +365,8 @@ err_check:
     else { /* write request */
         if (IS_RECVAR(varp)) {
             /* update header's number of records in memory */
-            MPI_Offset new_numrecs;
-
-            /* since filetype's LB is required to be == varp->begin for vard
-             * API, we can simply use extent to calculate new_numrecs */
-            new_numrecs = extent / ncp->recsize;
-            if (extent % ncp->recsize) new_numrecs++;
+            MPI_Offset new_numrecs = true_ub / ncp->recsize;
+            if (true_ub % ncp->recsize) new_numrecs++;
 
             if (fIsSet(reqMode, NC_REQ_INDEP)) {
                 /* For independent put, we delay the sync for numrecs until

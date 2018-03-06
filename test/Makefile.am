@@ -16,7 +16,7 @@ C_SUBDIRS = common \
             nonblocking \
             largefile
 
-DIST_SUBDIRS = $(C_SUBDIRS) CXX nf_test nf90_test F90 subfile
+DIST_SUBDIRS = $(C_SUBDIRS) CXX nf_test nf90_test F90 subfile datawarp
 
 SUBDIRS = $(C_SUBDIRS)
 
@@ -42,7 +42,7 @@ endif
 # below is the alternative when AM_EXTRA_RECURSIVE_TARGETS is not defined
 # TESTS_DIRS = $(SUBDIRS:%=tests-%)
 # tests: $(TESTS_DIRS)
-# $(TESTS_DIRS): 
+# $(TESTS_DIRS):
 # 	$(MAKE) $(MFLAGS) -C $(@:tests-%=%) tests
 
 if BUILD_COVERAGE

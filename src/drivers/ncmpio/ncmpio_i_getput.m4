@@ -166,7 +166,7 @@ ncmpio_igetput_varm(NC               *ncp,
 {
     void *xbuf=NULL;
     int i, j, err=NC_NOERR, abuf_index=-1, el_size, buftype_is_contig;
-    int need_convert, need_swap, need_swap_back_buf=0;
+    int need_convert, need_swap, in_place_swap, need_swap_back_buf=0, free_xbuf=0;
     MPI_Offset bnelems=0, nbytes;
     MPI_Datatype ptype, imaptype;
     NC_req *req;
@@ -201,7 +201,18 @@ ncmpio_igetput_varm(NC               *ncp,
 
     /* check if type conversion and Endianness byte swap is needed */
     need_convert = ncmpii_need_convert(ncp->format, varp->xtype, ptype);
-    need_swap    = ncmpii_need_swap(varp->xtype, ptype);
+    need_swap    = NEED_BYTE_SWAP(varp->xtype, ptype);
+
+    if (fIsSet(ncp->flags, NC_MODE_SWAP_ON))
+        in_place_swap = 1;
+    else if (fIsSet(ncp->flags, NC_MODE_SWAP_OFF))
+        in_place_swap = 0;
+    else { /* mode is auto */
+        if (nbytes <= NC_BYTE_SWAP_BUFFER_SIZE)
+            in_place_swap = 0;
+        else
+            in_place_swap = 1;
+    }
 
     /* check whether this is a true varm call, if yes, imaptype will be a
      * newly created MPI derived data type, otherwise MPI_DATATYPE_NULL
@@ -228,14 +239,9 @@ ncmpio_igetput_varm(NC               *ncp,
         }
         else {
             if (!buftype_is_contig || imaptype != MPI_DATATYPE_NULL ||
-                need_convert ||
-#ifdef DISABLE_IN_PLACE_SWAP
-                need_swap
-#else
-                nbytes <= NC_BYTE_SWAP_BUFFER_SIZE
-#endif
-            ) {
+                need_convert || (need_swap && in_place_swap == 0)) {
                 xbuf = NCI_Malloc((size_t)nbytes);
+                free_xbuf = 1;
                 if (xbuf == NULL) DEBUG_RETURN_ERROR(NC_ENOMEM)
                 need_swap_back_buf = 0;
             }
@@ -389,8 +395,10 @@ ncmpio_igetput_varm(NC               *ncp,
          */
         if (buftype_is_contig && imaptype == MPI_DATATYPE_NULL && !need_convert)
             xbuf = buf;  /* there is no buffered read (bget_var, etc.) */
-        else
+        else {
             xbuf = NCI_Malloc((size_t)nbytes);
+            free_xbuf = 1;
+        }
     }
 
     if (fIsSet(reqMode, NC_REQ_WR)) {
@@ -514,6 +522,9 @@ ncmpio_igetput_varm(NC               *ncp,
 
     /* mark req as the lead request */
     fSet(req->flag, NC_REQ_LEAD);
+
+    /* only lead request may free xbuf */
+    if (free_xbuf) fSet(req->flag, NC_REQ_XBUF_TO_BE_FREED);
 
     /* return the request ID */
     if (reqid != NULL) *reqid = req->id;

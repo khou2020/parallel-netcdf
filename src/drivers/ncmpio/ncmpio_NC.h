@@ -20,9 +20,9 @@
 #define FILE_ALIGNMENT_DEFAULT 512
 #define FILE_ALIGNMENT_LB      4
 
-/* define MPI_OFFSET if not defined */
+/* MPI_OFFSET datatype was introduced in MPI 2.2 */
 #ifndef HAVE_DECL_MPI_OFFSET
-    #ifdef HAVE_DECL_MPI_LONG_LONG_INT
+    #if SIZEOF_MPI_OFFSET ==  SIZEOF_MPI_LONG_LONG_INT
         #define MPI_OFFSET MPI_LONG_LONG_INT
     #else
         #define MPI_OFFSET MPI_INT
@@ -276,6 +276,7 @@ ncmpio_NC_lookupvar(NC *ncp, int varid, NC_var **varp);
 #define NC_REQ_BUF_TYPE_CONVERT    0x00000010
 #define NC_REQ_BUF_BYTE_SWAP       0x00000020
 #define NC_REQ_BUF_TO_BE_FREED     0x00000040
+#define NC_REQ_XBUF_TO_BE_FREED    0x00000080
 
 typedef struct NC_req {
     int           flag;         /* bit-wise OR of the above NC_REQ_* flags */
@@ -443,11 +444,11 @@ ncmpio_write_numrecs(NC *ncp, MPI_Offset new_numrecs);
 extern int
 ncmpio_filetype_create_vars(const NC* ncp, const NC_var* varp,
                 const MPI_Offset start[], const MPI_Offset count[],
-                const MPI_Offset stride[], int rw_flag, int *blocklen,
+                const MPI_Offset stride[], int *blocklen,
                 MPI_Offset *offset, MPI_Datatype *filetype,
                 int *is_filetype_contig);
 
-extern int                
+extern int
 ncmpio_file_set_view(const NC *ncp, MPI_File fh, MPI_Offset *offset,
                 MPI_Datatype filetype);
 
@@ -530,9 +531,18 @@ extern int
 ncmpio_NC_check_name(const char *name, int file_ver);
 
 extern int
+ncmpio_first_offset(const NC *ncp, const NC_var *varp, const MPI_Offset start[],
+                    MPI_Offset *offset);
+
+extern int
 ncmpio_last_offset(const NC *ncp, const NC_var *varp, const MPI_Offset starts[],
                    const MPI_Offset counts[], const MPI_Offset strides[],
-                   const int rw_flag, MPI_Offset *offset_ptr);
+                   MPI_Offset *offset_ptr);
+
+extern int
+ncmpio_access_range(const NC *ncp, const NC_var *varp, const MPI_Offset start[],
+                    const MPI_Offset count[], const MPI_Offset stride[],
+                    MPI_Offset *start_off, MPI_Offset *end_off);
 
 extern int
 ncmpio_pack_xbuf(int format, NC_var *varp, MPI_Offset bufcount,

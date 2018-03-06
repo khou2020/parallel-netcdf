@@ -21,7 +21,7 @@
 #define NREQ 2048
 #define NROUND 4
 
-int main(int argc, char *argv[]){
+int main(int argc, char *argv[]) {
     int i, j, err, nerrs = 0;
     int rank, np;
     int ncid, varid;
@@ -35,15 +35,15 @@ int main(int argc, char *argv[]){
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &np);
-    
+
     if (argc > 2) {
         if (!rank) printf("Usage: %s [filename]\n", argv[0]);
         MPI_Finalize();
         return 1;
     }
-    
+
     /* Determine test file name */
-    if (argc > 1){
+    if (argc > 1) {
         snprintf(filename, PATH_MAX, "%s", argv[1]);
     }
     else{
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]){
 
     if (rank == 0) {
         char *cmd_str = (char*)malloc(strlen(argv[0]) + 256);
-        sprintf(cmd_str, "*** TESTING C   %s for checking dw driver nonblocking reqeust on large amount of requests", basename(argv[0]));
+        sprintf(cmd_str, "*** TESTING C   %s for burst buffer big requests", basename(argv[0]));
 		printf("%-66s ------ ", cmd_str); fflush(stdout);
 		free(cmd_str);
 	}
@@ -79,45 +79,45 @@ int main(int argc, char *argv[]){
     reqs = (int*)malloc(sizeof(int) * NREQ);
     stat = (int*)malloc(sizeof(int) * NREQ);
     buffer = (int*)malloc(sizeof(int) * NREQ);
-    for(i = 0; i < NREQ; i++){
+    for (i = 0; i < NREQ; i++) {
         buffer[i] = rank + 1;
     }
 
-    for(j = 0; j < NROUND; j++){
+    for (j = 0; j < NROUND; j++) {
         /* Test nonblocking put */
-        for(i = 0; i < NREQ; i++){
+        for (i = 0; i < NREQ; i++) {
             start[0] = rank;
             start[1] = i;
             err = ncmpi_iput_var1_int(ncid, varid, start, buffer + i, reqs + i);    CHECK_ERR
         }
         err = ncmpi_wait_all(ncid, NREQ, reqs, stat);    CHECK_ERR
-        for(i = 0; i < NREQ; i++){
+        for (i = 0; i < NREQ; i++) {
             err = stat[i];    CHECK_ERR
         }
-        for(i = 0; i < NREQ; i++){
-            if (reqs[i] != NC_REQ_NULL){
+        for (i = 0; i < NREQ; i++) {
+            if (reqs[i] != NC_REQ_NULL) {
                 printf("Error at line %d in %s: expecting reqs[%d] = NC_REQ_NULL but got %d\n", __LINE__, __FILE__, i, reqs[i]);
             }
         }
 
         /* Test nonblocking get */
         memset(buffer, 0, sizeof(int) * NREQ);
-        for(i = 0; i < NREQ; i++){
+        for (i = 0; i < NREQ; i++ ) {
             start[0] = rank;
             start[1] = i;
             err = ncmpi_iget_var1_int(ncid, varid, start, buffer + i, reqs + i);    CHECK_ERR
         }
         err = ncmpi_wait_all(ncid, NREQ, reqs, stat);    CHECK_ERR
-        for(i = 0; i < NREQ; i++){
+        for (i = 0; i < NREQ; i++) {
             err = stat[i];    CHECK_ERR
         }
-        for(i = 0; i < NREQ; i++){
-            if (buffer[i] != rank + 1){
+        for (i = 0; i < NREQ; i++) {
+            if (buffer[i] != rank + 1) {
                 printf("Error at line %d in %s: expecting buffer[%d] = %d but got %d\n", __LINE__, __FILE__, i, rank + 1, buffer[i]);
             }
         }
-        for(i = 0; i < NREQ; i++){
-            if (reqs[i] != NC_REQ_NULL){
+        for (i = 0; i < NREQ; i++) {
+            if (reqs[i] != NC_REQ_NULL) {
                 printf("Error at line %d in %s: expecting reqs[%d] = NC_REQ_NULL but got %d\n", __LINE__, __FILE__, i, reqs[i]);
             }
         }
@@ -139,15 +139,14 @@ int main(int argc, char *argv[]){
         if (rank == 0 && sum_size > 0)
             printf("heap memory allocated by PnetCDF internally has %lld bytes yet to be freed\n", sum_size);
     }
-    
-ERROR:
+
     MPI_Allreduce(MPI_IN_PLACE, &nerrs, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     if (rank == 0) {
         if (nerrs) printf(FAIL_STR, nerrs);
         else       printf(PASS_STR);
     }
-     
+
     MPI_Finalize();
-    
+
     return nerrs > 0;
 }

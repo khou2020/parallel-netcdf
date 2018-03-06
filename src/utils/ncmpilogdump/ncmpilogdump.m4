@@ -38,13 +38,13 @@ define(`PRINTTYPE',dnl
 
 int main(int argc, char *argv[]) {
     int i, j, k, fd, ret, err = NC_NOERR;
-    size_t size, offset;
-    FILE *fmeta, *fdata;
+    size_t offset;
+    FILE *fmeta=NULL, *fdata=NULL;
     struct stat metastat;
     struct stat datastat;
     MPI_Offset *start, *count, *stride;
-    char *data, *head, *tail;
-    char *Data, *Meta;
+    char *tail;
+    char *Data=NULL, *Meta=NULL;
     NC_dw_metadataheader *Header;
     NC_dw_metadataentry *E;
 
@@ -54,17 +54,16 @@ int main(int argc, char *argv[]) {
     }
 
     /* Open metadata log and data log */
-    fmeta = fdata = NULL;
     fmeta = fopen(argv[1], "rb+");
     if (fmeta == NULL) {
         err = NC_EFILE;
-        goto ERROR;
+        goto fn_exit;
     }
-    
+
     /* Get file size */
     fd = fileno(fmeta);
     fstat(fd, &metastat);
-   
+
     /* Allocate buffer */
     Meta = (char*)malloc(metastat.st_size);
 
@@ -72,37 +71,37 @@ int main(int argc, char *argv[]) {
     ret = fread(Meta, metastat.st_size, 1, fmeta);
     if (ret != 1) {
         err = NC_EBADLOG;
-        goto ERROR;
+        goto fn_exit;
     }
- 
+
     /* Open data log if path is given */
     if (argc > 2){
         fdata = fopen(argv[2], "rb+");
         if (fdata == NULL) {
             err = NC_EFILE;
-            goto ERROR;
+            goto fn_exit;
         }
-        
+
         /* Get file size */
         fd = fileno(fdata);
         fstat(fd, &datastat);
-        
+
         /* Allocate buffer */
         Data = (char*)malloc(datastat.st_size);
         /* Read the data */
         ret = fread(Data, datastat.st_size, 1, fdata);
         if (ret != 1) {
             err = NC_EBADLOG;
-            goto ERROR;
+            goto fn_exit;
         }
     }
     else{
         Data = NULL;
     }
-   
+
     /* Parse header */
     Header = (NC_dw_metadataheader*)Meta;
-    
+
     printf("Metadata log header:\n");
     printf("Magic:\t\t\t\t\t\t%.8s\n", Header->magic);
     printf("Format:\t\t\t\t\t\t%.8s\n", Header->format);
@@ -124,7 +123,7 @@ int main(int argc, char *argv[]) {
     printf("Max number of dimensions:\t%lld\n", Header->max_ndims);
     printf("Begin of entry record:\t\t\%lld\n", Header->entry_begin);
     printf("Number of entries:\t\t\t%lld\n", Header->num_entries);
-    
+
     printf("\nData log header:%.8s\n", Header->magic);
     printf("Magic:\t\t\t\t\t\t%.8s\n", Data);
 
@@ -139,7 +138,7 @@ int main(int argc, char *argv[]) {
         start = (MPI_Offset*)tail;
         count = start + E->ndims;
         stride = count + E->ndims;
-       
+
         /* Original function call */
         printf("ncmpi_put_var");
         /* put_vara or put_vars */
@@ -147,14 +146,14 @@ int main(int argc, char *argv[]) {
 foreach(`apikind', (`var1, var, vara, vars'), `PRINTAPIKIND(apikind, upcase(apikind))')dnl
             default:
                 err = NC_EBADLOG;
-                goto ERROR;
+                goto fn_exit;
         }
         /* Data type of function call */
         switch (E->itype){
 foreach(`vartype', (`text, uchar, schar, short, ushort, int, uint, float, double, longlong, ulonglong'), `PRINTTYPE(vartype, upcase(vartype))')dnl
             default:
                 err = NC_EBADLOG;
-                goto ERROR;
+                goto fn_exit;
         }
         /* Start */
         printf("(ncid, %d, [ ", E->varid);
@@ -181,11 +180,11 @@ foreach(`vartype', (`text, uchar, schar, short, ushort, int, uint, float, double
                 if (i < (E->ndims - 1)){
                     printf(", ");
                 }
-            } 
+            }
             printf(" ], ");
         }
         printf("%08llx);\n", E->data_off);
-        
+
         /* Corresponding content in data log */
         if (Data != NULL){
             for (i = 0; i < E->data_len; i+= 16) {
@@ -205,19 +204,12 @@ foreach(`vartype', (`text, uchar, schar, short, ushort, int, uint, float, double
         offset += E->esize;
     }
 
-ERROR:
-    if (fmeta != NULL){
-        fclose(fmeta);
-    }
-    if (fdata != NULL){
-        fclose(fdata);
-    }
-    if (Data != NULL){
-        free(Data);
-    }
-    if (Meta != NULL){
-        free(Meta);
-    }
+fn_exit:
+    if (fmeta != NULL) fclose(fmeta);
+    if (fdata != NULL) fclose(fdata);
+    if (Data != NULL) free(Data);
+    if (Meta != NULL) free(Meta);
+
     switch(err){
         case NC_EFILE:
             printf("Can not open log file\n");
@@ -229,7 +221,7 @@ ERROR:
             break;
         default:
             printf("Unknown error\n");
-            
+
     }
     return 0;
 }

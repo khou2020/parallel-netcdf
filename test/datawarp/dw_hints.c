@@ -11,7 +11,7 @@
  * It is used to test if PnetCDF can correctly calculate the file offsets
  * for the two new variables, in particular for files that align the
  * fix-size variables to a boundary larger than 4 bytes, for instance
- * a file created by PnetCDF with defaut alignment of 512 bytes.
+ * a file created by PnetCDF with default alignment of 512 bytes.
  *
  * The compile and run commands are given below.
  *
@@ -29,11 +29,10 @@
 #include <testutils.h>
 
 int main(int argc, char** argv) {
-    char filename[256], var_name[NC_MAX_NAME];
-    int i, nvars, rank, nprocs, err, flag, nerrs=0;
+    char filename[256];
+    int rank, nprocs, err, flag, nerrs=0;
     int log_enabled;
-    int ncid, varid, dimid[2];
-    MPI_Offset prev_off, off;
+    int ncid;
     MPI_Info info, infoused;
     char hint[MPI_MAX_INFO_VAL];
 
@@ -61,23 +60,21 @@ int main(int argc, char** argv) {
     MPI_Info_set(info, "nc_dw_overwrite", "enable");
     MPI_Info_set(info, "nc_dw_del_on_close", "disable");
     MPI_Info_set(info, "nc_dw_flush_buffer_size", "256");
-    MPI_Info_set(info, "nc_dw_dirname", "()@^$@!(_&$)@(#%%&)(*#$");
+    /* MPI_Info_set(info, "nc_dw_dirname", "()@^$@!(_&$)@(#%%&)(*#$"); */
 
     err = ncmpi_create(MPI_COMM_WORLD, filename, NC_CLOBBER, info, &ncid); CHECK_ERR
     err = ncmpi_inq_file_info(ncid, &infoused); CHECK_ERR
 
     MPI_Info_get(infoused, "nc_dw", MPI_MAX_INFO_VAL - 1, hint, &flag);
-    if (flag && strcasecmp(hint, "enable") == 0){
+    if (flag && strcasecmp(hint, "enable") == 0)
         log_enabled = 1;
-    }
-    else{
+    else
         log_enabled = 0;
-    }
 
     if (log_enabled) {
         MPI_Info_get(infoused, "nc_dw_overwrite", MPI_MAX_INFO_VAL - 1, hint, &flag);
-        if (flag){
-            if (strcmp(hint, "enable") != 0){
+        if (flag) {
+            if (strcmp(hint, "enable") != 0) {
                 printf("Error at line %d: unexpected nc_dw_overwrite = %s, but got %s\n", __LINE__, "enable", hint);
                 nerrs++;
             }
@@ -88,8 +85,8 @@ int main(int argc, char** argv) {
         }
 
         MPI_Info_get(infoused, "nc_dw_del_on_close", MPI_MAX_INFO_VAL - 1, hint, &flag);
-        if (flag){
-            if (strcmp(hint, "disable") != 0){
+        if (flag) {
+            if (strcmp(hint, "disable") != 0) {
                 printf("Error at line %d: unexpected nc_dw_del_on_close = %s, but got %s\n", __LINE__, "disable", hint);
                 nerrs++;
             }
@@ -100,8 +97,8 @@ int main(int argc, char** argv) {
         }
 
         MPI_Info_get(infoused, "nc_dw_flush_buffer_size", MPI_MAX_INFO_VAL - 1, hint, &flag);
-        if (flag){
-            if (strcmp(hint, "256") != 0){
+        if (flag) {
+            if (strcmp(hint, "256") != 0) {
                 printf("Error at line %d: unexpected nc_dw_flush_buffer_size = %s, but got %s\n", __LINE__, "256", hint);
                 nerrs++;
             }
@@ -112,17 +109,12 @@ int main(int argc, char** argv) {
         }
     }
 
-    err = ncmpi_enddef(ncid);
-    if(log_enabled){
-        EXP_ERR(NC_EBAD_FILE)
-    }
-    else{
-        CHECK_ERR
-    }
+    err = ncmpi_enddef(ncid); CHECK_ERR
 
     err = ncmpi_close(ncid); CHECK_ERR
 
     MPI_Info_free(&info);
+    MPI_Info_free(&infoused);
 
     /* check if PnetCDF freed all internal malloc */
     MPI_Offset malloc_size, sum_size;

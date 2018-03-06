@@ -8,14 +8,14 @@
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * This example shows how to nonblocking IO with DataWarp driver.
- * It is same as using without the DataWarp driver with the only exception that 
+ * It is same as using without the DataWarp driver with the only exception that
  * we may not be able to cancel nonblocking requests
  * In this example, every process write its rank to n-th cell in 3 1 X N variables.
  * N is the number of processes.
  * We will try to cancel the write operations on variable A, and C
- * While we can cancel the request for variable A, we can not do so for variable C 
+ * While we can cancel the request for variable A, we can not do so for variable C
  * because it is already flushed to PFS when we wait on request of variable B
- * 
+ *
  *    To compile:
  *        mpicc -O2 nonblocking.c -o nonblocking -lpnetcdf
  *
@@ -40,22 +40,22 @@
  *            int B(X, Y) ;
  *            int C(X, Y) ;
  *    data:
- *    
+ *
  *     A =
  *      _, _, _, _ ;
- *    
+ *
  *     B =
  *      0, 1, 2, 3 ;
- *    
+ *
  *     C =
  *      0, 1, 2, 3 ;
  *    }
- * 
+ *
  * Example batch script for running on Cori at NERSC using SLURM scheduler
- * 
+ *
  * #!/bin/bash
  * #SBATCH -p debug
- * #SBATCH -N 1 
+ * #SBATCH -N 1
  * #SBATCH -C haswell
  * #SBATCH -t 00:01:00
  * #SBATCH -o nonblocking_example.txt
@@ -96,7 +96,7 @@ int main(int argc, char** argv)
     int buffer[3];
     int req[3];
     int stat;
-    int ncid, cmode, omode;
+    int ncid, cmode;
     MPI_Info info;
 
     MPI_Init(&argc, &argv);
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
      * Note that the remaining part of the code remains unchanged
      * PnetCDF will warn if nc_dw_dirname is not set.
      */
-    MPI_Info_create(&info); 
+    MPI_Info_create(&info);
     MPI_Info_set(info, "nc_dw", "enable");
     if (argc > 1) {
         MPI_Info_set(info, "nc_dw_dirname", argv[1]);
@@ -136,7 +136,7 @@ int main(int argc, char** argv)
     ERR
 
     /* Info can be freed after file creation */
-    MPI_Info_free(&info); 
+    MPI_Info_free(&info);
 
     /* Fill up the variables with default value */
     err = ncmpi_set_fill(ncid, NC_FILL, NULL); ERR
@@ -166,20 +166,18 @@ int main(int argc, char** argv)
 
     /* Cancel first request */
     err = ncmpi_cancel(ncid, 1, req, &stat); ERR
-    if (rank == 0){
-        printf("Canceling write on variable A, get %d (%s)\n", stat, ncmpi_strerror(stat)); fflush(stdout);
-    }
+    if (verbose && rank == 0)
+        printf("Canceling write on variable A, get %d (%s)\n", stat, ncmpi_strerror(stat));
 
     /* Wait second request */
     err = ncmpi_wait_all(ncid, 1, req + 1, &stat); ERR
-    if (rank == 0){
-        printf("Waiting on variable B, get %d (%s)\n", stat, ncmpi_strerror(stat)); fflush(stdout);
-    }
+    if (verbose && rank == 0)
+        printf("Waiting on variable B, get %d (%s)\n", stat, ncmpi_strerror(stat));
+
     /* Cancel third request */
     err = ncmpi_cancel(ncid, 1, req + 2, &stat); ERR
-    if (rank == 0){
-        printf("Canceling write on variable C, get %d (%s)\n", stat, ncmpi_strerror(stat)); fflush(stdout);
-    }
+    if (verbose && rank == 0)
+        printf("Canceling write on variable C, get %d (%s)\n", stat, ncmpi_strerror(stat));
 
     /* close file */
     err = ncmpi_close(ncid);
