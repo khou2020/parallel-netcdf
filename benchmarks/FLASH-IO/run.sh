@@ -8,12 +8,6 @@
 #COBALT -e flash_1.txt
 
 echo "Starting Cobalt job script"
-export n_nodes=$COBALT_JOBSIZE
-export n_mpi_ranks_per_node=64
-export n_mpi_ranks=$(($n_nodes * $n_mpi_ranks_per_node))
-export n_openmp_threads_per_rank=1
-export n_hyperthreads_per_core=1
-export n_hyperthreads_skipped_between_ranks=7
 
 RUNS=(1) # Number of runs
 OUTDIR=/projects/radix-io/khou/FS_64_8M/flash
@@ -21,6 +15,13 @@ BBDIR=/local/scratch
 PPN=64
 NN=${COBALT_JOBSIZE}
 let NP=NN*PPN
+
+export n_nodes=$COBALT_JOBSIZE
+export n_mpi_ranks_per_node=${PPN}
+export n_mpi_ranks=$(($n_nodes * $n_mpi_ranks_per_node))
+export n_openmp_threads_per_rank=1
+export n_hyperthreads_per_core=1
+export n_hyperthreads_skipped_between_ranks=7
 
 echo "mkdir -p ${OUTDIR}"
 mkdir -p ${OUTDIR}
